@@ -12,7 +12,7 @@ import logging
 logging.basicConfig()
 from mock import MagicMock
 # Module import
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.devices.dummyDet import DummyDet, DState
 
 

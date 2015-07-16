@@ -1,4 +1,2 @@
-for script in test/*/*.py; do
-    dls-python $script
-done
-    
+HERE=$(dirname $(readlink -f $0))
+dls-python -m unittest discover -s $HERE

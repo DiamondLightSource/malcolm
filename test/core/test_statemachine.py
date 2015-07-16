@@ -1,8 +1,8 @@
 #!/bin/env dls-python
-from enum import Enum
 from pkg_resources import require
 require("mock")
 require("cothread")
+from enum import Enum
 import unittest
 import sys
 import os
@@ -12,7 +12,7 @@ import cothread
 import time
 from mock import patch, MagicMock
 # Module import
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.core.stateMachine import StateMachine
 
 

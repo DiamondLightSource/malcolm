@@ -1,6 +1,7 @@
 #!/bin/env dls-python
 from pkg_resources import require
 require("mock")
+require("cothread")
 import unittest
 import sys
 import os
@@ -8,7 +9,7 @@ import os
 # logging.basicConfig(level=logging.DEBUG)
 from mock import patch, MagicMock
 # Module import
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.core.attribute import Attributes, Attribute
 
 
