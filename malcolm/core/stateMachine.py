@@ -24,6 +24,7 @@ class StateMachine(object):
         self.initial_state = initial_state
         self.error_state = error_state
         self.state = initial_state
+        self.status = {}
         # name for logging
         self.name = name
         # state change listeners for each event
@@ -51,11 +52,12 @@ class StateMachine(object):
 
     def notify_status(self, message, percent=None):
         """Notify listeners with a status message"""
-        args = (self.state, message, time.time(), percent)
-        log.debug("{}: callback status ({}, {}, {}, {})"
-                  .format(self.name, *args))
+        self.status = dict(state=self.state, message=message,
+                           timeStamp=time.time(), percent=percent)
+        log.debug("{}: callback status {}"
+                  .format(self.name, self.status))
         for callback in self.listeners:
-            callback(*args)
+            callback(**self.status)
 
     def event_loop(self):
         """Listen for inputs on input queue and implement state transitions"""
@@ -77,7 +79,7 @@ class StateMachine(object):
                 new_state = transition_func(event, *args, **kwargs)
             except Exception, error:
                 # error give a different return value, any allowed
-                new_state = self.do_error(event, error)
+                self.state = self.do_error(event, error)
             else:
                 # if no state returned and there is only one possibility then
                 # it is implied
@@ -91,14 +93,14 @@ class StateMachine(object):
                     log.warning("{}: {}".format(self.name, message))
                     self.notify_status(message)
                     continue
-            log.info("{}: event {} caused func {} to be called "
-                     "transitioning {} -> {}"
-                     .format(self.name, event, transition_func, self.state,
-                             new_state))
-            if new_state != self.state:
-                self.state = new_state
-                # notify listeners of our new state
-                self.notify_status("State change")
+                log.info("{}: event {} caused func {} to be called "
+                         "transitioning {} -> {}"
+                         .format(self.name, event, transition_func, self.state,
+                                 new_state))
+                if new_state != self.state:
+                    self.state = new_state
+                    # notify listeners of our new state
+                    self.notify_status("State change")
 
     def do_error(self, event, error):
         self.notify_status(error.message)
@@ -164,10 +166,12 @@ class StateMachine(object):
             assert isinstance(state, Enum)
         done = cothread.Pulse()
 
-        def on_transition(new_state, message, time, percent):
-            if new_state in states:
+        def on_transition(state, message, timeStamp, percent):
+            if state in states:
                 done.Signal()
 
         self.add_listener(on_transition)
         done.Wait()
         self.remove_listener(on_transition)
+        if self.state == self.error_state:
+            raise AssertionError(self.status["message"])

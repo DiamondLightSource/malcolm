@@ -73,7 +73,7 @@ class DummyDet(PausableDevice):
         """Reset the underlying device"""
         return DState.Idle
 
-    def on_status(self, state, message, timestamp, percent=None):
+    def on_status(self, state, message, timeStamp, percent=None):
         """Respond to status updates from the sim state machine"""
         if self.state == DState.Configuring and state == SState.Ready:
             self.post(DEvent.ConfigSta, "finished")

@@ -43,7 +43,7 @@ class DeviceWrapper(ZmqProcess):
         self.be_send("", serialize_ready(self.name, "pubsocket"))
         
         # Let cothread get a lookin
-        self.periodic = PeriodicCallback(cothread.Yield, 1, self.loop)
+        self.periodic = PeriodicCallback(cothread.Yield, 5, self.loop)
         self.periodic.start()
 
     def be_send(self, clientid, data):

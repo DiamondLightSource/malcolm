@@ -10,7 +10,7 @@ import cothread
 import logging
 # logging.basicConfig(level=logging.DEBUG)
 logging.basicConfig()
-from mock import MagicMock
+from mock import MagicMock, patch
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.devices.dummyDet import DummyDet, DState
@@ -35,10 +35,10 @@ class DeviceTest(unittest.TestCase):
         end = time.time()
         self.d.remove_listener(callback)
         self.assertLess(end - start, 0.005)
-        states = [a[0][0] for a in callback.call_args_list]
+        states = [a[1]["state"] for a in callback.call_args_list]
         expected = [DState.Configuring] * 3 + [DState.Ready]
         self.assertEqual(states, expected)
-        messages = [a[0][1] for a in callback.call_args_list]
+        messages = [a[1]["message"] for a in callback.call_args_list]
         expected = ["State change", "Configuring started",
                     "Configuring finished", "State change"]
         self.assertEqual(messages, expected)
@@ -55,14 +55,14 @@ class DeviceTest(unittest.TestCase):
         self.d.remove_listener(callback)
         self.assertAlmostEqual(
             end - start, 0.03, delta=0.05)
-        states = [a[0][0] for a in callback.call_args_list]
+        states = [a[1]["state"] for a in callback.call_args_list]
         expected = [DState.Running] * 5 + [DState.Idle]
         self.assertEqual(states, expected)
-        messages = [a[0][1] for a in callback.call_args_list]
+        messages = [a[1]["message"] for a in callback.call_args_list]
         expected = ["State change"] + \
             ["Running in progress"] * 4 + ["State change"]
         self.assertEqual(messages, expected)
-        percents = [a[0][3] for a in callback.call_args_list]
+        percents = [a[1]["percent"] for a in callback.call_args_list]
         expected = [None, 0, 33, 66, 100, None]
         self.assertEqual(percents, expected)
 
@@ -85,16 +85,16 @@ class DeviceTest(unittest.TestCase):
         cothread.Yield()
         self.assertLess(self.ptime, 0.01)
         self.assertEqual(self.d.sim.nframes, 4)
-        states = [a[0][0] for a in callback.call_args_list]
+        states = [a[1]["state"] for a in callback.call_args_list]
         expected = [DState.Running] * 7 + \
             [DState.Pausing] * 5 + [DState.Paused]
         self.assertEqual(states, expected)
-        messages = [a[0][1] for a in callback.call_args_list]
+        messages = [a[1]["message"] for a in callback.call_args_list]
         expected = ["State change"] + ["Running in progress"] * 6 + \
             ["State change"] + ["Pausing in progress"] * 3 + \
             ["Pausing finished", "State change"]
         self.assertEqual(messages, expected)
-        percents = [a[0][3] for a in callback.call_args_list]
+        percents = [a[1]["percent"] for a in callback.call_args_list]
         expected = [None, 0, 10, 20, 30, 40, 50, None, 0, 50, 75, 100, None]
         self.assertEqual(percents, expected)
         # Now paused, so resume and get the last 4 frames
@@ -104,16 +104,24 @@ class DeviceTest(unittest.TestCase):
         end = time.time()
         self.assertAlmostEqual(end - start, 0.04, delta=0.01)
         self.assertEqual(self.d.sim.nframes, 0)
-        states = [a[0][0] for a in callback.call_args_list]
+        states = [a[1]["state"] for a in callback.call_args_list]
         expected = [DState.Running] * 6 + [DState.Idle]
         self.assertEqual(states, expected)
-        messages = [a[0][1] for a in callback.call_args_list]
+        messages = [a[1]["message"] for a in callback.call_args_list]
         expected = ["State change"] + \
             ["Running in progress"] * 5 + ["State change"]
         self.assertEqual(messages, expected)
-        percents = [a[0][3] for a in callback.call_args_list]
+        percents = [a[1]["percent"] for a in callback.call_args_list]
         expected = [None, 60, 70, 80, 90, 100, None]
         self.assertEqual(percents, expected)
+
+    def test_run_from_idle_not_allowed(self):
+        self.assertRaises(AssertionError, self.d.run)
+
+    @patch("malcolm.core.stateMachine.log.error")
+    def test_configure_with_wrong_params_raises(self, mock_error):
+        self.assertRaises(AssertionError, self.d.configure)
+        mock_error.assert_called_once_with("D: event DEvent.Config caused error TypeError('do_config() takes exactly 4 arguments (2 given)',) in transition func")
 
     def test_attribute_settings_and_locals(self):
         self.assertEqual(self.d.nframes, None)

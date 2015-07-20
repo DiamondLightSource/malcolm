@@ -24,7 +24,7 @@ class FunctionCaller(object):
         log.debug("recv {}".format(reply))
         d = deserialize(reply)
         if d["type"] == "return":
-            return d["val"]
+            return d.get("val")
         elif d["type"] == "error":
             raise eval(d["name"])(d["message"])
         else:
