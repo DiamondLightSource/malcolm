@@ -29,22 +29,22 @@ class MockFunctionCaller(FunctionCaller):
 class FunctionCallerTest(unittest.TestCase):
 
     def setUp(self):
-        self.fc = MockFunctionCaller()
+        self.fc = MockFunctionCaller("mydevice")
 
     def test_call_single_return(self):
         ret = "return val"
         self.fc.socket.recv.return_value = json.dumps(
-            dict(name="return", ret=ret))
+            dict(type="return", val=ret))
         self.assertEqual(self.fc.call("myfunc", bar="bat"), ret)
         self.fc.socket.send.assert_called_once_with(
-            json.dumps(dict(name="myfunc", args=dict(bar="bat"))))
+            json.dumps(dict(type="call", device="mydevice", method="myfunc", args=dict(bar="bat"))))
 
     def test_error_call(self):
         self.fc.socket.recv.return_value = json.dumps(
-            dict(name="error", type="NameError", message="bad"))
+            dict(type="error", name="NameError", message="bad"))
         self.assertRaises(NameError, self.fc.call, "myfunc", bar="bat")
         self.fc.socket.send.assert_called_once_with(
-            json.dumps(dict(name="myfunc", args=dict(bar="bat"))))
+            json.dumps(dict(type="call", device="mydevice", method="myfunc", args=dict(bar="bat"))))
 
 
 class MiniRouter(ZmqProcess):
@@ -82,11 +82,11 @@ class FunctionCallerProcTest(unittest.TestCase):
         # mimic the Ping process
         self.req_sock = make_sock(self.context, zmq.REQ,
                                   connect=MiniRouter.fe_addr)
-        self.fc = FunctionCaller(fe_addr=MiniRouter.fe_addr)
+        self.fc = FunctionCaller("mydevice", fe_addr=MiniRouter.fe_addr)
 
     def test_correct_return(self):
         ret = "return val"
-        self.mr = MiniRouter(json.dumps(dict(name="return", ret=ret)))
+        self.mr = MiniRouter(json.dumps(dict(type="return", val=ret)))
         self.mr.start()
         self.assertEqual(self.fc.call("myfunc", bar="bat"), ret)
 

@@ -83,3 +83,8 @@ class TestSocket(object):
         for func in wrapped_fwd:
             setattr(self, func.__name__, get_wrapped_fwd(func))
             
+def decorate(function):
+    def decorated_command(self, *args, **kwargs):
+        return function(self, *args, **kwargs)
+    return decorated_command
+

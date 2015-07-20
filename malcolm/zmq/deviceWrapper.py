@@ -8,10 +8,10 @@ import logging
 log = logging.getLogger(__name__)
 
 
-class FunctionRunner(ZmqProcess):
+class DeviceWrapper(ZmqProcess):
 
     def __init__(self, name, device_class, be_addr="ipc://frbe.ipc", **device_kwargs):
-        super(FunctionRunner, self).__init__()
+        super(DeviceWrapper, self).__init__()
         self.name = name
         self.be_addr = be_addr
         self.be_stream = None
@@ -21,7 +21,7 @@ class FunctionRunner(ZmqProcess):
 
     def setup(self):
         """Sets up PyZMQ and creates all streams."""
-        super(FunctionRunner, self).setup()
+        super(DeviceWrapper, self).setup()
 
         # Make the device object and run it
         self.device = self.device_class(self.name, **self.device_kwargs)
@@ -52,23 +52,31 @@ class FunctionRunner(ZmqProcess):
         else:
             self.be_send(clientid, serialize_return(ret))
 
+    def do_call(self, clientid, d):
+        # check that we have the right type of message
+        assert d["type"] == "call", "Expected type=call, got {}".format(d)
+        device = d["device"]
+        assert device == self.name, "Wrong device name {}".format(device)
+        method = d["method"]        # get the function name
+        assert method in self.functions, "Invalid function {}".format(method)
+        args = d.get("args", {})
+        # Run the function
+        cothread.Spawn(
+            self.do_func, clientid, self.functions[method], args)
+
     def handle_be(self, msg):
         log.debug("handle_be {}".format(msg))
         clientid, _, data = msg
-        # check message type
-        d = deserialize(data)
-        split = deserialize(data)["name"].split(".", 1)
-        if len(split) == 1:
-            fname = split[0]
-        else:
-            device, fname = split
-            if device != self.name:
-                e = NameError("Wrong device name {}".format(device))
-                self.be_send(clientid, serialize_error(e))
-                return
-        if fname in self.functions:
-            cothread.Spawn(
-                self.do_func, clientid, self.functions[fname], d["args"])
-        else:
-            e = NameError("Invalid function {}".format(fname))
+        # Classify what type of method it is
+        try:
+            d = deserialize(data)
+        except Exception as e:
             self.be_send(clientid, serialize_error(e))
+            return
+        # Now do the identified action
+        try:
+            getattr(self, "do_"+d["type"])(clientid, d)
+        except Exception as e:
+            # send error up the chain
+            self.be_send(clientid, serialize_error(e))
+
