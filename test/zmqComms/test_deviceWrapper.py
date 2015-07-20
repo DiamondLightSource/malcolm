@@ -7,18 +7,17 @@ import cothread
 import unittest
 import sys
 import os
-import multiprocessing
 import json
 import zmq
 import time
 from support import make_sock, decorate
 
-import logging
-logging.basicConfig(level=logging.DEBUG)
-from mock import patch, MagicMock
+#import logging
+# logging.basicConfig(level=logging.DEBUG)
+from mock import MagicMock
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from malcolm.zmq.deviceWrapper import DeviceWrapper
+from malcolm.zmqComms.deviceWrapper import DeviceWrapper
 
 
 class DeviceWrapperTest(unittest.TestCase):
@@ -36,14 +35,16 @@ class DeviceWrapperTest(unittest.TestCase):
     def test_no_matching_func_error(self):
         self.expected_reply = json.dumps(
             dict(type="error", name="AssertionError", message="Invalid function foo"))
-        client = self.send_request(type="call", device="zebra1", method="foo", args=dict(bar="bat"))
+        client = self.send_request(
+            type="call", device="zebra1", method="foo", args=dict(bar="bat"))
         self.dw.be_stream.send_multipart.assert_called_once_with(
             [client, "", self.expected_reply])
 
     def test_wrong_device_name_error(self):
         self.expected_reply = json.dumps(
             dict(type="error", name="AssertionError", message="Wrong device name thing"))
-        client = self.send_request(type="call", device="thing", method="foo", args=dict(bar="bat"))
+        client = self.send_request(
+            type="call", device="thing", method="foo", args=dict(bar="bat"))
         self.dw.be_stream.send_multipart.assert_called_once_with(
             [client, "", self.expected_reply])
 
@@ -53,12 +54,12 @@ class DeviceWrapperTest(unittest.TestCase):
         self.dw.functions["func"] = func
         self.expected_reply = json.dumps(
             dict(type="return", val="done"))
-        client = self.send_request(type="call", device="zebra1", method="func", args={})
+        client = self.send_request(
+            type="call", device="zebra1", method="func", args={})
         # running this directly, not under the ioloop, so get to yield manually
         cothread.Yield()
         self.dw.be_stream.send_multipart.assert_called_once_with(
             [client, "", self.expected_reply])
-
 
 
 class Counter(object):

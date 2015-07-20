@@ -3,6 +3,7 @@ import zmq
 import logging
 log = logging.getLogger(__name__)
 
+
 class FunctionCaller(object):
 
     def __init__(self, device, fe_addr="ipc://frfe.ipc"):

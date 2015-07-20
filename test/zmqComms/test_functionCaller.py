@@ -16,8 +16,8 @@ from support import make_sock
 from mock import patch, MagicMock
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from malcolm.zmq.functionCaller import FunctionCaller
-from malcolm.zmq.base import ZmqProcess
+from malcolm.zmqComms.functionCaller import FunctionCaller
+from malcolm.zmqComms.base import ZmqProcess
 
 
 class MockFunctionCaller(FunctionCaller):

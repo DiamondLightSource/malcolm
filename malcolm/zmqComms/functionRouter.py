@@ -1,9 +1,8 @@
-from serialize import deserialize, serialize_error, serialize_return, serialize_call
+from serialize import deserialize, serialize_error, serialize_return, \
+    serialize_call
 import zmq
 from base import ZmqProcess
 import logging
-import time
-from zmq.eventloop.minitornado.ioloop import PeriodicCallback
 import datetime
 log = logging.getLogger(__name__)
 
@@ -61,8 +60,8 @@ class FunctionRouter(ZmqProcess):
             ret = getattr(self, method)()
             self.fe_send(clientid, serialize_return(ret))
         else:
-            assert device in self._devices, "No device named {} registered".format(
-                device)
+            assert device in self._devices, \
+                "No device named {} registered".format(device)
             # dispatch event to device
             self.be_send(self._devices[device], clientid, data)
 
@@ -78,8 +77,6 @@ class FunctionRouter(ZmqProcess):
         # Now do the identified action
         try:
             getattr(self, "do_" + d["type"])(clientid, d, data)
-            #for device, deviceid in self._devices.items():
-            #    self.be_send(deviceid, "", serialize_call(device, "stop"))                        
         except Exception as e:
             # send error up the chain
             self.fe_send(clientid, serialize_error(e))
@@ -117,7 +114,8 @@ class FunctionRouter(ZmqProcess):
             self.be_send(deviceid, clientid, serialize_error(e))
 
     def handle_cs(self, device):
-        self.be_send(self._devices[device], "", serialize_call(device, "pubstart"))
+        self.be_send(
+            self._devices[device], "", serialize_call(device, "pubstart"))
 
     def devices(self):
         return list(self._devices)

@@ -2,6 +2,7 @@ import json
 
 TYPES = ["call", "get", "error", "return", "ready"]
 
+
 def serialize_call(device, method, **args):
     d = dict(type="call", device=device, method=method)
     if args:

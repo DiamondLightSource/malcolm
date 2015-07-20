@@ -1,11 +1,9 @@
 # example_app/base.py
 import multiprocessing
-import cothread
 
 from zmq.eventloop import ioloop, zmqstream
 import zmq
-from zmq.utils import jsonapi as json
-from zmq.eventloop.ioloop import PeriodicCallback
+
 
 class ZmqProcess(multiprocessing.Process):
     """
@@ -31,7 +29,7 @@ class ZmqProcess(multiprocessing.Process):
         self.context = zmq.Context()
         self.loop = ioloop.IOLoop.instance()
         # Arrange for cothread to be serviced
-    
+
     def stream(self, sock_type, addr, bind, subscribe=b''):
         """
         Creates a :class:`~zmq.eventloop.zmqstream.ZMQStream`.
@@ -64,8 +62,6 @@ class ZmqProcess(multiprocessing.Process):
     def run(self):
         """Sets up everything and starts the event loop."""
         self.setup()
-        self.periodic = PeriodicCallback(cothread.Yield, 1, self.loop)
-        self.periodic.start()
         self.loop.start()
 
     def stop(self):

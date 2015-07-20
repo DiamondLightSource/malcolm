@@ -16,7 +16,7 @@ from support import make_sock
 from mock import patch, MagicMock
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from malcolm.zmq.functionRouter import FunctionRouter
+from malcolm.zmqComms.functionRouter import FunctionRouter
 
 
 class FunctionRouterTest(unittest.TestCase):

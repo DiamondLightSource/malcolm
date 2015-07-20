@@ -1,6 +1,6 @@
 #!/bin/env dls-python
 from pkg_resources import require
-from malcolm.zmq.serialize import serialize_call, serialize_return
+from malcolm.zmqComms.serialize import serialize_call, serialize_return
 require("mock")
 require("pyzmq")
 require("cothread")
@@ -19,9 +19,9 @@ from support import make_sock, decorate
 from mock import patch, MagicMock
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from malcolm.zmq.functionCaller import FunctionCaller
-from malcolm.zmq.functionRouter import FunctionRouter
-from malcolm.zmq.deviceWrapper import DeviceWrapper
+from malcolm.zmqComms.functionCaller import FunctionCaller
+from malcolm.zmqComms.functionRouter import FunctionRouter
+from malcolm.zmqComms.deviceWrapper import DeviceWrapper
 
 class Counter(object):
 
