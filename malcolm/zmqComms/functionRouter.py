@@ -2,15 +2,13 @@ from serialize import deserialize, serialize_error, serialize_return, \
     serialize_call
 import zmq
 from base import ZmqProcess
+from malcolm.core import wrap_method, Method
 import logging
 import datetime
 log = logging.getLogger(__name__)
 
 
 class FunctionRouter(ZmqProcess):
-    # These functions are allowed to be called from externally
-    internal_functions = ["stop", "devices"]
-
     def __init__(self, fe_addr="ipc://frfe.ipc", be_addr="ipc://frbe.ipc",
                  cs_addr="inproc://cachesig"):
         super(FunctionRouter, self).__init__()
@@ -21,6 +19,7 @@ class FunctionRouter(ZmqProcess):
         self.be_stream = None
         self.cs_stream = None
         self._devices = {}
+        self.methods = Method.describe_methods(self)
 
     def setup(self):
         """Sets up PyZMQ and creates all streams."""
@@ -55,10 +54,30 @@ class FunctionRouter(ZmqProcess):
         device = d["device"]
         method = d["method"]        # get the function name
         if device == "malcolm":
-            assert method in self.internal_functions, \
+            assert method in self.methods, \
                 "Invalid internal method {}".format(method)
-            ret = getattr(self, method)()
+            ret = self.methods[method]()
             self.fe_send(clientid, serialize_return(ret))
+        else:
+            assert device in self._devices, \
+                "No device named {} registered".format(device)
+            # dispatch event to device
+            self.be_send(self._devices[device], clientid, data)
+
+    def do_get(self, clientid, d, data):
+        # check that we have the right type of message
+        assert d["type"] == "get", "Expected type=get, got {}".format(d)
+        device = d["device"]
+        if device == "malcolm":
+            param = d.get("param")
+            parameters = self
+            if param is not None:
+                for p in param.split("."):
+                    try:
+                        parameters = parameters[p]
+                    except:
+                        parameters = parameters.to_dict()[p]
+            self.fe_send(clientid, serialize_return(parameters))
         else:
             assert device in self._devices, \
                 "No device named {} registered".format(device)
@@ -117,13 +136,21 @@ class FunctionRouter(ZmqProcess):
         self.be_send(
             self._devices[device], "", serialize_call(device, "pubstart"))
 
+    @wrap_method(only_in=None)
     def devices(self):
+        "List all available malcolm devices"
         return list(self._devices)
 
-    def stop(self):
+    @wrap_method(only_in=None)
+    def pleasestopnow(self):
+        "Stop the router and all of the devices attached to it"
         # stop all of our devices
         for device, deviceid in self._devices.items():
-            self.be_send(deviceid, "", serialize_call(device, "stop"))
+            self.be_send(deviceid, "", serialize_call(device, "pleasestopnow"))
         # Let our event loop run just long enough to send the message
         then = datetime.timedelta(milliseconds=1)
-        self.loop.add_timeout(then, super(FunctionRouter, self).stop)
+        self.loop.add_timeout(then, self.stop)
+
+    def to_dict(self):
+        d = dict(methods=self.methods)
+        return d

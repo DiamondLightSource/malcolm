@@ -7,7 +7,7 @@ import unittest
 import sys
 import os
 import cothread
-#import logging
+# import logging
 # logging.basicConfig(level=logging.DEBUG)
 import time
 from mock import patch, MagicMock
@@ -95,11 +95,9 @@ class StateMachineTest(unittest.TestCase):
         self.sm.post(VEvent.Event2)
         cothread.Yield()
         self.assertEquals(self.sm.state, VState.Err)
-        for i, (state, msg) in enumerate(((VState.State2, "My Error Message"), (VState.Err, "State change"))):
-            self.assertEquals(callback.call_args_list[i][0][0], state)
-            self.assertEquals(callback.call_args_list[i][0][1], msg)
-            # 2 is time
-            self.assertEquals(callback.call_args_list[i][0][3], None)
+        self.assertEquals(callback.call_args[1]["state"], VState.Err)
+        self.assertEquals(callback.call_args[1]["message"], "My Error Message")
+        self.assertEquals(callback.call_args[1].get("percent"), None)
         mock_error.assert_called_once_with(
             "SM: event VEvent.Event2 caused error ValueError('My Error Message',) in transition func")
 
@@ -120,10 +118,10 @@ class StateMachineTest(unittest.TestCase):
         self.sm.add_listener(callback)
         self.test_2_transitions_works()
         for i, state in enumerate((VState.State2, VState.State1)):
-            self.assertEquals(callback.call_args_list[i][0][0], state)
-            self.assertEquals(callback.call_args_list[i][0][1], "State change")
+            self.assertEquals(callback.call_args_list[i][1]["state"], state)
+            self.assertEquals(callback.call_args_list[i][1]["message"], "State change")
             # 2 is time
-            self.assertEquals(callback.call_args_list[i][0][3], None)
+            self.assertEquals(callback.call_args_list[i][1].get("percent"), None)
 
     def test_waiting_for_single_state(self):
         self.sm.transition(VState.State1, VEvent.Event1, None, VState.State2)

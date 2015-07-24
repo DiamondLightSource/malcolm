@@ -1,15 +1,18 @@
+import inspect
 from enum import Enum
 from stateMachine import StateMachine
 from attribute import Attributes
+from method import Method
 
 
 class DState(Enum):
     # These are the states that our machine supports
-    Fault, Idle, Configuring, Ready, Running, Pausing, Paused = range(7)
+    Fault, Idle, Configuring, Ready, Running, Pausing, Paused, Aborting,\
+        Aborted = range(9)
 
     @classmethod
     def rest(cls):
-        return [cls.Fault, cls.Idle, cls.Ready, cls.Paused]
+        return [cls.Fault, cls.Idle, cls.Ready, cls.Paused, cls.Aborted]
 
     @classmethod
     def abortable(cls):
@@ -24,11 +27,19 @@ class DState(Enum):
     def runnable(cls):
         return [cls.Ready, cls.Paused]
 
+    @classmethod
+    def resettable(cls):
+        return [cls.Fault, cls.Aborted]
+
+    def to_dict(self):
+        choices = [e.name for e in self.__class__]
+        d = dict(index=self.value, choices=choices)
+        return d
 
 class DEvent(Enum):
     # These are the messages that we will respond to
-    Error, Reset, Config, ConfigSta, Run, RunSta, Abort, Pause, PauseSta \
-        = range(9)
+    Error, Reset, Config, ConfigSta, Run, RunSta, Abort, AbortSta, Pause, \
+        PauseSta = range(10)
 
 
 class Device(StateMachine):
@@ -39,11 +50,11 @@ class Device(StateMachine):
         # superclass init
         super(Device, self).__init__(name, DState.Idle, DState.Fault)
 
-        # make the attributes object
-        self.attributes = Attributes(self.attributes)
+        # make the attributes object from dictionary
+        self.attributes = Attributes(**self.attributes)
 
-        # TODO: Register all publishable things with a comms object
-        # self.comms = Comms(self)
+        # dict of Method wrappers to @wrap_method decorated methods
+        self.methods = Method.describe_methods(self)
 
     def shortcuts(self):
         # Shortcut to all the self.do_ functions
@@ -71,3 +82,7 @@ class Device(StateMachine):
             return setattr(self.attributes, attr, value)
         except (AttributeError, KeyError) as e:
             return object.__setattr__(self, attr, value)
+
+    def to_dict(self):
+        d = dict(status=self.status, methods=self.methods, attributes=self.attributes)
+        return d

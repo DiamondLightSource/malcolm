@@ -3,11 +3,16 @@ from enum import Enum
 
 class AlarmSeverity(Enum):
     noAlarm, minorAlarm, majorAlarm, invalidAlarm, undefinedAlarm = range(5)
+    def to_dict(self):
+        return self.value
+
 
 
 class AlarmStatus(Enum):
     noStatus, deviceStatus, driverStatus, recordStatus, dbStatus, confStatus, \
         undefinedStatus, clientStatus = range(8)
+    def to_dict(self):
+        return self.value
 
 
 class Alarm(object):
@@ -25,4 +30,8 @@ class Alarm(object):
 
     @classmethod
     def ok(cls):
-        return cls(AlarmSeverity.noAlarm, AlarmStatus.noStatus, "")
+        return cls(AlarmSeverity.noAlarm, AlarmStatus.noStatus, "No alarm")
+
+    def to_dict(self):
+        d = dict(severity=self.severity, status=self.status, message=self.message)
+        return d

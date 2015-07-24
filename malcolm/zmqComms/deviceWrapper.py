@@ -4,7 +4,6 @@ import zmq
 from base import ZmqProcess
 from zmq.eventloop.ioloop import PeriodicCallback
 import cothread
-import inspect
 import logging
 log = logging.getLogger(__name__)
 
@@ -17,7 +16,6 @@ class DeviceWrapper(ZmqProcess):
         self.name = name
         self.be_addr = be_addr
         self.be_stream = None
-        self.functions = dict(stop=self.stop)
         self.device_class = device_class
         self.device_kwargs = device_kwargs
 
@@ -29,19 +27,13 @@ class DeviceWrapper(ZmqProcess):
         self.device = self.device_class(self.name, **self.device_kwargs)
         self.device.start_event_loop()
 
-        # Add decorated functions to list of available functions
-        for fname, f in inspect.getmembers(self.device,
-                                           predicate=inspect.ismethod):
-            if f.func_name == "decorated_command":
-                self.functions[fname] = f
-
         # Create the frontend stream and add the message handler
         self.be_stream = self.stream(zmq.DEALER, self.be_addr, bind=False)
         self.be_stream.on_recv(self.handle_be)
 
         # Say hello
         self.be_send("", serialize_ready(self.name, "pubsocket"))
-        
+
         # Let cothread get a lookin
         self.periodic = PeriodicCallback(cothread.Yield, 5, self.loop)
         self.periodic.start()
@@ -51,9 +43,11 @@ class DeviceWrapper(ZmqProcess):
         self.be_stream.send_multipart([clientid, "", data])
 
     def do_func(self, clientid, f, args):
+        log.debug("do_func {} {}".format(f, args))
         try:
             ret = f(**args)
         except Exception as e:
+            log.exception("{}: threw exception calling {}".format(self.name, f))
             self.be_send(clientid, serialize_error(e))
         else:
             self.be_send(clientid, serialize_return(ret))
@@ -64,11 +58,32 @@ class DeviceWrapper(ZmqProcess):
         device = d["device"]
         assert device == self.name, "Wrong device name {}".format(device)
         method = d["method"]        # get the function name
-        assert method in self.functions, "Invalid function {}".format(method)
-        args = d.get("args", {})
-        # Run the function
-        cothread.Spawn(
-            self.do_func, clientid, self.functions[method], args)
+        if method == "pleasestopnow":
+            # Just stop now
+            self.be_send(clientid, serialize_return(self.stop()))
+        else:
+            # Call a device method
+            assert method in self.device.methods, \
+                "Invalid function {}".format(method)
+            args = d.get("args", {})
+            # Run the function
+            cothread.Spawn(
+                self.do_func, clientid, self.device.methods[method], args)
+
+    def do_get(self, clientid, d):
+        # check that we have the right type of message
+        assert d["type"] == "get", "Expected type=get, got {}".format(d)
+        device = d["device"]
+        assert device == self.name, "Wrong device name {}".format(device)
+        param = d.get("param")
+        parameters = self.device
+        if param is not None:
+            for p in param.split("."):
+                try:
+                    parameters = parameters[p]
+                except:
+                    parameters = parameters.to_dict()[p]
+        self.be_send(clientid, serialize_return(parameters))
 
     def handle_be(self, msg):
         log.debug("handle_be {}".format(msg))

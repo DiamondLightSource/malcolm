@@ -1,4 +1,4 @@
-from malcolm.core import command, DState, DEvent, PausableDevice
+from malcolm.core import wrap_method, DState, DEvent, PausableDevice
 from malcolm.core.stateMachine import StateMachine
 from enum import Enum
 import cothread
@@ -43,7 +43,7 @@ class DummyDetSim(StateMachine):
         while self.nframes > 0 and not self.need_abort:
             cothread.Sleep(self.exposure)
             self.nframes -= 1
-            self.notify_status(
+            self.update_status(
                 "Completed a frame. {} frames left".format(self.nframes))
         self.post(SEvent.Done)
 
@@ -63,9 +63,13 @@ class DummyDet(PausableDevice):
         self.sim.add_listener(self.on_status)
         self.start_event_loop()
 
-    @command(only_in=DState)
+    @wrap_method(only_in=DState)
     def assert_valid(self, nframes, exposure):
-        """Make sure params are valid"""
+        """Check whether the configuration parameters are valid or not. This set
+        of parameters are checked in isolation, no device state is taken into
+        account. It raises an error if the set of configuration parameters is
+        invalid.
+        """
         assert nframes > 0, "nframes {} should be > 0".format(nframes)
         assert exposure > 0.0, "exposure {} should be > 0.0".format(exposure)
 
@@ -100,9 +104,9 @@ class DummyDet(PausableDevice):
     def do_configsta(self, event, configsta):
         """Receive configuration events and move to next state when finished"""
         if configsta is None:
-            self.notify_status("Configuring started", 0)
+            self.update_status("Configuring started", 0)
         elif configsta == "finished":
-            self.notify_status("Configuring finished", 100)
+            self.update_status("Configuring finished", 100)
             return DState.Ready
         return DState.Configuring
 
@@ -116,7 +120,7 @@ class DummyDet(PausableDevice):
             return DState.Idle
         else:
             percent = (self.nframes - runsta) * 100 / self.nframes
-            self.notify_status("Running in progress", percent)
+            self.update_status("Running in progress", percent)
         return DState.Running
 
     def do_pause(self, event):
@@ -138,9 +142,9 @@ class DummyDet(PausableDevice):
             self.sim.post(SEvent.Config, self.sim.nframes, self.exposure)
         elif pausesta == "configured":
             # detector reconfigured, done
-            self.notify_status("Pausing finished", 100)
+            self.update_status("Pausing finished", 100)
             return DState.Paused
-        self.notify_status("Pausing in progress", percent)
+        self.update_status("Pausing in progress", percent)
         return DState.Pausing
 
     def do_abort(self, event):

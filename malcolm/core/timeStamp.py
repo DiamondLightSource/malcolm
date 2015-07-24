@@ -22,7 +22,11 @@ class TimeStamp(object):
     def from_time(cls, secondsPastEpoch):
         assert type(secondsPastEpoch) == float, \
             "secondsPastEpoch {} is not a float".format(secondsPastEpoch)
-        return cls(int(secondsPastEpoch), int(secondsPastEpoch % 1 * 1e-9))
+        return cls(int(secondsPastEpoch), int(secondsPastEpoch % 1 / 1e-9))
 
     def to_time(self):
-        return self.secondsPastEpoch + float(self.nanoseconds) / 1e-9
+        return self.secondsPastEpoch + float(self.nanoseconds) * 1e-9
+
+    def to_dict(self):
+        return dict(secondsPastEpoch=self.secondsPastEpoch,
+                    nanoseconds=self.nanoseconds, userTag=self.userTag)

@@ -20,7 +20,7 @@ class AttributeTest(unittest.TestCase):
             nframes=(int, "Number of frames"),
             exposure=(float, "Detector exposure"),
         )
-        self.a = Attributes(attributes)
+        self.a = Attributes(**attributes)
 
     def test_attr_instance_correct_type(self):
         self.assertIsInstance(self.a.attributes["nframes"], Attribute)

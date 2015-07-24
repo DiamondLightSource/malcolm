@@ -46,6 +46,21 @@ class FunctionCallerTest(unittest.TestCase):
         self.fc.socket.send.assert_called_once_with(
             json.dumps(dict(type="call", device="mydevice", method="myfunc", args=dict(bar="bat"))))
 
+    def test_call_single_get(self):
+        ret = "return val"
+        self.fc.socket.recv.return_value = json.dumps(
+            dict(type="return", val=ret))
+        self.assertEqual(self.fc.get("myparam"), ret)
+        self.fc.socket.send.assert_called_once_with(
+            json.dumps(dict(type="get", device="mydevice", param="myparam")))
+
+    def test_error_get(self):
+        self.fc.socket.recv.return_value = json.dumps(
+            dict(type="error", name="NameError", message="bad"))
+        self.assertRaises(NameError, self.fc.get, "myparam")
+        self.fc.socket.send.assert_called_once_with(
+            json.dumps(dict(type="get", device="mydevice", param="myparam")))
+        
 
 class MiniRouter(ZmqProcess):
     fe_addr = "ipc://frfe.ipc"
@@ -62,7 +77,7 @@ class MiniRouter(ZmqProcess):
 
     def handle_fe(self, msg):
         clientid, _, data = msg
-        if data == "pleasestop":
+        if data == "pleasestopnow":
             self.stop()
         else:
             self.fe_stream.send_multipart([clientid, "", self.returnval])
@@ -84,11 +99,17 @@ class FunctionCallerProcTest(unittest.TestCase):
                                   connect=MiniRouter.fe_addr)
         self.fc = FunctionCaller("mydevice", fe_addr=MiniRouter.fe_addr)
 
-    def test_correct_return(self):
+    def test_correct_call_return(self):
         ret = "return val"
         self.mr = MiniRouter(json.dumps(dict(type="return", val=ret)))
         self.mr.start()
         self.assertEqual(self.fc.call("myfunc", bar="bat"), ret)
+
+    def test_correct_get_return(self):
+        ret = "get val"
+        self.mr = MiniRouter(json.dumps(dict(type="return", val=ret)))
+        self.mr.start()
+        self.assertEqual(self.fc.get("myparam"), ret)
 
     def tearDown(self):
         """
@@ -96,7 +117,7 @@ class FunctionCallerProcTest(unittest.TestCase):
 
         """
         # Send a stop message to the prong process and wait until it joins
-        self.req_sock.send("pleasestop")
+        self.req_sock.send("pleasestopnow")
         self.mr.join()
         self.req_sock.close()
 

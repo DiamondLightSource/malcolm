@@ -1,4 +1,4 @@
-from serialize import serialize_call, deserialize
+from serialize import serialize_call, serialize_get, deserialize
 import zmq
 import logging
 log = logging.getLogger(__name__)
@@ -16,10 +16,7 @@ class FunctionCaller(object):
         self.socket = zmq.Context().socket(zmq.REQ)
         self.socket.connect(self.fe_addr)
 
-    def call(self, method, **kwargs):
-        s = serialize_call(self.device, method, **kwargs)
-        log.debug("send {}".format(s))
-        self.socket.send(s)
+    def recv_return(self):
         reply = self.socket.recv()
         log.debug("recv {}".format(reply))
         d = deserialize(reply)
@@ -29,3 +26,15 @@ class FunctionCaller(object):
             raise eval(d["name"])(d["message"])
         else:
             raise KeyError("Don't know what to do with {}".format(d))
+
+    def get(self, param=None):
+        s = serialize_get(self.device, param)
+        log.debug("get {}".format(s))
+        self.socket.send(s)
+        return self.recv_return()
+
+    def call(self, method, **kwargs):
+        s = serialize_call(self.device, method, **kwargs)
+        log.debug("send {}".format(s))
+        self.socket.send(s)
+        return self.recv_return()

@@ -31,7 +31,7 @@ class DeviceTest(unittest.TestCase):
         callback = MagicMock()
         self.d.add_listener(callback)
         start = time.time()
-        self.d.configure(nframes=10, exposure=0.01)
+        ret = self.d.configure(nframes=10, exposure=0.01)
         end = time.time()
         self.d.remove_listener(callback)
         self.assertLess(end - start, 0.005)
@@ -44,13 +44,14 @@ class DeviceTest(unittest.TestCase):
         self.assertEqual(messages, expected)
         self.assertEqual(self.d.sim.nframes, 10)
         self.assertEqual(self.d.sim.exposure, 0.01)
+        self.assertEqual(ret.to_dict(), callback.call_args_list[-1][1])
 
     def test_running_calls_back_correct_methods(self):
         self.d.configure(nframes=3, exposure=0.01)
         callback = MagicMock()
         self.d.add_listener(callback)
         start = time.time()
-        self.d.run()
+        ret = self.d.run()
         end = time.time()
         self.d.remove_listener(callback)
         self.assertAlmostEqual(
@@ -62,9 +63,10 @@ class DeviceTest(unittest.TestCase):
         expected = ["State change"] + \
             ["Running in progress"] * 4 + ["State change"]
         self.assertEqual(messages, expected)
-        percents = [a[1]["percent"] for a in callback.call_args_list]
+        percents = [a[1].get("percent") for a in callback.call_args_list]
         expected = [None, 0, 33, 66, 100, None]
         self.assertEqual(percents, expected)
+        self.assertEqual(ret.to_dict(), callback.call_args_list[-1][1])
 
     def test_pausing_calls_back_correct_methods(self):
         self.d.configure(nframes=10, exposure=0.01)
@@ -74,7 +76,7 @@ class DeviceTest(unittest.TestCase):
         def pause():
             cothread.Sleep(0.06)
             pstart = time.time()
-            self.d.pause()
+            self.pret = self.d.pause()
             self.ptime = time.time() - pstart
         cothread.Spawn(pause)
         start = time.time()
@@ -83,6 +85,7 @@ class DeviceTest(unittest.TestCase):
         self.assertAlmostEqual(end - start, 0.06, delta=0.01)
         # let the pause task finish
         cothread.Yield()
+        self.assertEqual(self.pret.to_dict(), callback.call_args_list[-1][1])
         self.assertLess(self.ptime, 0.01)
         self.assertEqual(self.d.sim.nframes, 4)
         states = [a[1]["state"] for a in callback.call_args_list]
@@ -94,13 +97,13 @@ class DeviceTest(unittest.TestCase):
             ["State change"] + ["Pausing in progress"] * 3 + \
             ["Pausing finished", "State change"]
         self.assertEqual(messages, expected)
-        percents = [a[1]["percent"] for a in callback.call_args_list]
+        percents = [a[1].get("percent") for a in callback.call_args_list]
         expected = [None, 0, 10, 20, 30, 40, 50, None, 0, 50, 75, 100, None]
         self.assertEqual(percents, expected)
         # Now paused, so resume and get the last 4 frames
         callback.reset_mock()
         start = time.time()
-        self.d.run()
+        ret = self.d.run()
         end = time.time()
         self.assertAlmostEqual(end - start, 0.04, delta=0.01)
         self.assertEqual(self.d.sim.nframes, 0)
@@ -111,17 +114,16 @@ class DeviceTest(unittest.TestCase):
         expected = ["State change"] + \
             ["Running in progress"] * 5 + ["State change"]
         self.assertEqual(messages, expected)
-        percents = [a[1]["percent"] for a in callback.call_args_list]
+        percents = [a[1].get("percent") for a in callback.call_args_list]
         expected = [None, 60, 70, 80, 90, 100, None]
         self.assertEqual(percents, expected)
+        self.assertEqual(ret.to_dict(), callback.call_args_list[-1][1])
 
     def test_run_from_idle_not_allowed(self):
         self.assertRaises(AssertionError, self.d.run)
 
-    @patch("malcolm.core.stateMachine.log.error")
-    def test_configure_with_wrong_params_raises(self, mock_error):
-        self.assertRaises(AssertionError, self.d.configure)
-        mock_error.assert_called_once_with("D: event DEvent.Config caused error TypeError('do_config() takes exactly 4 arguments (2 given)',) in transition func")
+    def test_configure_with_wrong_params_raises(self):
+        self.assertRaises(TypeError, self.d.configure)
 
     def test_attribute_settings_and_locals(self):
         self.assertEqual(self.d.nframes, None)
@@ -131,6 +133,7 @@ class DeviceTest(unittest.TestCase):
         self.d.foo = 45
         self.assertEqual(self.d.foo, 45)
         self.assertRaises(KeyError, lambda: self.d.attributes.foo)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

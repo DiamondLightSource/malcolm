@@ -24,6 +24,7 @@ class DeviceWrapperTest(unittest.TestCase):
 
     def setUp(self):
         self.dw = DeviceWrapper("zebra1", object)
+        self.dw.device = MagicMock()
         self.dw.be_stream = MagicMock()
 
     def send_request(self, **args):
@@ -51,7 +52,7 @@ class DeviceWrapperTest(unittest.TestCase):
     def test_simple_function(self):
         def func():
             return "done"
-        self.dw.functions["func"] = func
+        self.dw.device.methods = dict(func=func)
         self.expected_reply = json.dumps(
             dict(type="return", val="done"))
         client = self.send_request(
@@ -61,11 +62,38 @@ class DeviceWrapperTest(unittest.TestCase):
         self.dw.be_stream.send_multipart.assert_called_once_with(
             [client, "", self.expected_reply])
 
+    def test_simple_get(self):
+        class dev:
+            def to_dict(self):
+                return dict(status=dict(message="boo"), attributes={})
+        self.dw.device = dev() 
+        self.expected_reply = json.dumps(
+            dict(type="return", val=dict(status=dict(message="boo"), attributes={})))
+        client = self.send_request(
+            type="get", device="zebra1")
+        self.dw.be_stream.send_multipart.assert_called_once_with(
+            [client, "", self.expected_reply])
+
+    def test_parameter_get(self):
+        class dev:
+            def to_dict(self):
+                return dict(status=dict(message="boo"), attributes={})     
+        self.dw.device = dev()   
+        self.expected_reply = json.dumps(
+            dict(type="return", val="boo"))
+        client = self.send_request(
+            type="get", device="zebra1", param="status.message")
+        self.dw.be_stream.send_multipart.assert_called_once_with(
+            [client, "", self.expected_reply])
 
 class Counter(object):
 
     def __init__(self, name):
         self.counter = 0
+        self.status = dict(message="Message", percent=54.3)
+        self.attributes = dict(
+            who=dict(descriptor="Who name", value="Me", tags=["hello"]))
+        self.methods = dict(get_count=self.get_count, hello=self.hello)
 
     def start_event_loop(self):
         cothread.Spawn(self.do_count)
@@ -75,13 +103,14 @@ class Counter(object):
             self.counter += 1
             cothread.Sleep(0.01)
 
-    @decorate
     def get_count(self):
         return self.counter
 
-    @decorate
-    def hello(self):
-        return "world"
+    def hello(self, who):
+        return "world {}".format(who)
+    
+    def to_dict(self):
+        return dict(status=self.status, attributes=self.attributes, methods=self.methods)
 
 
 class DeviceWrapperProcTest(unittest.TestCase):
@@ -111,18 +140,24 @@ class DeviceWrapperProcTest(unittest.TestCase):
 
     def test_simple_function(self):
         self.expected_reply = json.dumps(
-            dict(type="return", val="world"))
+            dict(type="return", val="world me"))
         self.router_sock.send_multipart(
-            [self.ready[0], "", "", json.dumps(dict(type="call", device="zebra2", method="hello", args={}))])
+            [self.ready[0], "", "", json.dumps(dict(type="call", device="zebra2", method="hello", args=dict(who="me")))])
         recv = self.router_sock.recv_multipart()
         self.assertEqual(recv[3], self.expected_reply)
 
     def test_cothread_working(self):
-        self.expected_reply = json.dumps(
-            dict(type="return", val=47))
         time.sleep(0.5)
         self.router_sock.send_multipart(
             [self.ready[0], "", "", json.dumps(dict(type="call", device="zebra2", method="get_count", args={}))])
+        recv = self.router_sock.recv_multipart()
+        self.assertAlmostEqual(json.loads(recv[3])["val"], 35, delta=1)
+
+    def test_simple_get(self):
+        self.expected_reply = json.dumps(
+            dict(type="return", val=dict(message="Message", percent=54.3)))
+        self.router_sock.send_multipart(
+            [self.ready[0], "", "", json.dumps(dict(type="get", device="zebra2", param="status"))])
         recv = self.router_sock.recv_multipart()
         self.assertEqual(recv[3], self.expected_reply)
 
@@ -133,7 +168,7 @@ class DeviceWrapperProcTest(unittest.TestCase):
         """
         # Send a stop message to the prong process and wait until it joins
         self.router_sock.send_multipart(
-            [self.ready[0], "", "", json.dumps(dict(type="call", device="zebra2", method="stop", args={}))])
+            [self.ready[0], "", "", json.dumps(dict(type="call", device="zebra2", method="pleasestopnow"))])
         self.dw.join()
         self.router_sock.close()
 

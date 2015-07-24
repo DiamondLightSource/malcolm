@@ -38,6 +38,21 @@ class FunctionRouterTest(unittest.TestCase):
         self.expected_reply = json.dumps(dict(type="return", val=[]))
         self.send_request_check_reply(type="call", device="malcolm", method="devices")
 
+    def test_get_malcolm_returns_devices(self):
+        self.expected_reply = '{"type": "return", "val": {"methods": {"devices": {"descriptor": "List all available malcolm devices", "args": {}}, "pleasestopnow": {"descriptor": "Stop the router and all of the devices attached to it", "args": {}}}}}'
+        self.send_request_check_reply(type="get", device="malcolm")
+
+    def test_get_device_forwarded_single_device(self):
+        client = "CUUID"
+        data = json.dumps(
+            dict(type="ready", device="zebra1", pubsocket="ipc://zebra1"))
+        device = "DUUID"
+        self.fr.handle_be([device, client, "", data])
+        request = json.dumps(dict(type="get", device="zebra1", param="status"))
+        self.fr.handle_fe([client, "", request])
+        self.fr.be_stream.send_multipart.assert_called_once_with(
+            [device, client, "", request])
+
     def test_no_providers_error(self):
         self.expected_reply = json.dumps(
             dict(type="error", name="AssertionError", message="No device named foo registered"))
@@ -109,13 +124,30 @@ class FunctionRouterProcTest(unittest.TestCase):
         at_req = self.req_sock.recv()
         self.assertEqual(at_req, response)
 
+    def test_single_provider_getsback(self):
+        ready = json.dumps(
+            dict(type="ready", device="zebra1", pubsocket="ipc://zebra1.ipc"))
+        self.dev_sock.send_multipart(["malcolm", "", ready])
+        # give it time to register zebra
+        time.sleep(0.2)
+        request = json.dumps(dict(type="get", device="zebra1", method="status"))
+        self.req_sock.send(request)
+        at_device = self.dev_sock.recv_multipart()
+        self.assertEqual(at_device[1], "")
+        self.assertEqual(at_device[2], request)
+        # send a function response
+        response = json.dumps(dict(type="return", val=dict(message="Message", percent=54.3)))
+        self.dev_sock.send_multipart([at_device[0], "", response])
+        at_req = self.req_sock.recv()
+        self.assertEqual(at_req, response)
+
     def tearDown(self):
         """
         Sends a kill message to the pp and waits for the process to terminate.
 
         """
         # Send a stop message to the prong process and wait until it joins
-        self.req_sock.send(json.dumps(dict(type="call", device="malcolm", method="stop")))
+        self.req_sock.send(json.dumps(dict(type="call", device="malcolm", method="pleasestopnow")))
         self.fr.join()
 
         self.req_sock.close()
