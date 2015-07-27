@@ -4,6 +4,7 @@ from malcolm.zmqComms.serialize import serialize_call, serialize_return
 from malcolm.devices.dummyDet import DummyDet
 from malcolm.core.device import Device, DState
 from malcolm.core.method import wrap_method
+from malcolm.zmqComms.zmqProcess import CoStream
 require("mock")
 require("pyzmq")
 require("cothread")
@@ -15,7 +16,6 @@ import multiprocessing
 import json
 import zmq
 import time
-from support import make_sock, decorate
 
 #import logging
 #logging.basicConfig(level=logging.DEBUG)#, format="%(asctime)s;%(levelname)s;%(message)s")
@@ -67,8 +67,7 @@ class ZmqSystemTest(unittest.TestCase):
         self.context = zmq.Context()
         be_addr = "ipc://frbe.ipc"
         fe_addr = "ipc://frfe.ipc"
-        self.dealer_sock = make_sock(self.context, zmq.REQ,
-                          connect=fe_addr)
+        self.dealer_sock = CoStream(zmq.REQ, fe_addr, bind=False)
         self.fr = FunctionRouter(fe_addr=fe_addr, be_addr=be_addr)
         self.fr.start()
         self.dw = DeviceWrapper("zebra3", Counter, be_addr)
@@ -126,8 +125,7 @@ class ZmqDetSystemTest(unittest.TestCase):
         self.context = zmq.Context()
         be_addr = "ipc://frbe.ipc"
         fe_addr = "ipc://frfe.ipc"
-        self.dealer_sock = make_sock(self.context, zmq.REQ,
-                          connect=fe_addr)
+        self.dealer_sock = CoStream(zmq.REQ, fe_addr, bind=False)
         self.fr = FunctionRouter(fe_addr=fe_addr, be_addr=be_addr)
         self.fr.start()
         self.dw = DeviceWrapper("det", DummyDet, be_addr)

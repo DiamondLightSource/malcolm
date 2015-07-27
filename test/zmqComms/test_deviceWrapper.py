@@ -10,7 +10,6 @@ import os
 import json
 import zmq
 import time
-from support import make_sock, decorate
 
 #import logging
 # logging.basicConfig(level=logging.DEBUG)
@@ -18,7 +17,7 @@ from mock import MagicMock
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.zmqComms.deviceWrapper import DeviceWrapper
-
+from malcolm.zmqComms.zmqProcess import CoStream
 
 class DeviceWrapperTest(unittest.TestCase):
 
@@ -121,13 +120,11 @@ class DeviceWrapperProcTest(unittest.TestCase):
         communicate with it.
 
         """
-        self.context = zmq.Context()
 
         # make_sock creates and connects a TestSocket that we will use to
         # mimic the Ping process
         be_addr = "ipc://frbe.ipc"
-        self.router_sock = make_sock(self.context, zmq.ROUTER,
-                                     bind=be_addr)
+        self.router_sock = CoStream(zmq.ROUTER, be_addr, bind=True)
         self.dw = DeviceWrapper("zebra2", Counter, be_addr=be_addr)
         self.dw.start()
         self.ready = self.router_sock.recv_multipart()

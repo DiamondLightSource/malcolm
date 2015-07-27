@@ -1,5 +1,6 @@
 #!/bin/env dls-python
 from pkg_resources import require
+from malcolm.zmqComms.zmqProcess import CoStream
 require("mock")
 require("pyzmq")
 import unittest
@@ -9,7 +10,6 @@ import multiprocessing
 import json
 import zmq
 import time
-from support import make_sock
 
 #import logging
 #logging.basicConfig(level=logging.DEBUG)
@@ -92,10 +92,8 @@ class FunctionRouterProcTest(unittest.TestCase):
         # mimic the Ping process
         fe_addr = "ipc://frfe.ipc"
         be_addr = "ipc://frbe.ipc"
-        self.dealer_sock = make_sock(self.context, zmq.REQ,
-                                  connect=fe_addr)
-        self.dev_sock = make_sock(self.context, zmq.DEALER,
-                                  connect=be_addr)
+        self.dealer_sock = CoStream(zmq.REQ, fe_addr, bind=False)
+        self.dev_sock = CoStream(zmq.DEALER, be_addr, bind=False)
         self.fr = FunctionRouter(fe_addr=fe_addr, be_addr=be_addr)
         self.fr.start()
 

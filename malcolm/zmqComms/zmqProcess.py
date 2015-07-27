@@ -6,25 +6,46 @@ from cothread import coselect
 
 class CoStream(object):
 
-    def __init__(self, sock):
-        self.sock = sock
+    def __init__(self, sock_type, addr, bind, timeout=None):
+        # Make the socket and bind or connect it
+        self.sock = zmq.Context().socket(sock_type)
+        if bind:
+            self.sock.bind(addr)
+        else:
+            self.sock.connect(addr)
+        # This is the callback when we get a new message
         self._on_recv = None
-
-    def send_multipart(self, message):
-        self.sock.send_multipart(message)
+        # This is the timeout for any blocking call
+        self.timeout = timeout
 
     def fileno(self):
         return self.sock.getsockopt(zmq.FD)
 
-    def recv_multipart(self, timeout=None):
+    def __poll(self, event):
+        if not coselect.poll_list([(self, event)], self.timeout):
+            raise zmq.ZMQError(zmq.ETIMEDOUT, 'Timeout waiting for socket')
+
+    def __retry(self, poll, action, *args, **kwargs):
         while True:
             try:
-                return self.sock.recv_multipart(flags=zmq.NOBLOCK)
+                return action(*args, **kwargs)
             except zmq.ZMQError as error:
                 if error.errno != zmq.EAGAIN:
                     raise
-            if not coselect.poll_list([(self, coselect.POLLIN)], timeout):
-                raise zmq.ZMQError(zmq.ETIMEDOUT, 'Timeout waiting for socket')
+            self.__poll(poll)
+
+    def recv_multipart(self):
+        return self.__retry(coselect.POLLIN, self.sock.recv_multipart, flags=zmq.NOBLOCK)
+
+    def send_multipart(self, message):
+        return self.__retry(coselect.POLLOUT, self.sock.send_multipart, message, flags=zmq.NOBLOCK)
+
+    def send(self, message):
+        return self.__retry(coselect.POLLOUT, self.sock.send, message, flags=zmq.NOBLOCK)
+
+    def recv(self):
+        return self.__retry(coselect.POLLOUT, self.sock.recv, flags=zmq.NOBLOCK)
+
 
     def on_recv(self, callback):
         self._on_recv = callback
@@ -35,6 +56,8 @@ class CoStream(object):
             if self._on_recv:
                 self._on_recv(ret)
 
+    def close(self):
+        self.sock.close()
 
 class ZmqProcess(multiprocessing.Process):
     """
@@ -67,16 +90,8 @@ class ZmqProcess(multiprocessing.Process):
         :returns: The stream
 
         """
-        sock = self.context.socket(sock_type)
-
-        # Bind/connect the socket
-        if bind:
-            sock.bind(addr)
-        else:
-            sock.connect(addr)
-
         # Create the stream and add the callback
-        stream = CoStream(sock)
+        stream = CoStream(sock_type, addr, bind)
         self.streams.append(stream)
         return stream
 

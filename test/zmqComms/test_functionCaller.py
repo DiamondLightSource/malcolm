@@ -9,7 +9,6 @@ import multiprocessing
 import json
 import zmq
 import time
-from support import make_sock
 
 #import logging
 # logging.basicConfig(level=logging.DEBUG)
@@ -17,7 +16,7 @@ from mock import patch, MagicMock
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.zmqComms.functionCaller import FunctionCaller
-from malcolm.zmqComms.base import ZmqProcess
+from malcolm.zmqComms.zmqProcess import ZmqProcess, CoStream
 
 
 class MockFunctionCaller(FunctionCaller):
@@ -95,8 +94,7 @@ class FunctionCallerProcTest(unittest.TestCase):
 
         # make_sock creates and connects a TestSocket that we will use to
         # mimic the Ping process
-        self.req_sock = make_sock(self.context, zmq.REQ,
-                                  connect=MiniRouter.fe_addr)
+        self.req_sock = CoStream(zmq.REQ, MiniRouter.fe_addr, bind=False)
         self.fc = FunctionCaller("mydevice", fe_addr=MiniRouter.fe_addr)
 
     def test_correct_call_return(self):
