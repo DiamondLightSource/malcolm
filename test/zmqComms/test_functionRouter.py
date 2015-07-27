@@ -12,7 +12,7 @@ import time
 from support import make_sock
 
 #import logging
-# logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 from mock import patch, MagicMock
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -92,7 +92,7 @@ class FunctionRouterProcTest(unittest.TestCase):
         # mimic the Ping process
         fe_addr = "ipc://frfe.ipc"
         be_addr = "ipc://frbe.ipc"
-        self.req_sock = make_sock(self.context, zmq.REQ,
+        self.dealer_sock = make_sock(self.context, zmq.REQ,
                                   connect=fe_addr)
         self.dev_sock = make_sock(self.context, zmq.DEALER,
                                   connect=be_addr)
@@ -101,8 +101,8 @@ class FunctionRouterProcTest(unittest.TestCase):
 
     def test_no_providers_error(self):
         request = json.dumps(dict(type="call", device="foo", method="func", args=dict(bar="bat")))
-        self.req_sock.send(request)
-        reply = self.req_sock.recv()
+        self.dealer_sock.send(request)
+        reply = self.dealer_sock.recv()
         expected = json.dumps(
             dict(type="error", name="AssertionError", message="No device named foo registered"))
         self.assertEqual(reply, expected)
@@ -114,14 +114,14 @@ class FunctionRouterProcTest(unittest.TestCase):
         # give it time to register zebra
         time.sleep(0.2)
         request = json.dumps(dict(type="call", device="zebra1", method="do"))
-        self.req_sock.send(request)
+        self.dealer_sock.send(request)
         at_device = self.dev_sock.recv_multipart()
         self.assertEqual(at_device[1], "")
         self.assertEqual(at_device[2], request)
         # send a function response
         response = json.dumps(dict(type="return", name=None))
         self.dev_sock.send_multipart([at_device[0], "", response])
-        at_req = self.req_sock.recv()
+        at_req = self.dealer_sock.recv()
         self.assertEqual(at_req, response)
 
     def test_single_provider_getsback(self):
@@ -131,14 +131,14 @@ class FunctionRouterProcTest(unittest.TestCase):
         # give it time to register zebra
         time.sleep(0.2)
         request = json.dumps(dict(type="get", device="zebra1", method="status"))
-        self.req_sock.send(request)
+        self.dealer_sock.send(request)
         at_device = self.dev_sock.recv_multipart()
         self.assertEqual(at_device[1], "")
         self.assertEqual(at_device[2], request)
         # send a function response
         response = json.dumps(dict(type="return", val=dict(message="Message", percent=54.3)))
         self.dev_sock.send_multipart([at_device[0], "", response])
-        at_req = self.req_sock.recv()
+        at_req = self.dealer_sock.recv()
         self.assertEqual(at_req, response)
 
     def tearDown(self):
@@ -147,10 +147,10 @@ class FunctionRouterProcTest(unittest.TestCase):
 
         """
         # Send a stop message to the prong process and wait until it joins
-        self.req_sock.send(json.dumps(dict(type="call", device="malcolm", method="pleasestopnow")))
+        self.dealer_sock.send(json.dumps(dict(type="call", device="malcolm", method="pleasestopnow")))
         self.fr.join()
 
-        self.req_sock.close()
+        self.dealer_sock.close()
         self.dev_sock.close()
 
 if __name__ == '__main__':

@@ -67,7 +67,7 @@ class ZmqSystemTest(unittest.TestCase):
         self.context = zmq.Context()
         be_addr = "ipc://frbe.ipc"
         fe_addr = "ipc://frfe.ipc"
-        self.req_sock = make_sock(self.context, zmq.REQ,
+        self.dealer_sock = make_sock(self.context, zmq.REQ,
                           connect=fe_addr)
         self.fr = FunctionRouter(fe_addr=fe_addr, be_addr=be_addr)
         self.fr.start()
@@ -79,20 +79,20 @@ class ZmqSystemTest(unittest.TestCase):
     def test_simple_function(self):
         time.sleep(0.2)
         # Start time
-        self.assertAlmostEqual(self.fc.call("get_count"), 14, delta=1)
+        self.assertAlmostEqual(self.fc.call("get_count"), 20, delta=1)
         self.assertEqual(self.fc.call("hello"), "world")
-        # Hello world takes about 7 0.01s ticks (cos of running cothread in tornado ioloop)
-        self.assertAlmostEqual(self.fc.call("get_count"), 21, delta=1)
+        # Hello world takes about 10 ticks
+        self.assertAlmostEqual(self.fc.call("get_count"), 30, delta=1)
         # Do a long running call
         self.fc.socket.send(serialize_call("zebra3", "long_hello"))
-        # Check it returns alomst immediately
-        self.assertAlmostEqual(self.fc2.call("get_count"), 22, delta=1)
+        # Check it returns immediately
+        self.assertAlmostEqual(self.fc2.call("get_count"), 30, delta=1)
         self.assertEqual(self.fc2.call("hello"), "world")
-        # Hello world takes about 7 0.01s ticks (cos of running cothread in tornado ioloop)
-        self.assertAlmostEqual(self.fc2.call("get_count"), 29, delta=1)
+        # Hello world takes 10 ticks
+        self.assertAlmostEqual(self.fc2.call("get_count"), 40, delta=1)
         self.assertEqual(self.fc.socket.recv(), serialize_return("long world"))
-        # Long hello takes about 35 0.01s ticks from send
-        self.assertAlmostEqual(self.fc.call("get_count"), 56, delta=1)
+        # Long hello takes about 50 ticks from send
+        self.assertAlmostEqual(self.fc.call("get_count"), 80, delta=1)
 
     def tearDown(self):
         """
@@ -100,10 +100,10 @@ class ZmqSystemTest(unittest.TestCase):
 
         """
         # Send a stop message to the prong process and wait until it joins
-        self.req_sock.send(json.dumps(dict(type="call", device="malcolm", method="pleasestopnow")))
+        self.dealer_sock.send(json.dumps(dict(type="call", device="malcolm", method="pleasestopnow")))
         self.fr.join()
         self.dw.join()
-        self.req_sock.close()
+        self.dealer_sock.close()
 
 class ZmqDetSystemTest(unittest.TestCase):
     def assertStringsEqual(self, first, second):
@@ -126,7 +126,7 @@ class ZmqDetSystemTest(unittest.TestCase):
         self.context = zmq.Context()
         be_addr = "ipc://frbe.ipc"
         fe_addr = "ipc://frfe.ipc"
-        self.req_sock = make_sock(self.context, zmq.REQ,
+        self.dealer_sock = make_sock(self.context, zmq.REQ,
                           connect=fe_addr)
         self.fr = FunctionRouter(fe_addr=fe_addr, be_addr=be_addr)
         self.fr.start()
@@ -259,10 +259,10 @@ class ZmqDetSystemTest(unittest.TestCase):
 
         """
         # Send a stop message to the prong process and wait until it joins
-        self.req_sock.send(json.dumps(dict(type="call", device="malcolm", method="pleasestopnow")))
+        self.dealer_sock.send(json.dumps(dict(type="call", device="malcolm", method="pleasestopnow")))
         self.fr.join()
         self.dw.join()
-        self.req_sock.close()
+        self.dealer_sock.close()
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

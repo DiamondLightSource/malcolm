@@ -151,7 +151,7 @@ class DeviceWrapperProcTest(unittest.TestCase):
         self.router_sock.send_multipart(
             [self.ready[0], "", "", json.dumps(dict(type="call", device="zebra2", method="get_count", args={}))])
         recv = self.router_sock.recv_multipart()
-        self.assertAlmostEqual(json.loads(recv[3])["val"], 35, delta=1)
+        self.assertAlmostEqual(json.loads(recv[3])["val"], 50, delta=1)
 
     def test_simple_get(self):
         self.expected_reply = json.dumps(

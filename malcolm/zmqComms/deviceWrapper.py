@@ -1,7 +1,7 @@
 from serialize import deserialize, serialize_ready, serialize_error, \
     serialize_return
 import zmq
-from base import ZmqProcess
+from zmqProcess import ZmqProcess
 from zmq.eventloop.ioloop import PeriodicCallback
 import cothread
 import logging
@@ -35,8 +35,8 @@ class DeviceWrapper(ZmqProcess):
         self.be_send("", serialize_ready(self.name, "pubsocket"))
 
         # Let cothread get a lookin
-        self.periodic = PeriodicCallback(cothread.Yield, 5, self.loop)
-        self.periodic.start()
+        #self.periodic = PeriodicCallback(cothread.Yield, 5, self.loop)
+        #self.periodic.start()
 
     def be_send(self, clientid, data):
         log.debug("be_send {}".format((clientid, data)))
