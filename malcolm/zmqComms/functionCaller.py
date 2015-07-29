@@ -1,40 +1,68 @@
 from serialize import serialize_call, serialize_get, deserialize
+from zmqProcess import ZmqProcess
 import zmq
+import cothread
 import logging
 log = logging.getLogger(__name__)
 
 
-class FunctionCaller(object):
+class FunctionCaller(ZmqProcess):
 
-    def __init__(self, device, fe_addr="ipc://frfe.ipc"):
+    def __init__(self, device, fe_addr="ipc://frfe.ipc", timeout=None):
+        super(FunctionCaller, self).__init__(timeout)
         # Prepare context and sockets
         self.fe_addr = fe_addr
         self.device = device
-        self.setup()
+        self.id = 0
+        # map id -> cothread EventQueue
+        self.queue = {}
 
     def setup(self):
-        self.socket = zmq.Context().socket(zmq.REQ)
-        self.socket.connect(self.fe_addr)
+        super(FunctionCaller, self).setup()
+        self.fe_stream = self.stream(zmq.DEALER, self.fe_addr, bind=False)
+        self.fe_stream.on_recv(self.handle_fe)
 
-    def recv_return(self):
-        reply = self.socket.recv()
-        log.debug("recv {}".format(reply))
-        d = deserialize(reply)
-        if d["type"] == "return":
-            return d.get("val")
-        elif d["type"] == "error":
-            raise eval(d["name"])(d["message"])
-        else:
-            raise KeyError("Don't know what to do with {}".format(d))
+    def handle_fe(self, msg):
+        log.debug("handle_fe {}".format(msg))
+        d = deserialize(msg[0])
+        self.queue[d["id"]].Signal(d)
+
+    def _do_request(self, request):
+        _id = self.id
+        self.id += 1
+        self.queue[_id] = cothread.EventQueue()
+        self.fe_stream.send(request)
+        while True:
+            d = self.queue[_id].Wait(self.timeout)
+            assert d["id"] == _id, "Wrong id"
+            if d["type"] in ["value", "return"]:
+                yield d.get("val")
+            elif d["type"] == "error":
+                raise eval(d["name"])(d["message"])
+            else:
+                raise KeyError("Don't know what to do with {}".format(d))
+            if d["type"] == "return":
+                self.queue.pop(_id).close()
+                return
 
     def get(self, param=None):
-        s = serialize_get(self.device, param)
+        if param is None:
+            param = self.device
+        else:
+            param = ".".join((self.device, param))
+        s = serialize_get(self.id, param)
         log.debug("get {}".format(s))
-        self.socket.send(s)
-        return self.recv_return()
+        ret = list(self._do_request(s))[-1]
+        return ret
+
+    def calliter(self, method, **kwargs):
+        s = serialize_call(self.id, ".".join((self.device, method)), **kwargs)
+        log.debug("calliter {}".format(s))
+        ret = self._do_request(s)
+        return ret
 
     def call(self, method, **kwargs):
-        s = serialize_call(self.device, method, **kwargs)
-        log.debug("send {}".format(s))
-        self.socket.send(s)
-        return self.recv_return()
+        s = serialize_call(self.id, ".".join((self.device, method)), **kwargs)
+        log.debug("call {}".format(s))
+        ret = list(self._do_request(s))[-1]
+        return ret

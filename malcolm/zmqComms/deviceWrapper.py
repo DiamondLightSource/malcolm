@@ -11,8 +11,8 @@ log = logging.getLogger(__name__)
 class DeviceWrapper(ZmqProcess):
 
     def __init__(self, name, device_class, be_addr="ipc://frbe.ipc",
-                 **device_kwargs):
-        super(DeviceWrapper, self).__init__()
+                 timeout=None, **device_kwargs):
+        super(DeviceWrapper, self).__init__(timeout)
         self.name = name
         self.be_addr = be_addr
         self.be_stream = None
@@ -32,50 +32,50 @@ class DeviceWrapper(ZmqProcess):
         self.be_stream.on_recv(self.handle_be)
 
         # Say hello
-        self.be_send("", serialize_ready(self.name, "pubsocket"))
-
-        # Let cothread get a lookin
-        #self.periodic = PeriodicCallback(cothread.Yield, 5, self.loop)
-        #self.periodic.start()
+        self.be_send("", serialize_ready(self.name))
 
     def be_send(self, clientid, data):
         log.debug("be_send {}".format((clientid, data)))
-        self.be_stream.send_multipart([clientid, "", data])
+        self.be_stream.send_multipart([clientid, data])
 
-    def do_func(self, clientid, f, args):
+    def do_func(self, clientid, f, id, args):
         log.debug("do_func {} {}".format(f, args))
         try:
             ret = f(**args)
         except Exception as e:
             log.exception("{}: threw exception calling {}".format(self.name, f))
-            self.be_send(clientid, serialize_error(e))
+            self.be_send(clientid, serialize_error(id, e))
         else:
-            self.be_send(clientid, serialize_return(ret))
+            self.be_send(clientid, serialize_return(id, ret))
 
     def do_call(self, clientid, d):
         # check that we have the right type of message
         assert d["type"] == "call", "Expected type=call, got {}".format(d)
-        device = d["device"]
+        device, method = d["method"].split(".", 1)
         assert device == self.name, "Wrong device name {}".format(device)
-        method = d["method"]        # get the function name
+        assert "id" in d, "No id in {}".format(d)
         if method == "pleasestopnow":
             # Just stop now
-            self.be_send(clientid, serialize_return(self.stop()))
+            self.be_send(clientid, serialize_return(d["id"], self.stop()))
         else:
             # Call a device method
             assert method in self.device.methods, \
                 "Invalid function {}".format(method)
             args = d.get("args", {})
+            f = self.device.methods[method]
             # Run the function
-            cothread.Spawn(
-                self.do_func, clientid, self.device.methods[method], args)
+            cothread.Spawn(self.do_func, clientid, f, d["id"], args)
 
     def do_get(self, clientid, d):
         # check that we have the right type of message
         assert d["type"] == "get", "Expected type=get, got {}".format(d)
-        device = d["device"]
+        param = d["param"]
+        if "." in param:
+            device, param = param.split(".", 1)
+        else:
+            device, param = param, None
         assert device == self.name, "Wrong device name {}".format(device)
-        param = d.get("param")
+        assert "id" in d, "No id in {}".format(d)
         parameters = self.device
         if param is not None:
             for p in param.split("."):
@@ -83,20 +83,21 @@ class DeviceWrapper(ZmqProcess):
                     parameters = parameters[p]
                 except:
                     parameters = parameters.to_dict()[p]
-        self.be_send(clientid, serialize_return(parameters))
+        self.be_send(clientid, serialize_return(d["id"], parameters))
 
     def handle_be(self, msg):
         log.debug("handle_be {}".format(msg))
-        clientid, _, data = msg
+        clientid, data = msg
         # Classify what type of method it is
         try:
             d = deserialize(data)
+            assert "id" in d, "No id in {}".format(d)
         except Exception as e:
-            self.be_send(clientid, serialize_error(e))
+            self.be_send(clientid, serialize_error(-1, e))
             return
         # Now do the identified action
         try:
             getattr(self, "do_" + d["type"])(clientid, d)
         except Exception as e:
             # send error up the chain
-            self.be_send(clientid, serialize_error(e))
+            self.be_send(clientid, serialize_error(d["id"], e))

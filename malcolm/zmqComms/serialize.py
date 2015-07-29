@@ -1,6 +1,6 @@
 import json
 
-TYPES = ["call", "get", "error", "return", "ready"]
+TYPES = ["call", "get", "error", "return", "value", "ready"]
 
 
 class CustomSerializer(json.JSONEncoder):
@@ -14,39 +14,56 @@ class CustomSerializer(json.JSONEncoder):
 serializer = CustomSerializer()
 
 
-def serialize_call(device, method, **args):
-    d = dict(type="call", device=device, method=method)
+def serialize(typ, id, **kwargs):
+    assert type(id) == int, "Need an integer ID, got {}".format(id)
+    d = dict(id=id, type=typ, **kwargs)
+    s = serializer.encode(d)
+    return s
+
+
+def serialize_call(id, method, **args):
     if args:
-        d["args"] = args
-    return serializer.encode(d)
+        kwargs = dict(args=args)
+    else:
+        kwargs = {}
+    s = serialize("call", id, method=method, **kwargs)
+    return s
 
 
-def serialize_get(device, param=None):
-    d = dict(type="get", device=device)
-    if param:
-        d["param"] = param
-    return serializer.encode(d)
+def serialize_get(id, param):
+    s = serialize("get", id, param=param)
+    return s
 
 
-def serialize_error(e):
-    d = dict(type="error", name=type(e).__name__, message=e.message)
-    return serializer.encode(d)
+def serialize_error(id, e):
+    s = serialize("error", id, name=type(e).__name__, message=e.message)
+    return s
 
 
-def serialize_return(ret):
-    d = dict(type="return")
-    if ret is not None:
-        d["val"] = ret
-    return serializer.encode(d)
+def serialize_return(id, val):
+    if val is not None:
+        kwargs = dict(val=val)
+    else:
+        kwargs = {}
+    s = serialize("return", id, **kwargs)
+    return s
 
 
-def serialize_ready(device, pubsocket):
-    d = dict(type="ready", device=device, pubsocket=pubsocket)
-    return serializer.encode(d)
+def serialize_value(id, val):
+    s = serialize("value", id, val=val)
+    return s
+
+
+def serialize_ready(device):
+    d = dict(type="ready", device=device)
+    s = serializer.encode(d)
+    return s
 
 
 def deserialize(s):
     d = json.loads(s)
     assert d["type"] in TYPES, \
         "Expected type in {}, got {}".format(TYPES, s)
+    if d["type"] != "ready":
+        assert "id" in d, "No id in {}".format(d)
     return d

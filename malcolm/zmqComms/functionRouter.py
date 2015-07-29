@@ -9,8 +9,9 @@ log = logging.getLogger(__name__)
 
 
 class FunctionRouter(ZmqProcess):
-    def __init__(self, fe_addr="ipc://frfe.ipc", be_addr="ipc://frbe.ipc"):
-        super(FunctionRouter, self).__init__()
+    def __init__(self, fe_addr="ipc://frfe.ipc", be_addr="ipc://frbe.ipc", 
+                 timeout=None):
+        super(FunctionRouter, self).__init__(timeout)
         self.fe_addr = fe_addr
         self.be_addr = be_addr
         self.fe_stream = None
@@ -32,22 +33,21 @@ class FunctionRouter(ZmqProcess):
 
     def fe_send(self, clientid, data):
         log.debug("fe_send {}".format((clientid, data)))
-        self.fe_stream.send_multipart([clientid, "", data])
+        self.fe_stream.send_multipart([clientid, data])
 
     def be_send(self, deviceid, clientid, data):
         log.debug("be_send {}".format((deviceid, clientid, data)))
-        self.be_stream.send_multipart([deviceid, clientid, "", data])
+        self.be_stream.send_multipart([deviceid, clientid, data])
 
     def do_call(self, clientid, d, data):
         # check that we have the right type of message
         assert d["type"] == "call", "Expected type=call, got {}".format(d)
-        device = d["device"]
-        method = d["method"]        # get the function name
+        device, method = d["method"].split(".", 1)
         if device == "malcolm":
             assert method in self.methods, \
                 "Invalid internal method {}".format(method)
             ret = self.methods[method]()
-            self.fe_send(clientid, serialize_return(ret))
+            self.fe_send(clientid, serialize_return(d["id"], ret))
         else:
             assert device in self._devices, \
                 "No device named {} registered".format(device)
@@ -57,9 +57,12 @@ class FunctionRouter(ZmqProcess):
     def do_get(self, clientid, d, data):
         # check that we have the right type of message
         assert d["type"] == "get", "Expected type=get, got {}".format(d)
-        device = d["device"]
+        param = d["param"]
+        if "." in param:
+            device, param = param.split(".", 1)
+        else:
+            device, param = param, None
         if device == "malcolm":
-            param = d.get("param")
             parameters = self
             if param is not None:
                 for p in param.split("."):
@@ -67,7 +70,7 @@ class FunctionRouter(ZmqProcess):
                         parameters = parameters[p]
                     except:
                         parameters = parameters.to_dict()[p]
-            self.fe_send(clientid, serialize_return(parameters))
+            self.fe_send(clientid, serialize_return(d["id"], parameters))
         else:
             assert device in self._devices, \
                 "No device named {} registered".format(device)
@@ -76,19 +79,20 @@ class FunctionRouter(ZmqProcess):
 
     def handle_fe(self, msg):
         log.debug("handle_fe {}".format(msg))
-        clientid, _, data = msg
+        clientid, data = msg
         # Classify what type of method it is
         try:
             d = deserialize(data)
         except Exception as e:
-            self.fe_send(clientid, serialize_error(e))
+            self.fe_send(clientid, serialize_error(-1, e))
             return
         # Now do the identified action
         try:
             getattr(self, "do_" + d["type"])(clientid, d, data)
         except Exception as e:
             # send error up the chain
-            self.fe_send(clientid, serialize_error(e))
+            log.exception(e)
+            self.fe_send(clientid, serialize_error(d["id"], e))
 
     def do_ready(self, deviceid, clientid, d, data):
         # initial clientid connect
@@ -98,15 +102,17 @@ class FunctionRouter(ZmqProcess):
         self._devices[device] = deviceid
 
     def do_return(self, deviceid, clientid, d, data):
+        assert "id" in d, "No id in {}".format(d)
         if clientid != "":
             self.fe_send(clientid, data)
 
     def do_error(self, deviceid, clientid, d, data):
+        assert "id" in d, "No id in {}".format(d)
         self.fe_send(clientid, data)
 
     def handle_be(self, msg):
         log.debug("handle_be {}".format(msg))
-        deviceid, clientid, _, data = msg
+        deviceid, clientid, data = msg
         # Classify what type of method it is
         try:
             d = deserialize(data)
@@ -119,7 +125,7 @@ class FunctionRouter(ZmqProcess):
         except Exception as e:
             # send error up the chain
             log.exception(e)
-            self.be_send(deviceid, clientid, serialize_error(e))
+            self.be_send(deviceid, clientid, serialize_error(-1, e))
 
     @wrap_method(only_in=None)
     def devices(self):
@@ -131,7 +137,7 @@ class FunctionRouter(ZmqProcess):
         "Stop the router and all of the devices attached to it"
         # stop all of our devices
         for device, deviceid in self._devices.items():
-            self.be_send(deviceid, "", serialize_call(device, "pleasestopnow"))
+            self.be_send(deviceid, "", serialize_call(-1, device + ".pleasestopnow"))
         self.stop()
 
     def to_dict(self):

@@ -2,13 +2,15 @@ import multiprocessing
 import zmq
 import cothread
 from cothread import coselect
+import logging
+log = logging.getLogger(__name__)
 
 
 class CoStream(object):
 
-    def __init__(self, sock_type, addr, bind, timeout=None):
+    def __init__(self, context, sock_type, addr, bind, timeout=None):
         # Make the socket and bind or connect it
-        self.sock = zmq.Context().socket(sock_type)
+        self.sock = context.socket(sock_type)
         if bind:
             self.sock.bind(addr)
         else:
@@ -19,7 +21,7 @@ class CoStream(object):
         self.timeout = timeout
 
     def fileno(self):
-        return self.sock.getsockopt(zmq.FD)
+        return self.sock.fd
 
     def __poll(self, event):
         if not coselect.poll_list([(self, event)], self.timeout):
@@ -28,7 +30,8 @@ class CoStream(object):
     def __retry(self, poll, action, *args, **kwargs):
         while True:
             try:
-                return action(*args, **kwargs)
+                ret = action(*args, **kwargs)
+                return ret
             except zmq.ZMQError as error:
                 if error.errno != zmq.EAGAIN:
                     raise
@@ -37,15 +40,16 @@ class CoStream(object):
     def recv_multipart(self):
         return self.__retry(coselect.POLLIN, self.sock.recv_multipart, flags=zmq.NOBLOCK)
 
+    def recv(self):
+        return self.__retry(coselect.POLLIN, self.sock.recv, flags=zmq.NOBLOCK)
+
     def send_multipart(self, message):
+        # return self.sock.send_multipart(message)
         return self.__retry(coselect.POLLOUT, self.sock.send_multipart, message, flags=zmq.NOBLOCK)
 
     def send(self, message):
+        # return self.sock.send(message)
         return self.__retry(coselect.POLLOUT, self.sock.send, message, flags=zmq.NOBLOCK)
-
-    def recv(self):
-        return self.__retry(coselect.POLLOUT, self.sock.recv, flags=zmq.NOBLOCK)
-
 
     def on_recv(self, callback):
         self._on_recv = callback
@@ -59,6 +63,7 @@ class CoStream(object):
     def close(self):
         self.sock.close()
 
+
 class ZmqProcess(multiprocessing.Process):
     """
     This is the base for all processes and offers utility functions
@@ -66,11 +71,11 @@ class ZmqProcess(multiprocessing.Process):
 
     """
 
-    def __init__(self):
+    def __init__(self, timeout=None):
         super(ZmqProcess, self).__init__()
-        # The zeroMQ context
-        self.context = None
         self.streams = []
+        self.loops = []
+        self.timeout = timeout
 
     def setup(self):
         """
@@ -91,7 +96,7 @@ class ZmqProcess(multiprocessing.Process):
 
         """
         # Create the stream and add the callback
-        stream = CoStream(sock_type, addr, bind)
+        stream = CoStream(self.context, sock_type, addr, bind, self.timeout)
         self.streams.append(stream)
         return stream
 
@@ -99,10 +104,22 @@ class ZmqProcess(multiprocessing.Process):
         """Sets up everything and starts the event loop."""
         self.setup()
         for stream in self.streams:
-            cothread.Spawn(stream.event_loop)
+            self.loops.append(cothread.Spawn(
+                stream.event_loop, raise_on_wait=True))
+        self.quitsig = cothread.Pulse()
         if block:
-            cothread.WaitForQuit()
+            self.quitsig.Wait()
+            self.wait_loops()
+
+    def wait_loops(self):
+        for stream in self.streams:
+            stream.close()
+        for loop in self.loops:
+            try:
+                loop.Wait()
+            except zmq.ZMQError as e:
+                log.debug("Exception raised in event loop {}".format(e))
 
     def stop(self):
         """Stops the event loop."""
-        cothread.Quit()
+        self.quitsig.Signal()

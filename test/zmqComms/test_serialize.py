@@ -61,37 +61,38 @@ class SerializeTest(unittest.TestCase):
             self.fail("Multi-line strings are unequal: %s\n" % message)
 
     def test_serialize_function_call(self):
-        s = serialize_call("zebra1", "configure", PC_BIT_CAP=1, PC_TSPRE="ms")
+        s = serialize_call(0, "zebra1.configure", PC_BIT_CAP=1, PC_TSPRE="ms")
         pretty = json.dumps(json.loads(s), indent=2)
 #        print pretty
         expected = '''{
-  "device": "zebra1", 
   "args": {
     "PC_BIT_CAP": 1, 
     "PC_TSPRE": "ms"
   }, 
   "type": "call", 
-  "method": "configure"
+  "method": "zebra1.configure", 
+  "id": 0
 }'''
         self.assertStringsEqual(pretty, expected)
         
     def test_serialize_get(self):
-        s = serialize_get("zebra1", "status")
+        s = serialize_get(0, "zebra1.status")
         pretty = json.dumps(json.loads(s), indent=2)
         expected = '''{
-  "device": "zebra1", 
   "type": "get", 
-  "param": "status"
+  "id": 0, 
+  "param": "zebra1.status"
 }'''
         self.assertStringsEqual(pretty, expected)
 
     def test_serialize_error(self):
-        s = serialize_error(AssertionError("No device named foo registered"))
+        s = serialize_error(0, AssertionError("No device named foo registered"))
         pretty = json.dumps(json.loads(s), indent=2)
         expected = '''{
   "message": "No device named foo registered", 
   "type": "error", 
-  "name": "AssertionError"
+  "name": "AssertionError", 
+  "id": 0
 }'''
         self.assertStringsEqual(pretty, expected)
                     
@@ -101,10 +102,11 @@ class SerializeTest(unittest.TestCase):
             pass
         method = Method(f)
         method.describe(DummyDevice)
-        s = serialize_return(method)
+        s = serialize_return(0, method)
         pretty = json.dumps(json.loads(s), indent=2)
         expected = '''{
   "type": "return", 
+  "id": 0, 
   "val": {
     "descriptor": "Hello", 
     "args": {
@@ -126,10 +128,11 @@ class SerializeTest(unittest.TestCase):
     def test_serialize_status_return(self):
         status = Status("", DState.Idle)
         status.update("message", 0.1, timeStamp=TimeStamp.from_time(1437663079.853469))
-        s = serialize_return(status)
+        s = serialize_return(0, status)
         pretty = json.dumps(json.loads(s), indent=2)
         expected = '''{
   "type": "return", 
+  "id": 0, 
   "val": {
     "timeStamp": {
       "nanoseconds": 853468894, 
@@ -159,10 +162,11 @@ class SerializeTest(unittest.TestCase):
     def test_serialize_attributes_return(self):
         DummyDevice.attributes.set_value("foo", 3, timeStamp = TimeStamp.from_time(1437663842.11881113))
         DummyDevice.attributes.set_value("bar", "bat", timeStamp = TimeStamp.from_time(1437663842.11881113))
-        s = serialize_return(DummyDevice.attributes)
+        s = serialize_return(0, DummyDevice.attributes)
         pretty = json.dumps(json.loads(s), indent=2)
         expected = '''{
   "type": "return", 
+  "id": 0, 
   "val": {
     "foo": {
       "descriptor": "foodesc", 
@@ -199,11 +203,10 @@ class SerializeTest(unittest.TestCase):
         self.assertStringsEqual(pretty, expected)
 
     def test_device_ready(self):
-        s = serialize_ready("zebra1", "ipc://zebra1.ipc")
+        s = serialize_ready("zebra1")
         pretty = json.dumps(json.loads(s), indent=2)
         expected = """{
   "device": "zebra1", 
-  "pubsocket": "ipc://zebra1.ipc", 
   "type": "ready"
 }"""
         self.assertStringsEqual(pretty, expected)
@@ -216,10 +219,11 @@ class SerializeTest(unittest.TestCase):
         z.attributes.set_value("PC_BIT_CAP", 5, timeStamp = TimeStamp.from_time(1437663842.11881113))
         z.attributes.set_value("PC_TSPRE", "ms", timeStamp = TimeStamp.from_time(1437663842.11881113))
         z.attributes.set_value("CONNECTED", 0, alarm=Alarm(AlarmSeverity.invalidAlarm, AlarmStatus.deviceStatus, message="Communication problem"), timeStamp = TimeStamp.from_time(1437663842.11881113))
-        s = serialize_return(z)
+        s = serialize_return(0, z)
         pretty = json.dumps(json.loads(s), indent=2)
         expected = '''{
   "type": "return", 
+  "id": 0, 
   "val": {
     "status": {
       "timeStamp": {
@@ -329,10 +333,11 @@ class SerializeTest(unittest.TestCase):
   }
 }'''
         self.assertStringsEqual(pretty, expected)
-        s = serialize_return(z.status)
+        s = serialize_return(0, z.status)
         pretty = json.dumps(json.loads(s), indent=2)
         expected = '''{
   "type": "return", 
+  "id": 0, 
   "val": {
     "timeStamp": {
       "nanoseconds": 853468894, 
