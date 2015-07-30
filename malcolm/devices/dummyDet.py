@@ -20,7 +20,7 @@ class DummyDetSim(StateMachine):
         e = SEvent
         t = self.transition
         # State table
-        t(s.Idle, e.Config, self.do_config, s.Ready)
+        t([s.Idle, s.Ready], e.Config, self.do_config, s.Ready)
         t(s.Ready, e.Start, self.do_start, s.Acquiring)
         t(s.Acquiring, e.Status, self.do_status, s.Acquiring, s.Idle)
         t(s.Acquiring, e.Abort, self.do_abort, s.Acquiring)
@@ -96,6 +96,10 @@ class DummyDet(PausableDevice):
             self.post(DEvent.PauseSta, "finished")
         elif self.state == DState.Pausing and state == SState.Ready:
             self.post(DEvent.PauseSta, "configured")
+        elif self.state == DState.Aborting and state == SState.Acquiring:
+            self.post(DEvent.AbortSta, "finishing")            
+        elif self.state == DState.Aborting and state == SState.Idle:
+            self.post(DEvent.AbortSta, "finished")            
         else:
             print "Unhandled", state, message
 
@@ -127,7 +131,7 @@ class DummyDet(PausableDevice):
             self.status_message("Running in progress {}% done".format(percent))
         return DState.Running
 
-    def do_pause(self, event):
+    def do_pause(self, event, steps):
         """Start a pause"""
         self.sim.post(SEvent.Abort)
         self.status_message("Pausing started")
@@ -151,4 +155,16 @@ class DummyDet(PausableDevice):
 
     def do_abort(self, event):
         """Abort the machine"""
-        pass
+        self.sim.post(SEvent.Abort)
+        self.status_message("Aborting")
+
+    def do_abortsta(self, event, abortsta):
+        if abortsta == "finishing":
+            # detector still doing the last frame
+            self.status_message("Waiting for detector to stop")    
+            return DState.Aborting    
+        elif abortsta == "finished":
+            self.status_message("Aborted")
+            return DState.Aborted
+        else:
+            raise Exception("What is: {}".format(abortsta))       

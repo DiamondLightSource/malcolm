@@ -94,6 +94,10 @@ class FunctionRouter(ZmqProcess):
             log.exception(e)
             self.fe_send(clientid, serialize_error(d["id"], e))
 
+    def do_value(self, deviceid, clientid, d, data):
+        assert "id" in d, "No id in {}".format(d)
+        self.fe_send(clientid, data)
+
     def do_ready(self, deviceid, clientid, d, data):
         # initial clientid connect
         device = d["device"]

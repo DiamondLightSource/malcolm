@@ -8,6 +8,8 @@ require("pyzmq==13.1.0")
 from malcolm.devices.dummyDet import DummyDet
 from malcolm.zmqComms.deviceWrapper import DeviceWrapper
 from malcolm.zmqComms.functionRouter import FunctionRouter
+import logging
+logging.basicConfig(level=logging.INFO)
 
 # start the device wrapper
 port = 5600

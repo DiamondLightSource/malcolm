@@ -4,6 +4,7 @@ import zmq
 from zmqProcess import ZmqProcess
 from zmq.eventloop.ioloop import PeriodicCallback
 import logging
+from malcolm.zmqComms.serialize import serialize_value
 log = logging.getLogger(__name__)
 
 
@@ -39,13 +40,20 @@ class DeviceWrapper(ZmqProcess):
 
     def do_func(self, clientid, f, id, args):
         log.debug("do_func {} {}".format(f, args))
+
+        def send_status(**args):
+            self.be_send(clientid, serialize_value(id, args))
+
+        self.device.add_listener(send_status)
         try:
             ret = f(**args)
         except Exception as e:
-            log.exception("{}: threw exception calling {}".format(self.name, f))
+            log.exception(
+                "{}: threw exception calling {}".format(self.name, f))
             self.be_send(clientid, serialize_error(id, e))
         else:
             self.be_send(clientid, serialize_return(id, ret))
+        self.device.remove_listener(send_status)
 
     def do_call(self, clientid, d):
         # check that we have the right type of message

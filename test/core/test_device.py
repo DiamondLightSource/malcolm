@@ -8,12 +8,12 @@ import os
 import time
 import cothread
 #import logging
-# logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 # logging.basicConfig()
 from mock import MagicMock, patch
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from malcolm.devices.dummyDet import DummyDet, DState
+from malcolm.devices.dummyDet import DummyDet, DState, SState
 
 
 class DeviceTest(unittest.TestCase):
@@ -43,7 +43,6 @@ class DeviceTest(unittest.TestCase):
         self.assertEqual(messages, expected)
         self.assertEqual(self.d.sim.nframes, 10)
         self.assertEqual(self.d.sim.exposure, 0.01)
-        self.assertEqual(ret.to_dict(), callback.call_args_list[-1][1])
 
     def test_running_calls_back_correct_methods(self):
         self.d.configure(nframes=3, exposure=0.01)
@@ -63,7 +62,6 @@ class DeviceTest(unittest.TestCase):
             ["Running in progress {}% done".format(
                 i * 100 / 3) for i in range(4)]
         self.assertEqual(messages, expected)
-        self.assertEqual(ret.to_dict(), callback.call_args_list[-1][1])
 
     def test_pausing_calls_back_correct_methods(self):
         self.d.configure(nframes=10, exposure=0.01)
@@ -73,49 +71,77 @@ class DeviceTest(unittest.TestCase):
         def pause():
             cothread.Sleep(0.06)
             pstart = time.time()
-            self.pret = self.d.pause()
+            self.d.pause()
             self.ptime = time.time() - pstart
-        cothread.Spawn(pause)
+            self.pstate = self.d.state
+            self.pframes = self.d.sim.nframes
+            cothread.Sleep(0.06)
+            rstart = time.time()
+            self.d.resume()
+            self.rtime = time.time() - rstart
+            self.rstate = self.d.state
+            self.rframes = self.d.sim.nframes
+            
+        t = cothread.Spawn(pause)
         start = time.time()
         self.d.run()
         end = time.time()
-        self.assertAlmostEqual(end - start, 0.06, delta=0.01)
-        # let the pause task finish
-        cothread.Yield()
-        self.assertEqual(self.pret.to_dict(), callback.call_args_list[-1][1])
+        self.assertAlmostEqual(end - start, 0.16, delta=0.01)
+        # let the pause and resumetask finish
+        t.Wait()
         self.assertLess(self.ptime, 0.01)
-        self.assertEqual(self.d.sim.nframes, 4)
+        self.assertEqual(self.pstate, DState.Paused)
+        self.assertEqual(self.pframes, 4)
+        self.assertLess(self.rtime, 0.01)
+        self.assertEqual(self.rstate, DState.Running)
+        self.assertEqual(self.rframes, 4)
         states = [a[1]["state"] for a in callback.call_args_list]
         expected = [DState.Running] * 7 + \
-            [DState.Pausing] * 3 + [DState.Paused]
+            [DState.Pausing] * 3 + [DState.Paused] + [DState.Running] * 5 + [DState.Idle]
         self.assertEqual(states, expected)
         messages = [a[1]["message"] for a in callback.call_args_list]
         expected = ["Starting run"] + ["Running in progress {}% done".format(i * 100 / 10) for i in range(6)] + \
             ["Pausing started", "Waiting for detector to stop",
-                "Reconfiguring detector", "Pausing finished"]
-        self.assertEqual(messages, expected)
-        # Now paused, so resume and get the last 4 frames
-        callback.reset_mock()
-        start = time.time()
-        ret = self.d.run()
-        end = time.time()
-        self.assertAlmostEqual(end - start, 0.04, delta=0.01)
-        self.assertEqual(self.d.sim.nframes, 0)
-        states = [a[1]["state"] for a in callback.call_args_list]
-        expected = [DState.Running] * 5 + [DState.Idle]
-        self.assertEqual(states, expected)
-        messages = [a[1]["message"] for a in callback.call_args_list]
-        expected = ["Starting run"] + \
+                "Reconfiguring detector", "Pausing finished"] + ["Starting run"] + \
             ["Running in progress {}% done".format(
                 i * 100 / 10) for i in range(6, 11)]
         self.assertEqual(messages, expected)
-        self.assertEqual(ret.to_dict(), callback.call_args_list[-1][1])
+        self.assertEqual(self.d.sim.nframes, 0)
 
     def test_run_from_idle_not_allowed(self):
         self.assertRaises(AssertionError, self.d.run)
 
     def test_configure_with_wrong_params_raises(self):
         self.assertRaises(TypeError, self.d.configure)
+
+    def test_aborting_works(self):
+        self.d.configure(nframes=10, exposure=0.01)
+        callback = MagicMock()
+        self.d.add_listener(callback)
+
+        def abort():
+            cothread.Sleep(0.06)
+            pstart = time.time()
+            self.pret = self.d.abort()
+            self.ptime = time.time() - pstart
+        cothread.Spawn(abort)
+        start = time.time()
+        self.d.run()
+        end = time.time()
+        self.assertAlmostEqual(end - start, 0.06, delta=0.01)
+        # let the abort task finish
+        cothread.Yield()
+        self.assertLess(self.ptime, 0.01)
+        self.assertEqual(self.d.sim.nframes, 4)
+        self.assertEqual(self.d.sim.state, SState.Idle)        
+        states = [a[1]["state"] for a in callback.call_args_list]
+        expected = [DState.Running] * 7 + \
+            [DState.Aborting] * 2 + [DState.Aborted]
+        self.assertEqual(states, expected)
+        messages = [a[1]["message"] for a in callback.call_args_list]
+        expected = ["Starting run"] + ["Running in progress {}% done".format(i * 100 / 10) for i in range(6)] + \
+            ["Aborting", 'Waiting for detector to stop', "Aborted"]
+        self.assertEqual(messages, expected)
 
     def test_attribute_settings_and_locals(self):
         self.assertEqual(self.d.nframes, None)

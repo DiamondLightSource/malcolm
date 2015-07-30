@@ -82,7 +82,8 @@ class ZmqDetSystemTest(unittest.TestCase):
         "Pausing", 
         "Paused", 
         "Aborting", 
-        "Aborted"
+        "Aborted", 
+        "Resetting"
       ]
     }, 
     "message": ""
@@ -109,7 +110,7 @@ class ZmqDetSystemTest(unittest.TestCase):
       ]
     }, 
     "pause": {
-      "descriptor": "Pause a run so that it can be resumed later. It blocks until the\n        device is in a rest state:\n         * Normally it will return a DState.Paused Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
+      "descriptor": "Pause a run so that it can be resumed later. It blocks until the\n        device is in a pause done state:\n         * Normally it will return a DState.Paused Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
       "args": {}, 
       "valid_states": [
         "Running"
@@ -131,6 +132,20 @@ class ZmqDetSystemTest(unittest.TestCase):
         "Ready"
       ]
     }, 
+    "resume": {
+      "descriptor": "Resume the current scan. It returns as soon as the device has\n        continued to run:\n         * Normally it will return a DState.Running Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
+      "args": {}, 
+      "valid_states": [
+        "Paused"
+      ]
+    }, 
+    "retrace": {
+      "descriptor": "Retrace a number of steps in the current scan. It blocks until the\n        device is in pause done state:\n         * Normally it will return a DState.Paused Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
+      "args": {}, 
+      "valid_states": [
+        "Paused"
+      ]
+    }, 
     "assert_valid": {
       "descriptor": "Check whether the configuration parameters are valid or not. This set\n        of parameters are checked in isolation, no device state is taken into\n        account. It raises an error if the set of configuration parameters is\n        invalid.\n        ", 
       "args": {}, 
@@ -143,7 +158,8 @@ class ZmqDetSystemTest(unittest.TestCase):
         "Pausing", 
         "Paused", 
         "Aborting", 
-        "Aborted"
+        "Aborted", 
+        "Resetting"
       ]
     }, 
     "abort": {
@@ -154,7 +170,8 @@ class ZmqDetSystemTest(unittest.TestCase):
         "Ready", 
         "Running", 
         "Pausing", 
-        "Paused"
+        "Paused", 
+        "Resetting"
       ]
     }, 
     "configure_run": {
@@ -169,7 +186,8 @@ class ZmqDetSystemTest(unittest.TestCase):
         "Pausing", 
         "Paused", 
         "Aborting", 
-        "Aborted"
+        "Aborted", 
+        "Resetting"
       ]
     }
   }

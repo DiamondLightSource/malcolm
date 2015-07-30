@@ -148,7 +148,8 @@ class SerializeTest(unittest.TestCase):
         "Pausing", 
         "Paused", 
         "Aborting", 
-        "Aborted"
+        "Aborted", 
+        "Resetting"
       ]
     }, 
     "message": "message"
@@ -239,7 +240,8 @@ class SerializeTest(unittest.TestCase):
           "Pausing", 
           "Paused", 
           "Aborting", 
-          "Aborted"
+          "Aborted", 
+          "Resetting"
         ]
       }, 
       "message": "Configuring..."
@@ -351,7 +353,8 @@ class SerializeTest(unittest.TestCase):
         "Pausing", 
         "Paused", 
         "Aborting", 
-        "Aborted"
+        "Aborted", 
+        "Resetting"
       ]
     }, 
     "message": "Configuring..."

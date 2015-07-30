@@ -8,16 +8,20 @@ from method import Method
 class DState(Enum):
     # These are the states that our machine supports
     Fault, Idle, Configuring, Ready, Running, Pausing, Paused, Aborting,\
-        Aborted = range(9)
+        Aborted, Resetting = range(10)
 
     @classmethod
     def rest(cls):
-        return [cls.Fault, cls.Idle, cls.Ready, cls.Paused, cls.Aborted]
+        return [cls.Fault, cls.Idle, cls.Ready, cls.Aborted]
+
+    @classmethod
+    def pausedone(cls):
+        return [cls.Fault, cls.Aborted, cls.Paused]
 
     @classmethod
     def abortable(cls):
         return [cls.Configuring, cls.Ready, cls.Running, cls.Pausing,
-                cls.Paused]
+                cls.Paused, cls.Resetting]
 
     @classmethod
     def configurable(cls):
@@ -38,8 +42,8 @@ class DState(Enum):
 
 class DEvent(Enum):
     # These are the messages that we will respond to
-    Error, Reset, Config, ConfigSta, Run, RunSta, Abort, AbortSta, Pause, \
-        PauseSta = range(10)
+    Error, Reset, ResetSta, Config, ConfigSta, Run, RunSta, Abort, AbortSta, \
+        Pause, PauseSta = range(11)
 
 
 class Device(StateMachine):
