@@ -3,9 +3,7 @@ from pkg_resources import require
 from malcolm.core.status import Status
 from malcolm.core.device import DState
 from malcolm.core.alarm import Alarm, AlarmSeverity, AlarmStatus
-from IPython.core.display import Pretty
 require("mock")
-require("cothread")
 import unittest
 import sys
 import os
@@ -127,7 +125,7 @@ class SerializeTest(unittest.TestCase):
 
     def test_serialize_status_return(self):
         status = Status("", DState.Idle)
-        status.update("message", 0.1, timeStamp=TimeStamp.from_time(1437663079.853469))
+        status.update("message", DState.Idle, timeStamp=TimeStamp.from_time(1437663079.853469))
         s = serialize_return(0, status)
         pretty = json.dumps(json.loads(s), indent=2)
         expected = '''{
@@ -153,7 +151,6 @@ class SerializeTest(unittest.TestCase):
         "Aborted"
       ]
     }, 
-    "percent": 0.1, 
     "message": "message"
   }
 }'''
@@ -215,7 +212,7 @@ class SerializeTest(unittest.TestCase):
         z = DummyZebra()
         for method in z.methods.values():
             method.describe(z)
-        z.status.update("Configuring...", 53.4, DState.Configuring, TimeStamp.from_time(1437663079.853469))
+        z.status.update("Configuring...", DState.Configuring, TimeStamp.from_time(1437663079.853469))
         z.attributes.set_value("PC_BIT_CAP", 5, timeStamp = TimeStamp.from_time(1437663842.11881113))
         z.attributes.set_value("PC_TSPRE", "ms", timeStamp = TimeStamp.from_time(1437663842.11881113))
         z.attributes.set_value("CONNECTED", 0, alarm=Alarm(AlarmSeverity.invalidAlarm, AlarmStatus.deviceStatus, message="Communication problem"), timeStamp = TimeStamp.from_time(1437663842.11881113))
@@ -245,7 +242,6 @@ class SerializeTest(unittest.TestCase):
           "Aborted"
         ]
       }, 
-      "percent": 53.4, 
       "message": "Configuring..."
     }, 
     "attributes": {
@@ -358,7 +354,6 @@ class SerializeTest(unittest.TestCase):
         "Aborted"
       ]
     }, 
-    "percent": 53.4, 
     "message": "Configuring..."
   }
 }'''

@@ -1,6 +1,6 @@
 #!/bin/env dls-python
 from pkg_resources import require
-from malcolm.zmqComms.zmqProcess import CoStream
+from test.zmqComms.support import make_sock
 require("mock")
 require("pyzmq")
 import unittest
@@ -11,7 +11,8 @@ import json
 import zmq
 import time
 
-#import logging
+import logging
+logging.basicConfig()
 #logging.basicConfig(level=logging.DEBUG)
 from mock import patch, MagicMock
 # Module import
@@ -53,10 +54,12 @@ class FunctionRouterTest(unittest.TestCase):
         self.fr.be_stream.send_multipart.assert_called_once_with(
             [device, client, request])
 
-    def test_no_providers_error(self):
+    @patch("malcolm.zmqComms.functionRouter.log.exception")
+    def test_no_providers_error(self, mock_exception):
         self.expected_reply = json.dumps(
             dict(id=0, type="error", name="AssertionError", message="No device named foo registered"))
         self.send_request_check_reply(id=0, type="call", method="foo.func", args=dict(bar="bat"))
+        self.assertEqual(mock_exception.call_count, 1)
 
     def test_single_provider(self):
         client = "CUUID"
@@ -92,18 +95,13 @@ class FunctionRouterProcTest(unittest.TestCase):
         # mimic the Ping process
         fe_addr = "ipc://frfe.ipc"
         be_addr = "ipc://frbe.ipc"
-        self.caller_sock = CoStream(self.context, zmq.DEALER, fe_addr, bind=False, timeout=1)
-        self.dev_sock = CoStream(self.context, zmq.DEALER, be_addr, bind=False, timeout=1)
+        for x in sys.modules.keys():
+            if x.startswith("cothread"):
+                del sys.modules[x]        
+        self.caller_sock = make_sock(self.context, zmq.DEALER, fe_addr, bind=False)
+        self.dev_sock = make_sock(self.context, zmq.DEALER, be_addr, bind=False)
         self.fr = FunctionRouter(fe_addr=fe_addr, be_addr=be_addr, timeout=1)
         self.fr.start()
-
-    def test_no_providers_error(self):
-        request = json.dumps(dict(type="call", id=0, method="foo.func", args=dict(bar="bat")))
-        self.caller_sock.send(request)
-        reply = self.caller_sock.recv()
-        expected = json.dumps(
-            dict(id=0, type="error", name="AssertionError", message="No device named foo registered"))
-        self.assertEqual(reply, expected)
 
     def test_single_provider_callsback(self):
         ready = json.dumps(

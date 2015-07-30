@@ -1,7 +1,7 @@
 from serialize import serialize_call, serialize_get, deserialize
 from zmqProcess import ZmqProcess
 import zmq
-import cothread
+import time
 import logging
 log = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class FunctionCaller(ZmqProcess):
     def _do_request(self, request):
         _id = self.id
         self.id += 1
-        self.queue[_id] = cothread.EventQueue()
+        self.queue[_id] = self.cothread.EventQueue()
         self.fe_stream.send(request)
         while True:
             d = self.queue[_id].Wait(self.timeout)

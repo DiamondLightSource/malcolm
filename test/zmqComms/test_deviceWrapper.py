@@ -1,9 +1,8 @@
 #!/bin/env dls-python
 from pkg_resources import require
+from test.zmqComms.support import make_sock
 require("mock")
 require("pyzmq")
-require("cothread")
-import cothread
 import unittest
 import sys
 import os
@@ -17,7 +16,6 @@ from mock import MagicMock
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.zmqComms.deviceWrapper import DeviceWrapper
-from malcolm.zmqComms.zmqProcess import CoStream
 
 class DeviceWrapperTest(unittest.TestCase):
 
@@ -57,6 +55,7 @@ class DeviceWrapperTest(unittest.TestCase):
         client = self.send_request(id=0,
             type="call", method="zebra1.func", args={})
         # running this directly, not under the ioloop, so get to yield manually
+        import cothread
         cothread.Yield()
         self.dw.be_stream.send_multipart.assert_called_once_with(
             [client, self.expected_reply])
@@ -95,9 +94,11 @@ class Counter(object):
         self.methods = dict(get_count=self.get_count, hello=self.hello)
 
     def start_event_loop(self):
+        import cothread
         cothread.Spawn(self.do_count)
 
     def do_count(self):
+        import cothread
         while True:
             self.counter += 1
             cothread.Sleep(0.01)
@@ -123,8 +124,11 @@ class DeviceWrapperProcTest(unittest.TestCase):
 
         # make_sock creates and connects a TestSocket that we will use to
         # mimic the Ping process
+        for x in sys.modules.keys():
+            if x.startswith("cothread"):
+                del sys.modules[x]          
         be_addr = "ipc://frbe.ipc"
-        self.router_sock = CoStream(zmq.Context(), zmq.ROUTER, be_addr, bind=True, timeout=1)
+        self.router_sock = make_sock(zmq.Context(), zmq.ROUTER, be_addr, bind=True)
         self.dw = DeviceWrapper("zebra2", Counter, be_addr=be_addr, timeout=1)
         self.dw.start()
         self.ready = self.router_sock.recv_multipart()

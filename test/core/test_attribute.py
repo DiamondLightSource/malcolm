@@ -1,7 +1,6 @@
 #!/bin/env dls-python
 from pkg_resources import require
 require("mock")
-require("cothread")
 import unittest
 import sys
 import os

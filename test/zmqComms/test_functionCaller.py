@@ -22,6 +22,7 @@ from malcolm.zmqComms.zmqProcess import ZmqProcess, CoStream
 class DummyFunctionCaller(FunctionCaller):
     def setup(self):
         self.fe_stream = MagicMock()
+        self.cothread = cothread
 
 class FunctionCallerTest(unittest.TestCase):
 

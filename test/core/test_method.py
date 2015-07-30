@@ -15,15 +15,17 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.core.method import wrap_method, Method
 from malcolm.core.attribute import Attributes
 
+
 class TState(Enum):
     State1, State2 = range(2)
+
 
 class MethodTest(unittest.TestCase):
 
     @wrap_method(TState.State1)
     def f(self, nframes, exposure=0.1):
         "Return total time"
-        return nframes*exposure
+        return nframes * exposure
 
     @wrap_method(TState.State2, f)
     def g(self, **params):
@@ -39,12 +41,12 @@ class MethodTest(unittest.TestCase):
 
     def test_calling_f(self):
         self.f.describe(self)
-        self.assertEqual(self.f(3,4), 12)
-    
+        self.assertEqual(self.f(3, 4), 12)
+
     def test_attribute_description(self):
-        methods = Method.describe_methods(self)        
+        methods = Method.describe_methods(self)
         method = methods["f"]
-        self.assertEqual(method, self.f)        
+        self.assertEqual(method, self.f)
         self.assertEqual(method.descriptor, "Return total time")
         nframes = method.args["nframes"]
         self.assertEqual(nframes.descriptor, "Number of frames")
@@ -57,7 +59,7 @@ class MethodTest(unittest.TestCase):
         self.assertEqual(method.valid_states, [TState.State1])
 
     def test_attribute_override_description(self):
-        methods = Method.describe_methods(self)        
+        methods = Method.describe_methods(self)
         method = methods["g"]
         self.assertEqual(method, self.g)
         self.assertEqual(method.descriptor, "Proxy thing")
@@ -70,6 +72,6 @@ class MethodTest(unittest.TestCase):
         self.assertEqual(exposure.typ, float)
         self.assertEqual(exposure.value, 0.1)
         self.assertEqual(method.valid_states, [TState.State2])
-        
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

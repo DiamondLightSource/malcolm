@@ -1,7 +1,6 @@
 from malcolm.core import wrap_method, DState, DEvent, PausableDevice
 from malcolm.core.stateMachine import StateMachine
 from enum import Enum
-import cothread
 
 
 class SState(Enum):
@@ -9,7 +8,7 @@ class SState(Enum):
 
 
 class SEvent(Enum):
-    Config, Start, Done, Abort = range(4)
+    Config, Start, Done, Abort, Status = range(5)
 
 
 class DummyDetSim(StateMachine):
@@ -23,7 +22,7 @@ class DummyDetSim(StateMachine):
         # State table
         t(s.Idle, e.Config, self.do_config, s.Ready)
         t(s.Ready, e.Start, self.do_start, s.Acquiring)
-        t(s.Acquiring, e.Done, None, s.Idle)
+        t(s.Acquiring, e.Status, self.do_status, s.Acquiring, s.Idle)
         t(s.Acquiring, e.Abort, self.do_abort, s.Acquiring)
         # Go
         self.start_event_loop()
@@ -36,16 +35,22 @@ class DummyDetSim(StateMachine):
         self.need_abort = True
 
     def do_start(self, event):
-        cothread.Spawn(self.acquire_task)
+        self.cothread.Spawn(self.acquire_task)
+
+    def do_status(self, event):
+        if self.nframes > 0 and not self.need_abort:
+            self.status_message("Completed a frame. {} frames left".format(self.nframes))
+            return SState.Acquiring
+        else:
+            self.status_message("Finished")
+            return SState.Idle
 
     def acquire_task(self):
         self.need_abort = False
         while self.nframes > 0 and not self.need_abort:
-            cothread.Sleep(self.exposure)
+            self.cothread.Sleep(self.exposure)
             self.nframes -= 1
-            self.update_status(
-                "Completed a frame. {} frames left".format(self.nframes))
-        self.post(SEvent.Done)
+            self.post(SEvent.Status)
 
 
 class DummyDet(PausableDevice):
@@ -77,7 +82,7 @@ class DummyDet(PausableDevice):
         """Reset the underlying device"""
         return DState.Idle
 
-    def on_status(self, state, message, timeStamp, percent=None):
+    def on_status(self, state, message, timeStamp):
         """Respond to status updates from the sim state machine"""
         if self.state == DState.Configuring and state == SState.Ready:
             self.post(DEvent.ConfigSta, "finished")
@@ -99,52 +104,49 @@ class DummyDet(PausableDevice):
         self.nframes = nframes
         self.exposure = exposure
         self.sim.post(SEvent.Config, self.nframes, self.exposure)
-        self.post(DEvent.ConfigSta, None)
+        self.status_message("Configuring started")
 
     def do_configsta(self, event, configsta):
         """Receive configuration events and move to next state when finished"""
-        if configsta is None:
-            self.update_status("Configuring started", 0)
-        elif configsta == "finished":
-            self.update_status("Configuring finished", 100)
-            return DState.Ready
-        return DState.Configuring
+        assert configsta == "finished", "What is this '{}'".format(configsta)
+        self.status_message("Configuring finished")
+        return DState.Ready
 
     def do_run(self, event):
         """Start a run"""
+        self.status_message("Starting run")
         self.sim.post(SEvent.Start)
 
     def do_runsta(self, event, runsta):
         """Receive run status events and move to next state when finished"""
         if runsta == "finished":
+            self.status_message("Running in progress 100% done")
             return DState.Idle
         else:
             percent = (self.nframes - runsta) * 100 / self.nframes
-            self.update_status("Running in progress", percent)
+            self.status_message("Running in progress {}% done".format(percent))
         return DState.Running
 
     def do_pause(self, event):
         """Start a pause"""
         self.sim.post(SEvent.Abort)
-        self.post(DEvent.PauseSta, pausesta=None)
+        self.status_message("Pausing started")
 
     def do_pausesta(self, event, pausesta):
         """Receive run status events and move to next state when finished"""
-        if pausesta is None:
-            # got here from do_pause
-            percent = 0
-        elif pausesta == "finishing":
+        if pausesta == "finishing":
             # detector still doing the last frame
-            percent = 50
+            self.status_message("Waiting for detector to stop")
         elif pausesta == "finished":
             # detector done, reconfigure it
-            percent = 75
             self.sim.post(SEvent.Config, self.sim.nframes, self.exposure)
+            self.status_message("Reconfiguring detector")
         elif pausesta == "configured":
             # detector reconfigured, done
-            self.update_status("Pausing finished", 100)
+            self.status_message("Pausing finished")
             return DState.Paused
-        self.update_status("Pausing in progress", percent)
+        else:
+            raise Exception("What is: {}".format(pausesta))
         return DState.Pausing
 
     def do_abort(self, event):

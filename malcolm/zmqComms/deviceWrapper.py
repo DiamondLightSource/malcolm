@@ -3,7 +3,6 @@ from serialize import deserialize, serialize_ready, serialize_error, \
 import zmq
 from zmqProcess import ZmqProcess
 from zmq.eventloop.ioloop import PeriodicCallback
-import cothread
 import logging
 log = logging.getLogger(__name__)
 
@@ -64,6 +63,7 @@ class DeviceWrapper(ZmqProcess):
             args = d.get("args", {})
             f = self.device.methods[method]
             # Run the function
+            import cothread
             cothread.Spawn(self.do_func, clientid, f, d["id"], args)
 
     def do_get(self, clientid, d):

@@ -10,4 +10,4 @@ from malcolm.client import DeviceClient
 # start the device wrapper
 port = 5600
 det = DeviceClient("det", "tcp://127.0.0.1:{}".format(port))
-
+print "Try running det.configure(exposure=0.2, nframes=10)"

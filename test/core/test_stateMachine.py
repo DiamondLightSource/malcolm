@@ -7,8 +7,8 @@ import unittest
 import sys
 import os
 import cothread
-# import logging
-# logging.basicConfig(level=logging.DEBUG)
+#import logging
+#logging.basicConfig(level=logging.DEBUG)
 import time
 from mock import patch, MagicMock
 # Module import
@@ -54,10 +54,10 @@ class StateMachineTest(unittest.TestCase):
         self.sm.start_event_loop()
         self.sm.post(VEvent.Event1)
         cothread.Yield()
-        self.assertEquals(self.sm.state, VState.State1)
+        self.assertEquals(self.sm.state, VState.Err)
         trans.assert_called_once_with(VEvent.Event1)
         mock_warning.assert_called_once_with(
-            'SM: Returned state None in response to event VEvent.Event1 is not one of the registered states [<VState.State1: 0>, <VState.State2: 1>, <VState.Err: 2>]. Ignoring state change')
+            'SM: Returned state None in response to event VEvent.Event1 is not one of the registered states [<VState.State1: 0>, <VState.State2: 1>, <VState.Err: 2>]')
 
     @patch("malcolm.core.stateMachine.log.warning")
     def test_transition_with_no_matching_func(self, mock_warning):
@@ -97,7 +97,6 @@ class StateMachineTest(unittest.TestCase):
         self.assertEquals(self.sm.state, VState.Err)
         self.assertEquals(callback.call_args[1]["state"], VState.Err)
         self.assertEquals(callback.call_args[1]["message"], "My Error Message")
-        self.assertEquals(callback.call_args[1].get("percent"), None)
         mock_error.assert_called_once_with(
             "SM: event VEvent.Event2 caused error ValueError('My Error Message',) in transition func")
 
@@ -120,8 +119,6 @@ class StateMachineTest(unittest.TestCase):
         for i, state in enumerate((VState.State2, VState.State1)):
             self.assertEquals(callback.call_args_list[i][1]["state"], state)
             self.assertEquals(callback.call_args_list[i][1]["message"], "State change")
-            # 2 is time
-            self.assertEquals(callback.call_args_list[i][1].get("percent"), None)
 
     def test_waiting_for_single_state(self):
         self.sm.transition(VState.State1, VEvent.Event1, None, VState.State2)
