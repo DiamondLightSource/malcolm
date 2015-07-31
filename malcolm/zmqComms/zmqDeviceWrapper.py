@@ -1,18 +1,17 @@
-from serialize import deserialize, serialize_ready, serialize_error, \
-    serialize_return
+from malcolm.zmqComms.zmqSerialize import deserialize, serialize_ready, \
+    serialize_error, serialize_return
 import zmq
 from zmqProcess import ZmqProcess
-from zmq.eventloop.ioloop import PeriodicCallback
 import logging
-from malcolm.zmqComms.serialize import serialize_value
+from malcolm.zmqComms.zmqSerialize import serialize_value
 log = logging.getLogger(__name__)
 
 
-class DeviceWrapper(ZmqProcess):
+class ZmqDeviceWrapper(ZmqProcess):
 
     def __init__(self, name, device_class, be_addr="ipc://frbe.ipc",
                  timeout=None, **device_kwargs):
-        super(DeviceWrapper, self).__init__(timeout)
+        super(ZmqDeviceWrapper, self).__init__(timeout)
         self.name = name
         self.be_addr = be_addr
         self.be_stream = None
@@ -21,7 +20,7 @@ class DeviceWrapper(ZmqProcess):
 
     def setup(self):
         """Sets up PyZMQ and creates all streams."""
-        super(DeviceWrapper, self).setup()
+        super(ZmqDeviceWrapper, self).setup()
 
         # Make the device object and run it
         self.device = self.device_class(self.name, **self.device_kwargs)
@@ -38,11 +37,11 @@ class DeviceWrapper(ZmqProcess):
         log.debug("be_send {}".format((clientid, data)))
         self.be_stream.send_multipart([clientid, data])
 
-    def do_func(self, clientid, f, id, args):
+    def do_func(self, clientid, f, _id, args):
         log.debug("do_func {} {}".format(f, args))
 
         def send_status(**args):
-            self.be_send(clientid, serialize_value(id, args))
+            self.be_send(clientid, serialize_value(_id, args))
 
         self.device.add_listener(send_status)
         try:
@@ -50,9 +49,9 @@ class DeviceWrapper(ZmqProcess):
         except Exception as e:
             log.exception(
                 "{}: threw exception calling {}".format(self.name, f))
-            self.be_send(clientid, serialize_error(id, e))
+            self.be_send(clientid, serialize_error(_id, e))
         else:
-            self.be_send(clientid, serialize_return(id, ret))
+            self.be_send(clientid, serialize_return(_id, ret))
         self.device.remove_listener(send_status)
 
     def do_call(self, clientid, d):

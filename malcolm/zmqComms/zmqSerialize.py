@@ -14,43 +14,43 @@ class CustomSerializer(json.JSONEncoder):
 serializer = CustomSerializer()
 
 
-def serialize(typ, id, **kwargs):
-    assert type(id) == int, "Need an integer ID, got {}".format(id)
-    d = dict(id=id, type=typ, **kwargs)
+def serialize(typ, _id, **kwargs):
+    assert type(_id) == int, "Need an integer ID, got {}".format(_id)
+    d = dict(id=_id, type=typ, **kwargs)
     s = serializer.encode(d)
     return s
 
 
-def serialize_call(id, method, **args):
+def serialize_call(_id, method, **args):
     if args:
         kwargs = dict(args=args)
     else:
         kwargs = {}
-    s = serialize("call", id, method=method, **kwargs)
+    s = serialize("call", _id, method=method, **kwargs)
     return s
 
 
-def serialize_get(id, param):
-    s = serialize("get", id, param=param)
+def serialize_get(_id, param):
+    s = serialize("get", _id, param=param)
     return s
 
 
-def serialize_error(id, e):
-    s = serialize("error", id, name=type(e).__name__, message=e.message)
+def serialize_error(_id, e):
+    s = serialize("error", _id, name=type(e).__name__, message=e.message)
     return s
 
 
-def serialize_return(id, val):
+def serialize_return(_id, val):
     if val is not None:
         kwargs = dict(val=val)
     else:
         kwargs = {}
-    s = serialize("return", id, **kwargs)
+    s = serialize("return", _id, **kwargs)
     return s
 
 
-def serialize_value(id, val):
-    s = serialize("value", id, val=val)
+def serialize_value(_id, val):
+    s = serialize("value", _id, val=val)
     return s
 
 

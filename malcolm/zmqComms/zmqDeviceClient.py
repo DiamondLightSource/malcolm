@@ -1,15 +1,15 @@
-from serialize import serialize_call, serialize_get, deserialize
+from malcolm.zmqComms.zmqSerialize import serialize_call, serialize_get, \
+    deserialize
 from zmqProcess import ZmqProcess
 import zmq
-import time
 import logging
 log = logging.getLogger(__name__)
 
 
-class FunctionCaller(ZmqProcess):
+class ZmqDeviceClient(ZmqProcess):
 
     def __init__(self, device, fe_addr="ipc://frfe.ipc", timeout=None):
-        super(FunctionCaller, self).__init__(timeout)
+        super(ZmqDeviceClient, self).__init__(timeout)
         # Prepare context and sockets
         self.fe_addr = fe_addr
         self.device = device
@@ -18,7 +18,7 @@ class FunctionCaller(ZmqProcess):
         self.queue = {}
 
     def setup(self):
-        super(FunctionCaller, self).setup()
+        super(ZmqDeviceClient, self).setup()
         self.fe_stream = self.stream(zmq.DEALER, self.fe_addr, bind=False)
         self.fe_stream.on_recv(self.handle_fe)
 

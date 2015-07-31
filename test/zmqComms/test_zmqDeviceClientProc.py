@@ -8,14 +8,12 @@ import os
 import multiprocessing
 import json
 import zmq
-import time
 
 #import logging
-#logging.basicConfig(level=logging.DEBUG)
-from mock import patch, MagicMock
+# logging.basicConfig(level=logging.DEBUG)
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from malcolm.zmqComms.functionCaller import FunctionCaller
+from malcolm.zmqComms.zmqDeviceClient import ZmqDeviceClient
 from malcolm.zmqComms.zmqProcess import CoStream, ZmqProcess
 
 
@@ -46,7 +44,7 @@ class MiniRouter(ZmqProcess):
             self.fe_stream.send_multipart([clientid, returnval])
 
 
-class FunctionCallerProcTest(unittest.TestCase):
+class ZmqDeviceClientProcTest(unittest.TestCase):
 
     def setUp(self):
         """
@@ -55,7 +53,7 @@ class FunctionCallerProcTest(unittest.TestCase):
 
         """
         self.context = zmq.Context()
-        self.fc = FunctionCaller(
+        self.fc = ZmqDeviceClient(
             "mydevice", fe_addr=MiniRouter.fe_addr, timeout=1)
         self.req_sock = CoStream(
             self.context, zmq.DEALER, MiniRouter.fe_addr, bind=False, timeout=1)

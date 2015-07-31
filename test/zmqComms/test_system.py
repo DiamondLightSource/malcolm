@@ -1,17 +1,13 @@
 #!/bin/env dls-python
 from pkg_resources import require
-from malcolm.zmqComms.serialize import serialize_call, serialize_return
-from malcolm.devices.dummyDet import DummyDet
 from malcolm.core.device import Device, DState
 from malcolm.core.method import wrap_method
-from malcolm.zmqComms.zmqProcess import CoStream
 from test.zmqComms.support import make_sock
 require("mock")
 require("pyzmq")
 import unittest
 import sys
 import os
-import multiprocessing
 import json
 import zmq
 import time
@@ -19,13 +15,11 @@ import time
 #import logging
 # logging.basicConfig(level=logging.DEBUG)#,
 # format="%(asctime)s;%(levelname)s;%(message)s")
-from mock import patch, MagicMock
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from malcolm.zmqComms.functionCaller import FunctionCaller
-from malcolm.zmqComms.functionRouter import FunctionRouter
-from malcolm.zmqComms.deviceWrapper import DeviceWrapper
-import difflib
+from malcolm.zmqComms.zmqDeviceClient import ZmqDeviceClient
+from malcolm.zmqComms.zmqMalcolmRouter import ZmqMalcolmRouter
+from malcolm.zmqComms.zmqDeviceWrapper import ZmqDeviceWrapper
 
 
 class Counter(Device):
@@ -72,11 +66,11 @@ class ZmqSystemTest(unittest.TestCase):
         fe_addr = "ipc://frfe.ipc"
         self.caller_sock = make_sock(
             self.context, zmq.DEALER, fe_addr, bind=False)
-        self.fr = FunctionRouter(fe_addr=fe_addr, be_addr=be_addr, timeout=1)
+        self.fr = ZmqMalcolmRouter(fe_addr=fe_addr, be_addr=be_addr, timeout=1)
         self.fr.start()
-        self.dw = DeviceWrapper("zebra3", Counter, be_addr, timeout=1)
+        self.dw = ZmqDeviceWrapper("zebra3", Counter, be_addr, timeout=1)
         self.dw.start()
-        self.fc = FunctionCaller("zebra3", fe_addr=fe_addr, timeout=1)
+        self.fc = ZmqDeviceClient("zebra3", fe_addr=fe_addr, timeout=1)
         self.fc.run(block=False)
 
     def test_simple_function(self):

@@ -1,1 +1,1 @@
-from client import DeviceClient
+from malcolm.client.deviceClient import DeviceClient

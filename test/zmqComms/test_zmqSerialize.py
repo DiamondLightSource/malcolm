@@ -7,15 +7,12 @@ require("mock")
 import unittest
 import sys
 import os
-from enum import Enum
 import json
-import inspect
 #import logging
 # logging.basicConfig(level=logging.DEBUG)
-from mock import patch, MagicMock
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from malcolm.zmqComms.serialize import serialize_return, serialize_call, serialize_get,\
+from malcolm.zmqComms.zmqSerialize import serialize_return, serialize_call, serialize_get,\
     serialize_error, serialize_ready
 from malcolm.core.method import Method, wrap_method
 from malcolm.core.attribute import Attributes
@@ -47,11 +44,11 @@ class DummyZebra(object):
     methods = dict(configure=configure, run=run)
 
     def to_dict(self):
-        return dict(status=self.status, methods=self.methods, 
+        return dict(status=self.status, methods=self.methods,
                     attributes=self.attributes)
 
 
-class SerializeTest(unittest.TestCase):
+class ZmqSerializeTest(unittest.TestCase):
 
     def assertStringsEqual(self, first, second):
         """Assert that two multi-line strings are equal.

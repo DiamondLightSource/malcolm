@@ -20,7 +20,7 @@ class RunnableDevice(Device):
         t(s.Configuring, e.ConfigSta, do.configsta, s.Configuring, s.Ready)
         t(s.Ready,       e.Config,    do.config,    s.Configuring)
         t(s.Ready,       e.Run,       do.run,       s.Running)
-        t(s.Running,     e.RunSta,    do.runsta,    s.Idle, s.Ready, s.Running)
+        t(s.Running,     e.RunSta,    do.runsta,    s.Running, s.Idle, s.Ready)
         # Abort
         t(s.abortable(), e.Abort,     do.abort,     s.Aborting)
         t(s.Aborting,    e.AbortSta,  do.abortsta,  s.Aborting, s.Aborted)

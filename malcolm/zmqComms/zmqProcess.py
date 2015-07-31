@@ -49,7 +49,8 @@ class CoStream(object):
 
     def send_multipart(self, message):
         # return self.sock.send_multipart(message)
-        return self.__retry(self.POLLOUT, self.sock.send_multipart, message, flags=zmq.NOBLOCK)
+        return self.__retry(self.POLLOUT, self.sock.send_multipart, message, 
+                            flags=zmq.NOBLOCK)
 
     def send(self, message):
         # return self.sock.send(message)

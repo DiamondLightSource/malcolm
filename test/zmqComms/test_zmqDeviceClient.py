@@ -5,31 +5,31 @@ require("pyzmq")
 import unittest
 import sys
 import os
-import multiprocessing
 import json
-import zmq
-import time
 import cothread
 
 #import logging
-#logging.basicConfig(level=logging.DEBUG)
-from mock import patch, MagicMock
+# logging.basicConfig(level=logging.DEBUG)
+from mock import MagicMock
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from malcolm.zmqComms.functionCaller import FunctionCaller
+from malcolm.zmqComms.zmqDeviceClient import ZmqDeviceClient
 from malcolm.zmqComms.zmqProcess import ZmqProcess, CoStream
 
-class DummyFunctionCaller(FunctionCaller):
+
+class DummyFunctionCaller(ZmqDeviceClient):
+
     def setup(self):
         self.fe_stream = MagicMock()
         self.cothread = cothread
 
-class FunctionCallerTest(unittest.TestCase):
+
+class ZmqDeviceClientTest(unittest.TestCase):
 
     def setUp(self):
         self.fc = DummyFunctionCaller("mydevice")
         self.fc.run(block=False)
-        
+
     def test_call_single_return(self):
         def do_response():
             self.fc.handle_fe([json.dumps(

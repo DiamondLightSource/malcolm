@@ -8,20 +8,20 @@ require("cothread")
 import unittest
 import sys
 import os
-import multiprocessing
 import json
 import zmq
 import time
 
 #import logging
-#logging.basicConfig(level=logging.DEBUG)#,
+# logging.basicConfig(level=logging.DEBUG)#,
 # format="%(asctime)s;%(levelname)s;%(message)s")
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from malcolm.zmqComms.functionCaller import FunctionCaller
-from malcolm.zmqComms.functionRouter import FunctionRouter
-from malcolm.zmqComms.deviceWrapper import DeviceWrapper
+from malcolm.zmqComms.zmqDeviceClient import ZmqDeviceClient
+from malcolm.zmqComms.zmqMalcolmRouter import ZmqMalcolmRouter
+from malcolm.zmqComms.zmqDeviceWrapper import ZmqDeviceWrapper
 import difflib
+
 
 class ZmqDetSystemTest(unittest.TestCase):
 
@@ -40,17 +40,17 @@ class ZmqDetSystemTest(unittest.TestCase):
     def setUp(self):
         for x in sys.modules.keys():
             if x.startswith("cothread"):
-                del sys.modules[x]        
+                del sys.modules[x]
         self.context = zmq.Context()
         be_addr = "ipc://frbe.ipc"
         fe_addr = "ipc://frfe.ipc"
         self.caller_sock = make_sock(
             self.context, zmq.DEALER, fe_addr, bind=False)
-        self.fr = FunctionRouter(fe_addr=fe_addr, be_addr=be_addr, timeout=1)
+        self.fr = ZmqMalcolmRouter(fe_addr=fe_addr, be_addr=be_addr, timeout=1)
         self.fr.start()
-        self.dw = DeviceWrapper("det", DummyDet, be_addr, timeout=1)
+        self.dw = ZmqDeviceWrapper("det", DummyDet, be_addr, timeout=1)
         self.dw.start()
-        self.fc = FunctionCaller("det", fe_addr=fe_addr, timeout=1)
+        self.fc = ZmqDeviceClient("det", fe_addr=fe_addr, timeout=1)
         self.fc.run(block=False)
 
     def test_configure_run(self):

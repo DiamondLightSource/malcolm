@@ -1,17 +1,17 @@
-from serialize import deserialize, serialize_error, serialize_return, \
-    serialize_call
+from malcolm.zmqComms.zmqSerialize import deserialize, serialize_error, \
+    serialize_return, serialize_call
 import zmq
 from zmqProcess import ZmqProcess
 from malcolm.core import wrap_method, Method
 import logging
-import datetime
 log = logging.getLogger(__name__)
 
 
-class FunctionRouter(ZmqProcess):
-    def __init__(self, fe_addr="ipc://frfe.ipc", be_addr="ipc://frbe.ipc", 
+class ZmqMalcolmRouter(ZmqProcess):
+
+    def __init__(self, fe_addr="ipc://frfe.ipc", be_addr="ipc://frbe.ipc",
                  timeout=None):
-        super(FunctionRouter, self).__init__(timeout)
+        super(ZmqMalcolmRouter, self).__init__(timeout)
         self.fe_addr = fe_addr
         self.be_addr = be_addr
         self.fe_stream = None
@@ -21,7 +21,7 @@ class FunctionRouter(ZmqProcess):
 
     def setup(self):
         """Sets up PyZMQ and creates all streams."""
-        super(FunctionRouter, self).setup()
+        super(ZmqMalcolmRouter, self).setup()
 
         # Create the frontend stream and add the message handler
         self.fe_stream = self.stream(zmq.ROUTER, self.fe_addr, bind=True)
@@ -141,7 +141,8 @@ class FunctionRouter(ZmqProcess):
         "Stop the router and all of the devices attached to it"
         # stop all of our devices
         for device, deviceid in self._devices.items():
-            self.be_send(deviceid, "", serialize_call(-1, device + ".pleasestopnow"))
+            self.be_send(
+                deviceid, "", serialize_call(-1, device + ".pleasestopnow"))
         self.stop()
 
     def to_dict(self):
