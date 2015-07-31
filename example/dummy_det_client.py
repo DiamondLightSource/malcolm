@@ -1,5 +1,6 @@
 #!/bin/env dls-python
-import sys, os
+import sys
+import os
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from pkg_resources import require

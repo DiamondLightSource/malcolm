@@ -1,19 +1,20 @@
 #!/bin/env dls-python
-import sys, os
+import sys
+import os
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from pkg_resources import require
 require("cothread==2.12")
 require("pyzmq==13.1.0")
 from malcolm.devices.dummyDet import DummyDet
-from malcolm.zmqComms.deviceWrapper import DeviceWrapper
-from malcolm.zmqComms.functionRouter import FunctionRouter
+from malcolm.zmqComms.zmqDeviceWrapper import ZmqDeviceWrapper
+from malcolm.zmqComms.zmqMalcolmRouter import ZmqMalcolmRouter
 import logging
 logging.basicConfig(level=logging.INFO)
 
 # start the device wrapper
 port = 5600
-dw = DeviceWrapper("det", DummyDet)
+dw = ZmqDeviceWrapper("det", DummyDet)
 dw.start()
-fr = FunctionRouter(fe_addr="tcp://127.0.0.1:{}".format(port))
-fr.run()
+mr = ZmqMalcolmRouter(fe_addr="tcp://127.0.0.1:{}".format(port))
+mr.run()
