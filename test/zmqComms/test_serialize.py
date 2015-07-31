@@ -26,6 +26,7 @@ import difflib
 class DummyDevice(object):
     attributes = Attributes(foo=(int, "foodesc"), bar=(str, "bardesc"))
 
+
 class DummyZebra(object):
     attributes = Attributes(
         PC_BIT_CAP=(int, "Which encoders to capture"),
@@ -33,19 +34,25 @@ class DummyZebra(object):
         CONNECTED=(int, "Is zebra connected"),
     )
     status = Status("", DState.Configuring)
+
     @wrap_method(DState.configurable())
     def configure(self, PC_BIT_CAP, PC_TSPRE="ms"):
         "Configure the device"
         pass
+
     @wrap_method(DState.runnable())
     def run(self):
         "Start a scan running"
         pass
     methods = dict(configure=configure, run=run)
+
     def to_dict(self):
-        return dict(status=self.status, methods=self.methods, attributes=self.attributes)
-    
+        return dict(status=self.status, methods=self.methods, 
+                    attributes=self.attributes)
+
+
 class SerializeTest(unittest.TestCase):
+
     def assertStringsEqual(self, first, second):
         """Assert that two multi-line strings are equal.
         If they aren't, show a nice diff.
@@ -55,7 +62,7 @@ class SerializeTest(unittest.TestCase):
 
         if first != second:
             message = ''.join(difflib.unified_diff(
-                    first.splitlines(True), second.splitlines(True)))
+                first.splitlines(True), second.splitlines(True)))
             self.fail("Multi-line strings are unequal: %s\n" % message)
 
     def test_serialize_function_call(self):
@@ -72,7 +79,7 @@ class SerializeTest(unittest.TestCase):
   "id": 0
 }'''
         self.assertStringsEqual(pretty, expected)
-        
+
     def test_serialize_get(self):
         s = serialize_get(0, "zebra1.status")
         pretty = json.dumps(json.loads(s), indent=2)
@@ -84,7 +91,8 @@ class SerializeTest(unittest.TestCase):
         self.assertStringsEqual(pretty, expected)
 
     def test_serialize_error(self):
-        s = serialize_error(0, AssertionError("No device named foo registered"))
+        s = serialize_error(
+            0, AssertionError("No device named foo registered"))
         pretty = json.dumps(json.loads(s), indent=2)
         expected = '''{
   "message": "No device named foo registered", 
@@ -93,7 +101,7 @@ class SerializeTest(unittest.TestCase):
   "id": 0
 }'''
         self.assertStringsEqual(pretty, expected)
-                    
+
     def test_serialize_method_return(self):
         def f(foo, bar="bat"):
             "Hello"
@@ -125,7 +133,8 @@ class SerializeTest(unittest.TestCase):
 
     def test_serialize_status_return(self):
         status = Status("", DState.Idle)
-        status.update("message", DState.Idle, timeStamp=TimeStamp.from_time(1437663079.853469))
+        status.update(
+            "message", DState.Idle, timeStamp=TimeStamp.from_time(1437663079.853469))
         s = serialize_return(0, status)
         pretty = json.dumps(json.loads(s), indent=2)
         expected = '''{
@@ -155,11 +164,13 @@ class SerializeTest(unittest.TestCase):
     "message": "message"
   }
 }'''
-        self.assertStringsEqual(pretty, expected)        
+        self.assertStringsEqual(pretty, expected)
 
     def test_serialize_attributes_return(self):
-        DummyDevice.attributes.set_value("foo", 3, timeStamp = TimeStamp.from_time(1437663842.11881113))
-        DummyDevice.attributes.set_value("bar", "bat", timeStamp = TimeStamp.from_time(1437663842.11881113))
+        DummyDevice.attributes.set_value(
+            "foo", 3, timeStamp=TimeStamp.from_time(1437663842.11881113))
+        DummyDevice.attributes.set_value(
+            "bar", "bat", timeStamp=TimeStamp.from_time(1437663842.11881113))
         s = serialize_return(0, DummyDevice.attributes)
         pretty = json.dumps(json.loads(s), indent=2)
         expected = '''{
@@ -213,10 +224,14 @@ class SerializeTest(unittest.TestCase):
         z = DummyZebra()
         for method in z.methods.values():
             method.describe(z)
-        z.status.update("Configuring...", DState.Configuring, TimeStamp.from_time(1437663079.853469))
-        z.attributes.set_value("PC_BIT_CAP", 5, timeStamp = TimeStamp.from_time(1437663842.11881113))
-        z.attributes.set_value("PC_TSPRE", "ms", timeStamp = TimeStamp.from_time(1437663842.11881113))
-        z.attributes.set_value("CONNECTED", 0, alarm=Alarm(AlarmSeverity.invalidAlarm, AlarmStatus.deviceStatus, message="Communication problem"), timeStamp = TimeStamp.from_time(1437663842.11881113))
+        z.status.update(
+            "Configuring...", DState.Configuring, TimeStamp.from_time(1437663079.853469))
+        z.attributes.set_value(
+            "PC_BIT_CAP", 5, timeStamp=TimeStamp.from_time(1437663842.11881113))
+        z.attributes.set_value(
+            "PC_TSPRE", "ms", timeStamp=TimeStamp.from_time(1437663842.11881113))
+        z.attributes.set_value("CONNECTED", 0, alarm=Alarm(AlarmSeverity.invalidAlarm, AlarmStatus.deviceStatus,
+                                                           message="Communication problem"), timeStamp=TimeStamp.from_time(1437663842.11881113))
         s = serialize_return(0, z)
         pretty = json.dumps(json.loads(s), indent=2)
         expected = '''{
@@ -361,7 +376,7 @@ class SerializeTest(unittest.TestCase):
   }
 }'''
         self.assertStringsEqual(pretty, expected)
-        
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

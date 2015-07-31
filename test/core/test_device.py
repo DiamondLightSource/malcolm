@@ -86,25 +86,25 @@ class DeviceTest(unittest.TestCase):
         start = time.time()
         self.d.run()
         end = time.time()
-        self.assertAlmostEqual(end - start, 0.16, delta=0.01)
+        self.assertAlmostEqual(end - start, 0.17, delta=0.01)
         # let the pause and resumetask finish
         t.Wait()
         self.assertLess(self.ptime, 0.01)
         self.assertEqual(self.pstate, DState.Paused)
-        self.assertEqual(self.pframes, 4)
+        self.assertEqual(self.pframes, 5)
         self.assertLess(self.rtime, 0.01)
         self.assertEqual(self.rstate, DState.Running)
-        self.assertEqual(self.rframes, 4)
+        self.assertEqual(self.rframes, 5)
         states = [a[1]["state"] for a in callback.call_args_list]
         expected = [DState.Running] * 7 + \
-            [DState.Pausing] * 3 + [DState.Paused] + [DState.Running] * 5 + [DState.Idle]
+            [DState.Pausing] * 3 + [DState.Paused] + [DState.Running] * 6 + [DState.Idle]
         self.assertEqual(states, expected)
         messages = [a[1]["message"] for a in callback.call_args_list]
         expected = ["Starting run"] + ["Running in progress {}% done".format(i * 100 / 10) for i in range(6)] + \
             ["Pausing started", "Waiting for detector to stop",
-                "Reconfiguring detector", "Pausing finished"] + ["Starting run"] + \
+                "Reconfiguring detector for 5 frames", "Pausing finished"] + ["Starting run"] + \
             ["Running in progress {}% done".format(
-                i * 100 / 10) for i in range(6, 11)]
+                i * 100 / 10) for i in range(5, 11)]
         self.assertEqual(messages, expected)
         self.assertEqual(self.d.sim.nframes, 0)
 

@@ -39,7 +39,8 @@ class DummyDetSim(StateMachine):
 
     def do_status(self, event):
         if self.nframes > 0 and not self.need_abort:
-            self.status_message("Completed a frame. {} frames left".format(self.nframes))
+            self.status_message(
+                "Completed a frame. {} frames left".format(self.nframes))
             return SState.Acquiring
         else:
             self.status_message("Finished")
@@ -80,7 +81,15 @@ class DummyDet(PausableDevice):
 
     def do_reset(self, event):
         """Reset the underlying device"""
-        return DState.Idle
+        self.status_message("Resetting")
+        self.post(DEvent.ResetSta, "finished")
+
+    def do_resetsta(self, event, resetsta):
+        if resetsta == "finished":
+            self.status_message("Reset complete")
+            return DState.Idle
+        else:
+            return DState.Fault
 
     def on_status(self, state, message, timeStamp):
         """Respond to status updates from the sim state machine"""
@@ -97,9 +106,9 @@ class DummyDet(PausableDevice):
         elif self.state == DState.Pausing and state == SState.Ready:
             self.post(DEvent.PauseSta, "configured")
         elif self.state == DState.Aborting and state == SState.Acquiring:
-            self.post(DEvent.AbortSta, "finishing")            
+            self.post(DEvent.AbortSta, "finishing")
         elif self.state == DState.Aborting and state == SState.Idle:
-            self.post(DEvent.AbortSta, "finished")            
+            self.post(DEvent.AbortSta, "finished")
         else:
             print "Unhandled", state, message
 
@@ -133,8 +142,17 @@ class DummyDet(PausableDevice):
 
     def do_pause(self, event, steps):
         """Start a pause"""
-        self.sim.post(SEvent.Abort)
-        self.status_message("Pausing started")
+        if self.state == DState.Running:
+            self.sim.post(SEvent.Abort)
+            self.status_message("Pausing started")
+            self.frames_to_do = self.sim.nframes
+        else:
+            assert self.frames_to_do + steps <= self.nframes, \
+                "Cannot retrace {} steps as we are only on step {}".format(
+                    steps, self.nframes - self.frames_to_do)
+            self.frames_to_do += steps
+            self.status_message("Retracing started")
+            self.post(DEvent.PauseSta, "finished")
 
     def do_pausesta(self, event, pausesta):
         """Receive run status events and move to next state when finished"""
@@ -143,8 +161,9 @@ class DummyDet(PausableDevice):
             self.status_message("Waiting for detector to stop")
         elif pausesta == "finished":
             # detector done, reconfigure it
-            self.sim.post(SEvent.Config, self.sim.nframes, self.exposure)
-            self.status_message("Reconfiguring detector")
+            self.sim.post(SEvent.Config, self.frames_to_do, self.exposure)
+            self.status_message("Reconfiguring detector for {} frames"
+                                .format(self.frames_to_do))
         elif pausesta == "configured":
             # detector reconfigured, done
             self.status_message("Pausing finished")
@@ -155,16 +174,19 @@ class DummyDet(PausableDevice):
 
     def do_abort(self, event):
         """Abort the machine"""
-        self.sim.post(SEvent.Abort)
         self.status_message("Aborting")
+        if self.sim.state == SState.Acquiring:
+            self.sim.post(SEvent.Abort)
+        else:
+            self.post(DEvent.AbortSta, "finished")
 
     def do_abortsta(self, event, abortsta):
         if abortsta == "finishing":
             # detector still doing the last frame
-            self.status_message("Waiting for detector to stop")    
-            return DState.Aborting    
+            self.status_message("Waiting for detector to stop")
+            return DState.Aborting
         elif abortsta == "finished":
             self.status_message("Aborted")
             return DState.Aborted
         else:
-            raise Exception("What is: {}".format(abortsta))       
+            raise Exception("What is: {}".format(abortsta))
