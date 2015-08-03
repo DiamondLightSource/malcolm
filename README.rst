@@ -39,7 +39,7 @@ APACHE License (see `LICENSE`_)
     :target: https://coveralls.io/r/dls-controls/malcolm?branch=develop
     :alt: Test coverage
 
-.. |pypi-version| image:: https://pypip.in/v/malcolm/badge.png
+.. |pypi-version| image:: https://img.shields.io/pypi/v/malcolm.svg
     :target: https://pypi.python.org/pypi/malcolm/
     :alt: Latest PyPI version
 
