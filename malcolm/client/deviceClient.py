@@ -3,6 +3,7 @@ import functools
 
 
 class DeviceClient(object):
+    """Talk to malcolm, get a device of this name, fill in its methods"""
 
     def __init__(self, device, addr):
         self._fc = ZmqDeviceClient(device, addr)

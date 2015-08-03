@@ -62,3 +62,7 @@ target/
 # eclipse files
 .project
 .pydevproject
+
+# sphinx
+docs/Makefile
+docs/html
