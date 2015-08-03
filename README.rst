@@ -31,11 +31,11 @@ License
 APACHE License (see `LICENSE`_)
 
 
-.. |build-status| image:: https://travis-ci.org/dls-controls/malcolm.png
+.. |build-status| image:: https://travis-ci.org/dls-controls/malcolm.svg?style=flat
    :target: https://travis-ci.org/dls-controls/malcolm
    :alt: Build Status
 
-.. |coverage| image:: https://coveralls.io/repos/dls-controls/malcolm/badge.png?branch=develop
+.. |coverage| image:: https://coveralls.io/repos/dls-controls/malcolm/badge.svg?branch=develop
    :target: https://coveralls.io/r/dls-controls/malcolm?branch=develop
    :alt: Test coverage
 
