@@ -1,0 +1,2 @@
+cothread==2.12
+pyzmq==13.1.0
