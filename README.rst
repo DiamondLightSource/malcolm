@@ -32,20 +32,20 @@ APACHE License (see `LICENSE`_)
 
 
 .. |build-status| image:: https://travis-ci.org/dls-controls/malcolm.svg?style=flat
-   :target: https://travis-ci.org/dls-controls/malcolm
-   :alt: Build Status
+    :target: https://travis-ci.org/dls-controls/malcolm
+    :alt: Build Status
 
 .. |coverage| image:: https://coveralls.io/repos/dls-controls/malcolm/badge.svg?branch=develop
-   :target: https://coveralls.io/r/dls-controls/malcolm?branch=develop
-   :alt: Test coverage
+    :target: https://coveralls.io/r/dls-controls/malcolm?branch=develop
+    :alt: Test coverage
 
 .. |pypi-version| image:: https://pypip.in/v/malcolm/badge.png
-   :target: https://pypi.python.org/pypi/malcolm/
-   :alt: Latest PyPI version
+    :target: https://pypi.python.org/pypi/malcolm/
+    :alt: Latest PyPI version
 
 .. |readthedocs| image:: https://readthedocs.org/projects/malcolm/badge/?version=latest
-   :target: https://readthedocs.org/projects/malcolm/
-   :alt: Documentation Status
+    :target: https://readthedocs.org/projects/malcolm/?badge=latest
+    :alt: Documentation Status
 
 .. _CHANGELOG: https://github.com/dls-controls/malcolm/blob/master/CHANGELOG.rst
 .. _LICENSE: https://github.com/dls-controls/malcolm/blob/master/LICENSE
