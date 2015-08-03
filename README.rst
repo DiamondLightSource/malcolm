@@ -24,11 +24,11 @@ Full documentation is available at http://malcolm.readthedocs.org
 Changelog
 ---------
 
-See |CHANGELOG| for details
+See `CHANGELOG`_ for details
 
 License
 -------
-APACHE License (see |LICENSE|)
+APACHE License (see `LICENSE`_)
 
 
 .. |build-status| image:: https://travis-ci.org/ambitioninc/malcolm.png
@@ -47,6 +47,5 @@ APACHE License (see |LICENSE|)
    :target: https://readthedocs.org/projects/malcolm/
    :alt: Documentation Status
 
-.. |CHANGELOG| :ref:`CHANGELOG.rst`
-
-.. |LICENSE| :ref:`LICENSE`
+.. _CHANGELOG: https://github.com/dls-controls/malcolm/blob/master/CHANGELOG.rst
+.. _LICENSE: https://github.com/dls-controls/malcolm/blob/master/LICENSE
