@@ -14,7 +14,7 @@ To install the latest release, type::
 
 To install the latest code directly from source, type::
 
-    pip install git+git://github.com/ambitioninc/malcolm.git
+    pip install git+git://github.com/dls-controls/malcolm.git
 
 Documentation
 -------------
@@ -31,12 +31,12 @@ License
 APACHE License (see `LICENSE`_)
 
 
-.. |build-status| image:: https://travis-ci.org/ambitioninc/malcolm.png
-   :target: https://travis-ci.org/ambitioninc/malcolm
+.. |build-status| image:: https://travis-ci.org/dls-controls/malcolm.png
+   :target: https://travis-ci.org/dls-controls/malcolm
    :alt: Build Status
 
-.. |coverage| image:: https://coveralls.io/repos/ambitioninc/malcolm/badge.png?branch=develop
-   :target: https://coveralls.io/r/ambitioninc/malcolm?branch=develop
+.. |coverage| image:: https://coveralls.io/repos/dls-controls/malcolm/badge.png?branch=develop
+   :target: https://coveralls.io/r/dls-controls/malcolm?branch=develop
    :alt: Test coverage
 
 .. |pypi-version| image:: https://pypip.in/v/malcolm/badge.png
