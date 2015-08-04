@@ -30,7 +30,7 @@ class ZmqDeviceWrapperTest(unittest.TestCase):
 
     def test_no_matching_func_error(self):
         self.expected_reply = json.dumps(
-            dict(id=0, type="error", name="AssertionError", message="Invalid function foo"))
+            dict(id=0, type="error", message="Invalid function foo"))
         client = self.send_request(id=0,
                                    type="call", method="zebra1.foo", args=dict(bar="bat"))
         self.dw.be_stream.send_multipart.assert_called_once_with(
@@ -38,7 +38,7 @@ class ZmqDeviceWrapperTest(unittest.TestCase):
 
     def test_wrong_device_name_error(self):
         self.expected_reply = json.dumps(
-            dict(id=0, type="error", name="AssertionError", message="Wrong device name thing"))
+            dict(id=0, type="error", message="Wrong device name thing"))
         client = self.send_request(id=0,
                                    type="call", method="thing.foo", args=dict(bar="bat"))
         self.dw.be_stream.send_multipart.assert_called_once_with(

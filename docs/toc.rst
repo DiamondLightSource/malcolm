@@ -5,7 +5,10 @@ Table of Contents
    :maxdepth: 2
 
    index
-   installation
-   ref/malcolm
+   architecture
+   comms/index.rst
+   devices
+   ref/index.rst
    contributing
    release_notes
+

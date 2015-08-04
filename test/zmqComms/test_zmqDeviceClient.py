@@ -43,10 +43,10 @@ class ZmqDeviceClientTest(unittest.TestCase):
     def test_error_call(self):
         def do_response():
             self.fc.handle_fe([json.dumps(
-                dict(id=0, type="error", name="NameError", message="bad"))])
+                dict(id=0, type="error", message="bad"))])
 
         cothread.Spawn(do_response)
-        self.assertRaises(NameError, self.fc.call, "myfunc", bar="bat")
+        self.assertRaises(AssertionError, self.fc.call, "myfunc", bar="bat")
         self.fc.fe_stream.send.assert_called_once_with(
             json.dumps(dict(id=0, type="call",  method="mydevice.myfunc", args=dict(bar="bat"))))
 
@@ -63,10 +63,10 @@ class ZmqDeviceClientTest(unittest.TestCase):
     def test_error_get(self):
         def do_response():
             self.fc.handle_fe([json.dumps(
-                dict(id=0, type="error", name="NameError", message="bad"))])
+                dict(id=0, type="error", message="bad"))])
 
         cothread.Spawn(do_response)
-        self.assertRaises(NameError, self.fc.get, "myparam")
+        self.assertRaises(AssertionError, self.fc.get, "myparam")
         self.fc.fe_stream.send.assert_called_once_with(
             json.dumps(dict(id=0, type="get", param="mydevice.myparam")))
 

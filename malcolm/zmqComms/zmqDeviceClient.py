@@ -38,7 +38,7 @@ class ZmqDeviceClient(ZmqProcess):
             if d["type"] in ["value", "return"]:
                 yield d.get("val")
             elif d["type"] == "error":
-                raise eval(d["name"])(d["message"])
+                raise AssertionError(d["message"])
             else:
                 raise KeyError("Don't know what to do with {}".format(d))
             if d["type"] == "return":

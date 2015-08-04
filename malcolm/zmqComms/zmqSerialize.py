@@ -36,7 +36,7 @@ def serialize_get(_id, param):
 
 
 def serialize_error(_id, e):
-    s = serialize("error", _id, name=type(e).__name__, message=e.message)
+    s = serialize("error", _id, message=e.message)
     return s
 
 

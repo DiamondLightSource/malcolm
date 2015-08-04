@@ -13,7 +13,7 @@ import json
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.zmqComms.zmqSerialize import serialize_return, serialize_call, serialize_get,\
-    serialize_error, serialize_ready
+    serialize_error, serialize_ready, serialize_value
 from malcolm.core.method import Method, wrap_method
 from malcolm.core.attribute import Attributes
 from malcolm.core.timeStamp import TimeStamp
@@ -77,6 +77,17 @@ class ZmqSerializeTest(unittest.TestCase):
 }'''
         self.assertStringsEqual(pretty, expected)
 
+    def test_serialize_malcolm_function_call(self):
+        s = serialize_call(0, "malcolm.devices")
+        pretty = json.dumps(json.loads(s), indent=2)
+#        print pretty
+        expected = '''{
+  "type": "call", 
+  "method": "malcolm.devices", 
+  "id": 0
+}'''
+        self.assertStringsEqual(pretty, expected)
+
     def test_serialize_get(self):
         s = serialize_get(0, "zebra1.status")
         pretty = json.dumps(json.loads(s), indent=2)
@@ -87,16 +98,13 @@ class ZmqSerializeTest(unittest.TestCase):
 }'''
         self.assertStringsEqual(pretty, expected)
 
-    def test_serialize_error(self):
-        s = serialize_error(
-            0, AssertionError("No device named foo registered"))
+    def test_device_ready(self):
+        s = serialize_ready("zebra1")
         pretty = json.dumps(json.loads(s), indent=2)
-        expected = '''{
-  "message": "No device named foo registered", 
-  "type": "error", 
-  "name": "AssertionError", 
-  "id": 0
-}'''
+        expected = """{
+  "device": "zebra1", 
+  "type": "ready"
+}"""
         self.assertStringsEqual(pretty, expected)
 
     def test_serialize_method_return(self):
@@ -208,14 +216,7 @@ class ZmqSerializeTest(unittest.TestCase):
 }'''
         self.assertStringsEqual(pretty, expected)
 
-    def test_device_ready(self):
-        s = serialize_ready("zebra1")
-        pretty = json.dumps(json.loads(s), indent=2)
-        expected = """{
-  "device": "zebra1", 
-  "type": "ready"
-}"""
-        self.assertStringsEqual(pretty, expected)
+
 
     def test_serialize_zebra_return(self):
         z = DummyZebra()
@@ -343,10 +344,10 @@ class ZmqSerializeTest(unittest.TestCase):
   }
 }'''
         self.assertStringsEqual(pretty, expected)
-        s = serialize_return(0, z.status)
+        s = serialize_value(0, z.status)
         pretty = json.dumps(json.loads(s), indent=2)
         expected = '''{
-  "type": "return", 
+  "type": "value", 
   "id": 0, 
   "val": {
     "timeStamp": {
@@ -373,6 +374,18 @@ class ZmqSerializeTest(unittest.TestCase):
   }
 }'''
         self.assertStringsEqual(pretty, expected)
+
+    def test_serialize_error(self):
+        s = serialize_error(
+            0, AssertionError("No device named foo registered"))
+        pretty = json.dumps(json.loads(s), indent=2)
+        expected = '''{
+  "message": "No device named foo registered", 
+  "type": "error", 
+  "id": 0
+}'''
+        self.assertStringsEqual(pretty, expected)
+
 
 
 if __name__ == '__main__':

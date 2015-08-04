@@ -54,7 +54,7 @@ class ZmqMalcolmRouterTest(unittest.TestCase):
     @patch("malcolm.zmqComms.zmqMalcolmRouter.log.exception")
     def test_no_providers_error(self, mock_exception):
         self.expected_reply = json.dumps(
-            dict(id=0, type="error", name="AssertionError", message="No device named foo registered"))
+            dict(id=0, type="error", message="No device named foo registered"))
         self.send_request_check_reply(
             id=0, type="call", method="foo.func", args=dict(bar="bat"))
         self.assertEqual(mock_exception.call_count, 1)

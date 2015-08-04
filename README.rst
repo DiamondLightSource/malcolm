@@ -24,11 +24,16 @@ Full documentation is available at http://malcolm.readthedocs.org
 Changelog
 ---------
 
-See `CHANGELOG`_ for details
+See `CHANGELOG`_
+
+Contributing
+------------
+
+See `CONTRIBUTING`_
 
 License
 -------
-APACHE License (see `LICENSE`_)
+APACHE License. (see `LICENSE`_)
 
 
 .. |build-status| image:: https://travis-ci.org/dls-controls/malcolm.svg?style=flat
@@ -48,4 +53,5 @@ APACHE License (see `LICENSE`_)
     :alt: Documentation Status
 
 .. _CHANGELOG: https://github.com/dls-controls/malcolm/blob/master/CHANGELOG.rst
+.. _CONTRIBUTING: https://github.com/dls-controls/malcolm/blob/master/CONTRIBUTING.rst
 .. _LICENSE: https://github.com/dls-controls/malcolm/blob/master/LICENSE
