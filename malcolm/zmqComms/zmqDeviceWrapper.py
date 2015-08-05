@@ -31,6 +31,7 @@ class ZmqDeviceWrapper(ZmqProcess):
         self.be_stream.on_recv(self.handle_be)
 
         # Say hello
+        log.info("{}: Sending ready message to {}".format(self.name, self.be_addr))                
         self.be_send("", serialize_ready(self.name))
 
     def be_send(self, clientid, data):

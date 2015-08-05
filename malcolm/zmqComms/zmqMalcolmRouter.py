@@ -26,11 +26,13 @@ class ZmqMalcolmRouter(ZmqProcess):
         # Create the frontend stream and add the message handler
         self.fe_stream = self.stream(zmq.ROUTER, self.fe_addr, bind=True)
         self.fe_stream.on_recv(self.handle_fe)
+        log.info("Binding client facing socket on {}".format(self.fe_addr))
 
         # Create the backend stream and add the message handler
         self.be_stream = self.stream(zmq.ROUTER, self.be_addr, bind=True)
         self.be_stream.on_recv(self.handle_be)
-
+        log.info("Binding device facing socket on {}".format(self.be_addr))
+        
     def fe_send(self, clientid, data):
         log.debug("fe_send {}".format((clientid, data)))
         self.fe_stream.send_multipart([clientid, data])
@@ -103,6 +105,7 @@ class ZmqMalcolmRouter(ZmqProcess):
         device = d["device"]
         assert device not in self._devices, \
             "Device {} already registered".format(device)
+        log.info("Device {} connected".format(device))
         self._devices[device] = deviceid
 
     def do_return(self, deviceid, clientid, d, data):
