@@ -18,6 +18,6 @@ Added:
 
 - Initial structure with ZeroMQ comms
 
-.. _v0.2: https://github.com/dls-controls/malcolm/compare/v0.2...HEAD
-.. _Unreleased: https://github.com/dls-controls/malcolm/compare/v0.1...v0.2
+.. _Unreleased: https://github.com/dls-controls/malcolm/compare/v0.2...HEAD
+.. _v0.2: https://github.com/dls-controls/malcolm/compare/v0.1...v0.2
 
