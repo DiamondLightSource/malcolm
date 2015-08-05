@@ -1,8 +1,12 @@
 .. highlight:: javascript
 .. module:: malcolm.zmqComms
 
-JSON over ZeroMQ Communication Protocol
-=======================================
+JSON over ZeroMQ
+================
+
+This is the simplest protocol, using JSON encoded strings which are sent over
+ZeroMQ sockets. An implementation is supplied in the :module:`zmqComms` module.
+
 There are 3 roles supported by the zmqComms module, illustrated by the diagram
 below:
 
