@@ -31,7 +31,7 @@ publish:
 testpublish:
 	$(PYTHON) setup.py register -r https://testpypi.python.org/pypi sdist upload -r https://testpypi.python.org/pypi
 
-docs/html/index.html: $(wildcard docs/*.rst docs/conf.py)		
+docs/html/index.html: $(wildcard docs/*.rst docs/*/*.rst docs/conf.py)		
 	sphinx-build -b html docs docs/html
 
 docs: dist docs/html/index.html

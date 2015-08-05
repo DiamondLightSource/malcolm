@@ -106,25 +106,37 @@ call_json
   - ``<arg1name>`` = ``<arg1value>``
   - ``<arg2name>`` = ``<arg2value>``
 
-For example to call ``zebra.configure(PC_BIT_CAP=1, PC_TSPRE="ms")``::
+.. container:: toggle
 
-    {
-      "args": {
-        "PC_BIT_CAP": 1, 
-        "PC_TSPRE": "ms"
-      }, 
-      "type": "call", 
-      "method": "zebra1.configure", 
-      "id": 0
-    }
+    .. container:: header
 
-Or to get the list of all available device names::
+        **Example**: Call ``zebra.configure(PC_BIT_CAP=1, PC_TSPRE="ms")``:
 
-    {
-      "type": "call", 
-      "method": "malcolm.devices", 
-      "id": 0
-    }
+    .. code-block:: javascript
+    
+        {
+          "args": {
+            "PC_BIT_CAP": 1, 
+            "PC_TSPRE": "ms"
+          }, 
+          "type": "call", 
+          "method": "zebra1.configure", 
+          "id": 0
+        }
+
+.. container:: toggle
+
+    .. container:: header
+
+        **Example**: Get the list of all available device names:
+
+    .. code-block:: javascript
+
+        {
+          "type": "call", 
+          "method": "malcolm.devices", 
+          "id": 0
+        }
 
 get_json
 --------
@@ -132,33 +144,52 @@ get_json
 - id = ``<int id to appear in responses>``
 - param = ``<name of device>`` or ``<name of device>.<name of method>``
 
-For example to get the last status message from zebra::
+.. container:: toggle
 
-    {
-      "type": "get", 
-      "id": 0, 
-      "param": "zebra1.status"
-    }
+    .. container:: header
 
-Or to get the entire "zebra1" structure::
+        **Example**: Get the last status message from zebra:
 
-    {
-      "type": "get", 
-      "id": 0, 
-      "param": "zebra1"
-    }
+    .. code-block:: javascript
+    
+        {
+          "type": "get", 
+          "id": 0, 
+          "param": "zebra1.status"
+        }
+
+.. container:: toggle
+
+    .. container:: header
+
+        **Example**: Get the entire "zebra1" structure:
+        
+    .. code-block:: javascript
+    
+        {
+          "type": "get", 
+          "id": 0, 
+          "param": "zebra1"
+        }
 
 ready_json
 ----------
 - type = "ready"
 - device = ``<name of device>``
 
-For example, a signal from "zebra1" saying it's ready::
+.. container:: toggle
 
-    {
-      "device": "zebra1", 
-      "type": "ready"
-    }
+    .. container:: header
+
+        **Example**: A signal from "zebra1" saying it's ready:
+
+
+    .. code-block:: javascript
+    
+        {
+          "device": "zebra1", 
+          "type": "ready"
+        }
     
 value_json
 ----------
@@ -166,35 +197,41 @@ value_json
 - id = ``<int id in response to>``
 - val = ``<status update structure>``
 
-For example, a status update from zebra1::
+.. container:: toggle
 
-    {
-      "type": "value",
-      "id": 0,
-      "val": {
-        "timeStamp": {
-          "nanoseconds": 853468894,
-          "userTag": 0,
-          "secondsPastEpoch": 1437663079
-        },
-        "state": {
-          "index": 2,
-          "choices": [
-            "Fault",
-            "Idle",
-            "Configuring",
-            "Ready",
-            "Running",
-            "Pausing",
-            "Paused",
-            "Aborting",
-            "Aborted",
-            "Resetting"
-          ]
-        },
-        "message": "Configuring..."
-      }
-    }
+    .. container:: header
+
+        **Example**: A status update from zebra1:
+
+    .. code-block:: javascript
+    
+        {
+          "type": "value",
+          "id": 0,
+          "val": {
+            "timeStamp": {
+              "nanoseconds": 853468894,
+              "userTag": 0,
+              "secondsPastEpoch": 1437663079
+            },
+            "state": {
+              "index": 2,
+              "choices": [
+                "Fault",
+                "Idle",
+                "Configuring",
+                "Ready",
+                "Running",
+                "Pausing",
+                "Paused",
+                "Aborting",
+                "Aborted",
+                "Resetting"
+              ]
+            },
+            "message": "Configuring..."
+          }
+        }
 
 return_json
 -----------
@@ -202,149 +239,161 @@ return_json
 - id = ``<int id in response to>``
 - val = ``<return value structure>``
 
-For example, getting the last status message from "zebra1"::
+.. container:: toggle
 
-    {
-      "type": "return", 
-      "id": 0, 
-      "val": {
-        "timeStamp": {
-          "nanoseconds": 853468894, 
-          "userTag": 0, 
-          "secondsPastEpoch": 1437663079
-        }, 
-        "state": {
-          "index": 1, 
-          "choices": [
-            "Fault", 
-            "Idle", 
-            "Configuring", 
-            "Ready", 
-            "Running", 
-            "Pausing", 
-            "Paused", 
-            "Aborting", 
-            "Aborted", 
-            "Resetting"
-          ]
-        }, 
-        "message": "message"
-      }
-    }
+    .. container:: header
 
-Or getting the entire "zebra1" structure::
+        **Example**: Getting the last status message from "zebra1":
 
-    {
-      "type": "return", 
-      "id": 0, 
-      "val": {
-        "status": {
-          "timeStamp": {
-            "nanoseconds": 853468894, 
-            "userTag": 0, 
-            "secondsPastEpoch": 1437663079
-          }, 
-          "state": {
-            "index": 2, 
-            "choices": [
-              "Fault", 
-              "Idle", 
-              "Configuring", 
-              "Ready", 
-              "Running", 
-              "Pausing", 
-              "Paused", 
-              "Aborting", 
-              "Aborted", 
-              "Resetting"
-            ]
-          }, 
-          "message": "Configuring..."
-        }, 
-        "attributes": {
-          "PC_BIT_CAP": {
-            "tags": [
-              "configure"
-            ], 
+    .. code-block:: javascript
+    
+        {
+          "type": "return", 
+          "id": 0, 
+          "val": {
             "timeStamp": {
-              "nanoseconds": 118811130, 
+              "nanoseconds": 853468894, 
               "userTag": 0, 
-              "secondsPastEpoch": 1437663842
+              "secondsPastEpoch": 1437663079
             }, 
-            "alarm": {
-              "status": 0, 
-              "message": "No alarm", 
-              "severity": 0
+            "state": {
+              "index": 1, 
+              "choices": [
+                "Fault", 
+                "Idle", 
+                "Configuring", 
+                "Ready", 
+                "Running", 
+                "Pausing", 
+                "Paused", 
+                "Aborting", 
+                "Aborted", 
+                "Resetting"
+              ]
             }, 
-            "value": 5, 
-            "descriptor": "Which encoders to capture", 
-            "type": "int"
-          }, 
-          "CONNECTED": {
-            "descriptor": "Is zebra connected", 
-            "alarm": {
-              "status": 1, 
-              "message": "Communication problem", 
-              "severity": 3
-            }, 
-            "type": "int", 
-            "value": 0, 
-            "timeStamp": {
-              "nanoseconds": 118811130, 
-              "userTag": 0, 
-              "secondsPastEpoch": 1437663842
-            }
-          }, 
-          "PC_TSPRE": {
-            "tags": [
-              "configure"
-            ], 
-            "timeStamp": {
-              "nanoseconds": 118811130, 
-              "userTag": 0, 
-              "secondsPastEpoch": 1437663842
-            }, 
-            "alarm": {
-              "status": 0, 
-              "message": "No alarm", 
-              "severity": 0
-            }, 
-            "value": "ms", 
-            "descriptor": "What time units for capture", 
-            "type": "str"
-          }
-        }, 
-        "methods": {
-          "run": {
-            "descriptor": "Start a scan running", 
-            "args": {}, 
-            "valid_states": [
-              "Ready", 
-              "Paused"
-            ]
-          }, 
-          "configure": {
-            "descriptor": "Configure the device", 
-            "args": {
-              "PC_BIT_CAP": {
-                "descriptor": "Which encoders to capture", 
-                "type": "int", 
-                "value": "arg_required"
-              }, 
-              "PC_TSPRE": {
-                "descriptor": "What time units for capture", 
-                "type": "str", 
-                "value": "ms"
-              }
-            }, 
-            "valid_states": [
-              "Idle", 
-              "Ready"
-            ]
+            "message": "message"
           }
         }
-      }
-    }
+
+.. container:: toggle
+
+    .. container:: header
+
+        **Example**: Getting the entire "zebra1" structure:
+
+    .. code-block:: javascript
+    
+        {
+          "type": "return", 
+          "id": 0, 
+          "val": {
+            "status": {
+              "timeStamp": {
+                "nanoseconds": 853468894, 
+                "userTag": 0, 
+                "secondsPastEpoch": 1437663079
+              }, 
+              "state": {
+                "index": 2, 
+                "choices": [
+                  "Fault", 
+                  "Idle", 
+                  "Configuring", 
+                  "Ready", 
+                  "Running", 
+                  "Pausing", 
+                  "Paused", 
+                  "Aborting", 
+                  "Aborted", 
+                  "Resetting"
+                ]
+              }, 
+              "message": "Configuring..."
+            }, 
+            "attributes": {
+              "PC_BIT_CAP": {
+                "tags": [
+                  "configure"
+                ], 
+                "timeStamp": {
+                  "nanoseconds": 118811130, 
+                  "userTag": 0, 
+                  "secondsPastEpoch": 1437663842
+                }, 
+                "alarm": {
+                  "status": 0, 
+                  "message": "No alarm", 
+                  "severity": 0
+                }, 
+                "value": 5, 
+                "descriptor": "Which encoders to capture", 
+                "type": "int"
+              }, 
+              "CONNECTED": {
+                "descriptor": "Is zebra connected", 
+                "alarm": {
+                  "status": 1, 
+                  "message": "Communication problem", 
+                  "severity": 3
+                }, 
+                "type": "int", 
+                "value": 0, 
+                "timeStamp": {
+                  "nanoseconds": 118811130, 
+                  "userTag": 0, 
+                  "secondsPastEpoch": 1437663842
+                }
+              }, 
+              "PC_TSPRE": {
+                "tags": [
+                  "configure"
+                ], 
+                "timeStamp": {
+                  "nanoseconds": 118811130, 
+                  "userTag": 0, 
+                  "secondsPastEpoch": 1437663842
+                }, 
+                "alarm": {
+                  "status": 0, 
+                  "message": "No alarm", 
+                  "severity": 0
+                }, 
+                "value": "ms", 
+                "descriptor": "What time units for capture", 
+                "type": "str"
+              }
+            }, 
+            "methods": {
+              "run": {
+                "descriptor": "Start a scan running", 
+                "args": {}, 
+                "valid_states": [
+                  "Ready", 
+                  "Paused"
+                ]
+              }, 
+              "configure": {
+                "descriptor": "Configure the device", 
+                "args": {
+                  "PC_BIT_CAP": {
+                    "descriptor": "Which encoders to capture", 
+                    "type": "int", 
+                    "value": "arg_required"
+                  }, 
+                  "PC_TSPRE": {
+                    "descriptor": "What time units for capture", 
+                    "type": "str", 
+                    "value": "ms"
+                  }
+                }, 
+                "valid_states": [
+                  "Idle", 
+                  "Ready"
+                ]
+              }
+            }
+          }
+        }
 
 error_json
 ----------
@@ -352,10 +401,16 @@ error_json
 - id = ``<int id in response to>``
 - message = ``<error message>``
 
-For example, trying to call a function on a non-existant device "foo"::
+.. container:: toggle
 
-    {
-      "message": "No device named foo registered", 
-      "type": "error", 
-      "id": 0
-    }
+    .. container:: header
+
+        **Example**: Trying to call a function on a non-existant device "foo":
+
+    .. code-block:: javascript
+    
+        {
+          "message": "No device named foo registered", 
+          "type": "error", 
+          "id": 0
+        }
