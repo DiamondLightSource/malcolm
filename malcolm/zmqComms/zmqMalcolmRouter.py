@@ -1,5 +1,5 @@
 from malcolm.zmqComms.zmqSerialize import deserialize, serialize_error, \
-    serialize_return, serialize_call
+    serialize_return, serialize_call, SType
 import zmq
 from zmqProcess import ZmqProcess
 from malcolm.core import wrap_method, Method
@@ -32,7 +32,7 @@ class ZmqMalcolmRouter(ZmqProcess):
         self.be_stream = self.stream(zmq.ROUTER, self.be_addr, bind=True)
         self.be_stream.on_recv(self.handle_be)
         log.info("Binding device facing socket on {}".format(self.be_addr))
-        
+
     def fe_send(self, clientid, data):
         log.debug("fe_send {}".format((clientid, data)))
         self.fe_stream.send_multipart([clientid, data])
@@ -43,7 +43,6 @@ class ZmqMalcolmRouter(ZmqProcess):
 
     def do_call(self, clientid, d, data):
         # check that we have the right type of message
-        assert d["type"] == "call", "Expected type=call, got {}".format(d)
         device, method = d["method"].split(".", 1)
         if device == "malcolm":
             assert method in self.methods, \
@@ -58,7 +57,6 @@ class ZmqMalcolmRouter(ZmqProcess):
 
     def do_get(self, clientid, d, data):
         # check that we have the right type of message
-        assert d["type"] == "get", "Expected type=get, got {}".format(d)
         param = d["param"]
         if "." in param:
             device, param = param.split(".", 1)
@@ -87,14 +85,18 @@ class ZmqMalcolmRouter(ZmqProcess):
             d = deserialize(data)
         except Exception as e:
             self.fe_send(clientid, serialize_error(-1, e))
-            return
-        # Now do the identified action
-        try:
-            getattr(self, "do_" + d["type"])(clientid, d, data)
-        except Exception as e:
-            # send error up the chain
-            log.exception(e)
-            self.fe_send(clientid, serialize_error(d["id"], e))
+        else:
+            # Now do the identified action
+            try:
+                func = {
+                    SType.Call: self.do_call,
+                    SType.Get: self.do_get,
+                }[d["type"]]
+                func(clientid, d, data)
+            except Exception as e:
+                # send error up the chain
+                log.exception(e)
+                self.fe_send(clientid, serialize_error(d["id"], e))
 
     def do_value(self, deviceid, clientid, d, data):
         assert "id" in d, "No id in {}".format(d)
@@ -124,11 +126,17 @@ class ZmqMalcolmRouter(ZmqProcess):
         try:
             d = deserialize(data)
         except Exception as e:
-            self.be_send(deviceid, clientid, serialize_error(e))
+            self.be_send(deviceid, clientid, serialize_error(-1, e))
             return
         # Now do the identified action
         try:
-            getattr(self, "do_" + d["type"])(deviceid, clientid, d, data)
+            func = {
+                SType.Value: self.do_value,
+                SType.Ready: self.do_ready,
+                SType.Return: self.do_return,
+                SType.Error: self.do_error,
+            }[d["type"]]
+            func(deviceid, clientid, d, data)
         except Exception as e:
             # send error up the chain
             log.exception(e)

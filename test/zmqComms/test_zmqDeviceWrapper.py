@@ -30,17 +30,17 @@ class ZmqDeviceWrapperTest(unittest.TestCase):
 
     def test_no_matching_func_error(self):
         self.expected_reply = json.dumps(
-            dict(id=0, type="error", message="Invalid function foo"))
+            dict(id=0, type="Error", message="Invalid function foo"))
         client = self.send_request(id=0,
-                                   type="call", method="zebra1.foo", args=dict(bar="bat"))
+                                   type="Call", method="zebra1.foo", args=dict(bar="bat"))
         self.dw.be_stream.send_multipart.assert_called_once_with(
             [client, self.expected_reply])
 
     def test_wrong_device_name_error(self):
         self.expected_reply = json.dumps(
-            dict(id=0, type="error", message="Wrong device name thing"))
+            dict(id=0, type="Error", message="Wrong device name thing"))
         client = self.send_request(id=0,
-                                   type="call", method="thing.foo", args=dict(bar="bat"))
+                                   type="Call", method="thing.foo", args=dict(bar="bat"))
         self.dw.be_stream.send_multipart.assert_called_once_with(
             [client, self.expected_reply])
 
@@ -49,9 +49,9 @@ class ZmqDeviceWrapperTest(unittest.TestCase):
             return "done"
         self.dw.device.methods = dict(func=func)
         self.expected_reply = json.dumps(
-            dict(id=0, type="return", val="done"))
+            dict(id=0, type="Return", val="done"))
         client = self.send_request(id=0,
-                                   type="call", method="zebra1.func", args={})
+                                   type="Call", method="zebra1.func", args={})
         # running this directly, not under the ioloop, so get to yield manually
         import cothread
         cothread.Yield()
@@ -65,9 +65,9 @@ class ZmqDeviceWrapperTest(unittest.TestCase):
                 return dict(status=dict(message="boo"), attributes={})
         self.dw.device = dev()
         self.expected_reply = json.dumps(
-            dict(id=0, type="return", val=dict(status=dict(message="boo"), attributes={})))
+            dict(id=0, type="Return", val=dict(status=dict(message="boo"), attributes={})))
         client = self.send_request(id=0,
-                                   type="get", param="zebra1")
+                                   type="Get", param="zebra1")
         self.dw.be_stream.send_multipart.assert_called_once_with(
             [client, self.expected_reply])
 
@@ -78,9 +78,9 @@ class ZmqDeviceWrapperTest(unittest.TestCase):
                 return dict(status=dict(message="boo"), attributes={})
         self.dw.device = dev()
         self.expected_reply = json.dumps(
-            dict(id=0, type="return", val="boo"))
+            dict(id=0, type="Return", val="boo"))
         client = self.send_request(id=0,
-                                   type="get", param="zebra1.status.message")
+                                   type="Get", param="zebra1.status.message")
         self.dw.be_stream.send_multipart.assert_called_once_with(
             [client, self.expected_reply])
 
@@ -95,7 +95,7 @@ class ZmqDeviceWrapperTest(unittest.TestCase):
             return "done"
         self.dw.device.methods = dict(func=func)
         client = self.send_request(id=0,
-                                   type="call", method="zebra1.func", args={})
+                                   type="Call", method="zebra1.func", args={})
         # running this directly, not under the ioloop, so get to yield manually
         import cothread
         cothread.Yield()
@@ -105,8 +105,8 @@ class ZmqDeviceWrapperTest(unittest.TestCase):
         self.assertEqual(cuuids, expected)
         messages = [a[0][0][1]
                     for a in self.dw.be_stream.send_multipart.call_args_list]
-        expected = [json.dumps(dict(id=0, type="value", val=dict(i=i))) for i in range(10)] + \
-            [json.dumps(dict(id=0, type="return", val="done"))]
+        expected = [json.dumps(dict(id=0, type="Value", val=dict(i=i))) for i in range(10)] + \
+            [json.dumps(dict(id=0, type="Return", val="done"))]
         self.assertEqual(messages, expected)
         self.dw.device.remove_listener.assert_called_once_with(
             self.send_status)

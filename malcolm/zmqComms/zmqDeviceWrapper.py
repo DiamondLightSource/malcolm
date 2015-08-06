@@ -1,5 +1,5 @@
 from malcolm.zmqComms.zmqSerialize import deserialize, serialize_ready, \
-    serialize_error, serialize_return
+    serialize_error, serialize_return, SType
 import zmq
 from zmqProcess import ZmqProcess
 import logging
@@ -31,7 +31,8 @@ class ZmqDeviceWrapper(ZmqProcess):
         self.be_stream.on_recv(self.handle_be)
 
         # Say hello
-        log.info("{}: Sending ready message to {}".format(self.name, self.be_addr))                
+        log.info(
+            "{}: Sending ready message to {}".format(self.name, self.be_addr))
         self.be_send("", serialize_ready(self.name))
 
     def be_send(self, clientid, data):
@@ -57,7 +58,6 @@ class ZmqDeviceWrapper(ZmqProcess):
 
     def do_call(self, clientid, d):
         # check that we have the right type of message
-        assert d["type"] == "call", "Expected type=call, got {}".format(d)
         device, method = d["method"].split(".", 1)
         assert device == self.name, "Wrong device name {}".format(device)
         assert "id" in d, "No id in {}".format(d)
@@ -76,7 +76,6 @@ class ZmqDeviceWrapper(ZmqProcess):
 
     def do_get(self, clientid, d):
         # check that we have the right type of message
-        assert d["type"] == "get", "Expected type=get, got {}".format(d)
         param = d["param"]
         if "." in param:
             device, param = param.split(".", 1)
@@ -105,7 +104,11 @@ class ZmqDeviceWrapper(ZmqProcess):
             return
         # Now do the identified action
         try:
-            getattr(self, "do_" + d["type"])(clientid, d)
+            func = {
+                SType.Call: self.do_call,
+                SType.Get: self.do_get,
+            }[d["type"]]
+            func(clientid, d)
         except Exception as e:
             # send error up the chain
             self.be_send(clientid, serialize_error(d["id"], e))

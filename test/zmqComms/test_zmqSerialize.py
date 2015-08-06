@@ -71,7 +71,7 @@ class ZmqSerializeTest(unittest.TestCase):
     "PC_BIT_CAP": 1, 
     "PC_TSPRE": "ms"
   }, 
-  "type": "call", 
+  "type": "Call", 
   "method": "zebra1.configure", 
   "id": 0
 }'''
@@ -82,7 +82,7 @@ class ZmqSerializeTest(unittest.TestCase):
         pretty = json.dumps(json.loads(s), indent=2)
 #        print pretty
         expected = '''{
-  "type": "call", 
+  "type": "Call", 
   "method": "malcolm.devices", 
   "id": 0
 }'''
@@ -92,7 +92,7 @@ class ZmqSerializeTest(unittest.TestCase):
         s = serialize_get(0, "zebra1.status")
         pretty = json.dumps(json.loads(s), indent=2)
         expected = '''{
-  "type": "get", 
+  "type": "Get", 
   "id": 0, 
   "param": "zebra1.status"
 }'''
@@ -103,7 +103,7 @@ class ZmqSerializeTest(unittest.TestCase):
         pretty = json.dumps(json.loads(s), indent=2)
         expected = """{
   "device": "zebra1", 
-  "type": "ready"
+  "type": "Ready"
 }"""
         self.assertStringsEqual(pretty, expected)
 
@@ -116,7 +116,7 @@ class ZmqSerializeTest(unittest.TestCase):
         s = serialize_return(0, method)
         pretty = json.dumps(json.loads(s), indent=2)
         expected = '''{
-  "type": "return", 
+  "type": "Return", 
   "id": 0, 
   "val": {
     "descriptor": "Hello", 
@@ -143,7 +143,7 @@ class ZmqSerializeTest(unittest.TestCase):
         s = serialize_return(0, status)
         pretty = json.dumps(json.loads(s), indent=2)
         expected = '''{
-  "type": "return", 
+  "type": "Return", 
   "id": 0, 
   "val": {
     "timeStamp": {
@@ -179,7 +179,7 @@ class ZmqSerializeTest(unittest.TestCase):
         s = serialize_return(0, DummyDevice.attributes)
         pretty = json.dumps(json.loads(s), indent=2)
         expected = '''{
-  "type": "return", 
+  "type": "Return", 
   "id": 0, 
   "val": {
     "foo": {
@@ -233,7 +233,7 @@ class ZmqSerializeTest(unittest.TestCase):
         s = serialize_return(0, z)
         pretty = json.dumps(json.loads(s), indent=2)
         expected = '''{
-  "type": "return", 
+  "type": "Return", 
   "id": 0, 
   "val": {
     "status": {
@@ -347,7 +347,7 @@ class ZmqSerializeTest(unittest.TestCase):
         s = serialize_value(0, z.status)
         pretty = json.dumps(json.loads(s), indent=2)
         expected = '''{
-  "type": "value", 
+  "type": "Value", 
   "id": 0, 
   "val": {
     "timeStamp": {
@@ -381,7 +381,7 @@ class ZmqSerializeTest(unittest.TestCase):
         pretty = json.dumps(json.loads(s), indent=2)
         expected = '''{
   "message": "No device named foo registered", 
-  "type": "error", 
+  "type": "Error", 
   "id": 0
 }'''
         self.assertStringsEqual(pretty, expected)

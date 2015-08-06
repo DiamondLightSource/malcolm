@@ -1,5 +1,5 @@
 from malcolm.zmqComms.zmqSerialize import serialize_call, serialize_get, \
-    deserialize
+    deserialize, SType
 from zmqProcess import ZmqProcess
 import zmq
 import logging
@@ -35,13 +35,13 @@ class ZmqDeviceClient(ZmqProcess):
         while True:
             d = self.queue[_id].Wait(self.timeout)
             assert d["id"] == _id, "Wrong id"
-            if d["type"] in ["value", "return"]:
+            if d["type"] in (SType.Value, SType.Return):
                 yield d.get("val")
-            elif d["type"] == "error":
+            elif d["type"] == SType.Error:
                 raise AssertionError(d["message"])
             else:
                 raise KeyError("Don't know what to do with {}".format(d))
-            if d["type"] == "return":
+            if d["type"] == SType.Return:
                 self.queue.pop(_id).close()
                 return
 

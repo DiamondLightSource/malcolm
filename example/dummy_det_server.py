@@ -16,5 +16,5 @@ logging.basicConfig(level=logging.INFO)
 port = 5600
 dw = ZmqDeviceWrapper("det", DummyDet)
 dw.start()
-mr = ZmqMalcolmRouter(fe_addr="tcp://127.0.0.1:{}".format(port))
+mr = ZmqMalcolmRouter(fe_addr="tcp://0.0.0.0:{}".format(port))
 mr.run()

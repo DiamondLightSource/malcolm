@@ -76,28 +76,28 @@ class ZmqDeviceWrapperProcTest(unittest.TestCase):
     def test_initial_ready(self):
         self.assertEqual(self.ready[1], "")
         self.assertEqual(self.ready[2], json.dumps(
-            dict(type="ready", device="zebra2")))
+            dict(type="Ready", device="zebra2")))
 
     def test_simple_function(self):
         self.expected_reply = json.dumps(
-            dict(id=0, type="return", val="world me"))
+            dict(id=0, type="Return", val="world me"))
         self.router_sock.send_multipart(
-            [self.ready[0], "", json.dumps(dict(id=0, type="call", method="zebra2.hello", args=dict(who="me")))])
+            [self.ready[0], "", json.dumps(dict(id=0, type="Call", method="zebra2.hello", args=dict(who="me")))])
         recv = self.router_sock.recv_multipart()
         self.assertEqual(recv[2], self.expected_reply)
 
     def test_cothread_working(self):
         time.sleep(0.5)
         self.router_sock.send_multipart(
-            [self.ready[0], "", json.dumps(dict(id=0, type="call", method="zebra2.get_count", args={}))])
+            [self.ready[0], "", json.dumps(dict(id=0, type="Call", method="zebra2.get_count", args={}))])
         recv = self.router_sock.recv_multipart()
         self.assertAlmostEqual(json.loads(recv[2])["val"], 50, delta=1)
 
     def test_simple_get(self):
         self.expected_reply = json.dumps(
-            dict(id=0, type="return", val=dict(message="Message", percent=54.3)))
+            dict(id=0, type="Return", val=dict(message="Message", percent=54.3)))
         self.router_sock.send_multipart(
-            [self.ready[0], "", json.dumps(dict(id=0, type="get", param="zebra2.status"))])
+            [self.ready[0], "", json.dumps(dict(id=0, type="Get", param="zebra2.status"))])
         recv = self.router_sock.recv_multipart()
         self.assertEqual(recv[2], self.expected_reply)
 
@@ -108,8 +108,8 @@ class ZmqDeviceWrapperProcTest(unittest.TestCase):
         """
         # Send a stop message to the prong process and wait until it joins
         self.router_sock.send_multipart(
-            [self.ready[0], "", json.dumps(dict(id=0, type="call", method="zebra2.pleasestopnow"))])
-        self.dw.join()
+            [self.ready[0], "", json.dumps(dict(id=0, type="Call", method="zebra2.pleasestopnow"))])
+        #self.dw.join()
         self.router_sock.close()
 
 

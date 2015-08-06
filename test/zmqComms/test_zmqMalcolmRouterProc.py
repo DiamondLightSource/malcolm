@@ -12,7 +12,7 @@ import time
 
 import logging
 logging.basicConfig()
-# logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.zmqComms.zmqMalcolmRouter import ZmqMalcolmRouter
@@ -21,11 +21,6 @@ from malcolm.zmqComms.zmqMalcolmRouter import ZmqMalcolmRouter
 class ZmqMalcolmRouterProcTest(unittest.TestCase):
 
     def setUp(self):
-        """
-        Creates and starts a PongProc process and sets up sockets to
-        communicate with it.
-
-        """
         self.context = zmq.Context()
 
         # make_sock creates and connects a TestSocket that we will use to
@@ -44,47 +39,42 @@ class ZmqMalcolmRouterProcTest(unittest.TestCase):
 
     def test_single_provider_callsback(self):
         ready = json.dumps(
-            dict(type="ready", device="zebra1"))
+            dict(type="Ready", device="zebra1"))
         self.dev_sock.send_multipart(["malcolm", ready])
         # give it time to register zebra
         time.sleep(0.2)
-        request = json.dumps(dict(id=0, type="call", method="zebra1.do"))
+        request = json.dumps(dict(id=0, type="Call", method="zebra1.do"))
         self.caller_sock.send(request)
         at_device = self.dev_sock.recv_multipart()
         self.assertEqual(at_device[1], request)
         # send a function response
-        response = json.dumps(dict(id=0, type="return", name=None))
+        response = json.dumps(dict(id=0, type="Return", name=None))
         self.dev_sock.send_multipart([at_device[0], response])
         at_req = self.caller_sock.recv()
         self.assertEqual(at_req, response)
 
     def test_single_provider_getsback(self):
         ready = json.dumps(
-            dict(type="ready", device="zebra1"))
+            dict(type="Ready", device="zebra1"))
         self.dev_sock.send_multipart(["malcolm", ready])
         # give it time to register zebra
         time.sleep(0.2)
-        request = json.dumps(dict(id=0, type="get", param="zebra1.status"))
+        request = json.dumps(dict(id=0, type="Get", param="zebra1.status"))
         self.caller_sock.send(request)
         at_device = self.dev_sock.recv_multipart()
         self.assertEqual(at_device[1], request)
         # send a function response
         response = json.dumps(
-            dict(id=0, type="return", val=dict(message="Message", percent=54.3)))
+            dict(id=0, type="Return", val=dict(message="Message", percent=54.3)))
         self.dev_sock.send_multipart([at_device[0], response])
         at_req = self.caller_sock.recv()
         self.assertEqual(at_req, response)
 
     def tearDown(self):
-        """
-        Sends a kill message to the pp and waits for the process to terminate.
-
-        """
-        # Send a stop message to the prong process and wait until it joins
+        # Send a stop message to the process and wait until it joins
         self.caller_sock.send(
-            json.dumps(dict(id=-1, type="call", method="malcolm.pleasestopnow")))
+            json.dumps(dict(id=-1, type="Call", method="malcolm.pleasestopnow")))
         self.fr.join()
-
         self.caller_sock.close()
         self.dev_sock.close()
 

@@ -102,7 +102,7 @@ Can be one of:
 
 call_json
 ---------
-- type = "call"
+- type = "Call"
 - id = ``<int id to appear in responses>``
 - method = ``<name of device>.<name of method>``
 - args (optional)
@@ -123,7 +123,7 @@ call_json
             "PC_BIT_CAP": 1, 
             "PC_TSPRE": "ms"
           }, 
-          "type": "call", 
+          "type": "Call", 
           "method": "zebra1.configure", 
           "id": 0
         }
@@ -137,14 +137,14 @@ call_json
     .. code-block:: javascript
 
         {
-          "type": "call", 
+          "type": "Call", 
           "method": "malcolm.devices", 
           "id": 0
         }
 
 get_json
 --------
-- type = "get"
+- type = "Get"
 - id = ``<int id to appear in responses>``
 - param = ``<name of device>`` or ``<name of device>.<name of method>``
 
@@ -157,7 +157,7 @@ get_json
     .. code-block:: javascript
     
         {
-          "type": "get", 
+          "type": "Get", 
           "id": 0, 
           "param": "zebra1.status"
         }
@@ -171,14 +171,14 @@ get_json
     .. code-block:: javascript
     
         {
-          "type": "get", 
+          "type": "Get", 
           "id": 0, 
           "param": "zebra1"
         }
 
 ready_json
 ----------
-- type = "ready"
+- type = "Ready"
 - device = ``<name of device>``
 
 .. container:: toggle
@@ -192,12 +192,12 @@ ready_json
     
         {
           "device": "zebra1", 
-          "type": "ready"
+          "type": "Ready"
         }
     
 value_json
 ----------
-- type = "value"
+- type = "Value"
 - id = ``<int id in response to>``
 - val = ``<status update structure>``
 
@@ -210,7 +210,7 @@ value_json
     .. code-block:: javascript
     
         {
-          "type": "value",
+          "type": "Value",
           "id": 0,
           "val": {
             "timeStamp": {
@@ -239,7 +239,7 @@ value_json
 
 return_json
 -----------
-- type = "return"
+- type = "Return"
 - id = ``<int id in response to>``
 - val = ``<return value structure>``
 
@@ -252,7 +252,7 @@ return_json
     .. code-block:: javascript
     
         {
-          "type": "return", 
+          "type": "Return", 
           "id": 0, 
           "val": {
             "timeStamp": {
@@ -288,7 +288,7 @@ return_json
     .. code-block:: javascript
     
         {
-          "type": "return", 
+          "type": "Return", 
           "id": 0, 
           "val": {
             "status": {
@@ -401,7 +401,7 @@ return_json
 
 error_json
 ----------
-- type = "return"
+- type = "Return"
 - id = ``<int id in response to>``
 - message = ``<error message>``
 
@@ -415,6 +415,6 @@ error_json
     
         {
           "message": "No device named foo registered", 
-          "type": "error", 
+          "type": "Error", 
           "id": 0
         }

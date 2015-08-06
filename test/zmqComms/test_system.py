@@ -102,7 +102,7 @@ class ZmqSystemTest(unittest.TestCase):
         """
         # Send a stop message to the prong process and wait until it joins
         self.caller_sock.send(
-            json.dumps(dict(id=0, type="call", method="malcolm.pleasestopnow")))
+            json.dumps(dict(id=0, type="Call", method="malcolm.pleasestopnow")))
         self.fr.join()
         self.dw.join()
         self.caller_sock.close()

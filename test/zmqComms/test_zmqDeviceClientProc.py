@@ -40,7 +40,7 @@ class MiniRouter(ZmqProcess):
         else:
             _id = json.loads(data)["id"]
             returnval = json.dumps(
-                dict(id=_id, type="return", val=self.returnval))
+                dict(id=_id, type="Return", val=self.returnval))
             self.fe_stream.send_multipart([clientid, returnval])
 
 
@@ -75,7 +75,7 @@ class ZmqDeviceClientProcTest(unittest.TestCase):
         self.fc.setup()
         for i in range(10):
             self.fc.fe_stream.send(json.dumps(dict(id=i)))
-            expected = [json.dumps(dict(id=i, type="return", val=ret))]
+            expected = [json.dumps(dict(id=i, type="Return", val=ret))]
             self.assertEquals(self.fc.fe_stream.recv_multipart(), expected)
 
     def test_correct_call_return(self):

@@ -32,21 +32,21 @@ class ZmqMalcolmRouterTest(unittest.TestCase):
             [client, self.expected_reply])
 
     def test_list_no_devices(self):
-        self.expected_reply = json.dumps(dict(id=0, type="return", val=[]))
+        self.expected_reply = json.dumps(dict(id=0, type="Return", val=[]))
         self.send_request_check_reply(
-            id=0, type="call", method="malcolm.devices")
+            id=0, type="Call", method="malcolm.devices")
 
     def test_get_malcolm_returns_devices(self):
-        self.expected_reply = '{"type": "return", "id": 0, "val": {"methods": {"devices": {"descriptor": "List all available malcolm devices", "args": {}}, "pleasestopnow": {"descriptor": "Stop the router and all of the devices attached to it", "args": {}}}}}'
-        self.send_request_check_reply(id=0, type="get", param="malcolm")
+        self.expected_reply = '{"type": "Return", "id": 0, "val": {"methods": {"devices": {"descriptor": "List all available malcolm devices", "args": {}}, "pleasestopnow": {"descriptor": "Stop the router and all of the devices attached to it", "args": {}}}}}'
+        self.send_request_check_reply(id=0, type="Get", param="malcolm")
 
     def test_get_device_forwarded_single_device(self):
         client = "CUUID"
         data = json.dumps(
-            dict(id=0, type="ready", device="zebra1"))
+            dict(id=0, type="Ready", device="zebra1"))
         device = "DUUID"
         self.fr.handle_be([device, client, data])
-        request = json.dumps(dict(id=0, type="get", param="zebra1.status"))
+        request = json.dumps(dict(id=0, type="Get", param="zebra1.status"))
         self.fr.handle_fe([client, request])
         self.fr.be_stream.send_multipart.assert_called_once_with(
             [device, client, request])
@@ -54,18 +54,18 @@ class ZmqMalcolmRouterTest(unittest.TestCase):
     @patch("malcolm.zmqComms.zmqMalcolmRouter.log.exception")
     def test_no_providers_error(self, mock_exception):
         self.expected_reply = json.dumps(
-            dict(id=0, type="error", message="No device named foo registered"))
+            dict(id=0, type="Error", message="No device named foo registered"))
         self.send_request_check_reply(
-            id=0, type="call", method="foo.func", args=dict(bar="bat"))
+            id=0, type="Call", method="foo.func", args=dict(bar="bat"))
         self.assertEqual(mock_exception.call_count, 1)
 
     def test_single_provider(self):
         client = "CUUID"
         data = json.dumps(
-            dict(type="ready", device="zebra1"))
+            dict(type="Ready", device="zebra1"))
         device = "DUUID"
         self.fr.handle_be([device, client, data])
-        request = json.dumps(dict(id=0, type="call", method="zebra1.do"))
+        request = json.dumps(dict(id=0, type="Call", method="zebra1.do"))
         self.fr.handle_fe([client, request])
         self.fr.be_stream.send_multipart.assert_called_once_with(
             [device, client, request])
@@ -73,7 +73,7 @@ class ZmqMalcolmRouterTest(unittest.TestCase):
     def test_provider_responds(self):
         client = "CUUID"
         device = "DUUID"
-        data = json.dumps(dict(id=0, type="return", val=[]))
+        data = json.dumps(dict(id=0, type="Return", val=[]))
         self.fr.handle_be([device, client, data])
         self.fr.fe_stream.send_multipart.assert_called_once_with(
             [client, data])
