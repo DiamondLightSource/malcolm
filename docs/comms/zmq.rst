@@ -382,7 +382,10 @@ return_json
                   "PC_BIT_CAP": {
                     "descriptor": "Which encoders to capture", 
                     "type": "int", 
-                    "value": "arg_required"
+                    "value": null, 
+                    "tags": [
+                      "required"
+                    ]
                   }, 
                   "PC_TSPRE": {
                     "descriptor": "What time units for capture", 
