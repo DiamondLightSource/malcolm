@@ -15,11 +15,11 @@ from malcolm.core.attribute import Attributes, Attribute
 class AttributeTest(unittest.TestCase):
 
     def setUp(self):
-        attributes = dict(
-            nframes=(int, "Number of frames"),
-            exposure=(float, "Detector exposure"),
+        self.a = Attributes()
+        self.a.add_attributes(
+            nframes=Attribute(int, "Number of frames"),
+            exposure=Attribute(float, "Detector exposure"),
         )
-        self.a = Attributes(**attributes)
 
     def test_attr_instance_correct_type(self):
         self.assertIsInstance(self.a.attributes["nframes"], Attribute)

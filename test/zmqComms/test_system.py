@@ -29,9 +29,8 @@ class Counter(Device):
         self.counter = 0
 
     def start_event_loop(self):
-        import cothread
-        self.cothread = cothread
-        cothread.Spawn(self.do_count)
+        super(Counter, self).start_event_loop()
+        self.cothread.Spawn(self.do_count)
 
     def do_count(self):
         while True:

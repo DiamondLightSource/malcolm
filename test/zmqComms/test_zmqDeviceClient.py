@@ -37,7 +37,7 @@ class ZmqDeviceClientTest(unittest.TestCase):
         cothread.Spawn(do_response)
         self.assertEqual(self.fc.call("myfunc", bar="bat"), "return val")
         self.fc.fe_stream.send.assert_called_once_with(
-            json.dumps(dict(id=0, type="Call", method="mydevice.myfunc", args=dict(bar="bat"))))
+            '{"type": "Call", "id": 0, "method": "mydevice.myfunc", "args": {"bar": "bat"}}')
 
     def test_error_call(self):
         def do_response():
@@ -47,7 +47,7 @@ class ZmqDeviceClientTest(unittest.TestCase):
         cothread.Spawn(do_response)
         self.assertRaises(AssertionError, self.fc.call, "myfunc", bar="bat")
         self.fc.fe_stream.send.assert_called_once_with(
-            json.dumps(dict(id=0, type="Call",  method="mydevice.myfunc", args=dict(bar="bat"))))
+            '{"type": "Call", "id": 0, "method": "mydevice.myfunc", "args": {"bar": "bat"}}')
 
     def test_call_single_get(self):
         def do_response():

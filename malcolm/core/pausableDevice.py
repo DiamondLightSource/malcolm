@@ -1,5 +1,6 @@
 from method import wrap_method
 from device import DState, DEvent
+from attribute import Attribute
 from runnableDevice import RunnableDevice
 
 
@@ -18,6 +19,11 @@ class PausableDevice(RunnableDevice):
         t(s.Paused,      e.Pause,     do.pause,     s.Pausing)
         t(s.Pausing,     e.PauseSta,  do.pausesta,  s.Pausing, s.Paused)
         t(s.Paused,      e.Run,       do.run,       s.Running)
+
+        # Add attributes
+        self.attributes.add_attributes(
+            retrace_steps=Attribute(int, "Number of steps to retrace by"),
+        )
 
     def do_pause(self, event, steps=None):
         """Start doing an pause with a retrace of steps, arranging for a
@@ -44,14 +50,14 @@ class PausableDevice(RunnableDevice):
         self.wait_for_transition(DState.pausedone())
 
     @wrap_method(only_in=DState.Paused)
-    def retrace(self, steps):
+    def retrace(self, retrace_steps):
         """Retrace a number of steps in the current scan. It blocks until the
         device is in pause done state:
          * Normally it will return a DState.Paused Status
          * If the user aborts then it will return a DState.Aborted Status
          * If something goes wrong it will return a DState.Fault Status
         """
-        self.post(DEvent.Pause, steps)
+        self.post(DEvent.Pause, retrace_steps)
         self.wait_for_transition(DState.pausedone())
 
     @wrap_method(only_in=DState.Paused)

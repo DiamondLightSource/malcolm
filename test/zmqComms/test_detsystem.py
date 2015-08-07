@@ -69,163 +69,10 @@ class ZmqDetSystemTest(unittest.TestCase):
         ret = self.fc.get()
         pretty = json.dumps(ret, indent=2)
         expected = r'''{
-  "status": {
-    "timeStamp": null, 
-    "state": {
-      "index": 1, 
-      "choices": [
-        "Fault", 
-        "Idle", 
-        "Configuring", 
-        "Ready", 
-        "Running", 
-        "Pausing", 
-        "Paused", 
-        "Aborting", 
-        "Aborted", 
-        "Resetting"
-      ]
-    }, 
-    "message": ""
-  }, 
   "name": "det", 
   "classname": "DummyDet", 
   "descriptor": "Dummy detector for testing purposes", 
-  "attributes": {
-    "nframes": {
-      "descriptor": "Number of frames", 
-      "type": "int", 
-      "value": null, 
-      "tags": [
-        "assert_valid", 
-        "configure", 
-        "configure_run"
-      ]
-    }, 
-    "steps": {
-      "descriptor": "Retrace number of steps", 
-      "type": "int", 
-      "value": null, 
-      "tags": [
-        "retrace"
-      ]
-    }, 
-    "exposure": {
-      "descriptor": "Detector exposure", 
-      "type": "float", 
-      "value": null, 
-      "tags": [
-        "assert_valid", 
-        "configure", 
-        "configure_run"
-      ]
-    }
-  }, 
   "methods": {
-    "reset": {
-      "descriptor": "Try and reset the device into DState.Idle. It blocks until the \n        device is in a rest state:\n         * Normally it will return a DState.Idle Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
-      "args": {}, 
-      "valid_states": [
-        "Fault", 
-        "Aborted"
-      ]
-    }, 
-    "pause": {
-      "descriptor": "Pause a run so that it can be resumed later. It blocks until the\n        device is in a pause done state:\n         * Normally it will return a DState.Paused Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
-      "args": {}, 
-      "valid_states": [
-        "Running"
-      ]
-    }, 
-    "run": {
-      "descriptor": "Start a configured device running. It blocks until the device is in a\n        rest state:\n         * Normally it will return a DState.Idle Status\n         * If the device allows many runs from a single configure the it\n           will return a DState.Ready Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
-      "args": {}, 
-      "valid_states": [
-        "Ready", 
-        "Paused"
-      ]
-    }, 
-    "configure": {
-      "descriptor": "Assert params are valid, then use them to configure a device for a run.\n        It blocks until the device is in a rest state:\n         * Normally it will return a DState.Configured Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
-      "args": {
-        "nframes": {
-          "descriptor": "Number of frames", 
-          "type": "int", 
-          "value": null, 
-          "tags": [
-            "required"
-          ]
-        }, 
-        "exposure": {
-          "descriptor": "Detector exposure", 
-          "type": "float", 
-          "value": null, 
-          "tags": [
-            "required"
-          ]
-        }
-      }, 
-      "valid_states": [
-        "Idle", 
-        "Ready"
-      ]
-    }, 
-    "resume": {
-      "descriptor": "Resume the current scan. It returns as soon as the device has\n        continued to run:\n         * Normally it will return a DState.Running Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
-      "args": {}, 
-      "valid_states": [
-        "Paused"
-      ]
-    }, 
-    "retrace": {
-      "descriptor": "Retrace a number of steps in the current scan. It blocks until the\n        device is in pause done state:\n         * Normally it will return a DState.Paused Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
-      "args": {
-        "steps": {
-          "descriptor": "Retrace number of steps", 
-          "type": "int", 
-          "value": null, 
-          "tags": [
-            "required"
-          ]
-        }
-      }, 
-      "valid_states": [
-        "Paused"
-      ]
-    }, 
-    "assert_valid": {
-      "descriptor": "Check whether the configuration parameters are valid or not. This set\n        of parameters are checked in isolation, no device state is taken into\n        account. It raises an error if the set of configuration parameters is\n        invalid.\n        ", 
-      "args": {
-        "nframes": {
-          "descriptor": "Number of frames", 
-          "type": "int", 
-          "value": null, 
-          "tags": [
-            "required"
-          ]
-        }, 
-        "exposure": {
-          "descriptor": "Detector exposure", 
-          "type": "float", 
-          "value": null, 
-          "tags": [
-            "required"
-          ]
-        }
-      }, 
-      "valid_states": [
-        "Fault", 
-        "Idle", 
-        "Configuring", 
-        "Ready", 
-        "Running", 
-        "Pausing", 
-        "Paused", 
-        "Aborting", 
-        "Aborted", 
-        "Resetting"
-      ]
-    }, 
     "abort": {
       "descriptor": "Abort configuration or abandon the current run whether it is\n        running or paused. It blocks until the device is in a rest state:\n         * Normally it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
       "args": {}, 
@@ -235,6 +82,97 @@ class ZmqDetSystemTest(unittest.TestCase):
         "Running", 
         "Pausing", 
         "Paused", 
+        "Resetting"
+      ]
+    }, 
+    "assert_valid": {
+      "descriptor": "Check whether the configuration parameters are valid or not. This set\n        of parameters are checked in isolation, no device state is taken into\n        account. It raises an error if the set of configuration parameters is\n        invalid.\n        ", 
+      "args": {
+        "exposure": {
+          "value": null, 
+          "type": "float", 
+          "tags": [
+            "required"
+          ], 
+          "descriptor": "Detector exposure"
+        }, 
+        "nframes": {
+          "value": null, 
+          "type": "int", 
+          "tags": [
+            "required"
+          ], 
+          "descriptor": "Number of frames"
+        }
+      }, 
+      "valid_states": [
+        "Fault", 
+        "Idle", 
+        "Configuring", 
+        "Ready", 
+        "Running", 
+        "Pausing", 
+        "Paused", 
+        "Aborting", 
+        "Aborted", 
+        "Resetting"
+      ]
+    }, 
+    "configure": {
+      "descriptor": "Assert params are valid, then use them to configure a device for a run.\n        It blocks until the device is in a rest state:\n         * Normally it will return a DState.Configured Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
+      "args": {
+        "exposure": {
+          "value": null, 
+          "type": "float", 
+          "tags": [
+            "required"
+          ], 
+          "descriptor": "Detector exposure"
+        }, 
+        "nframes": {
+          "value": null, 
+          "type": "int", 
+          "tags": [
+            "required"
+          ], 
+          "descriptor": "Number of frames"
+        }
+      }, 
+      "valid_states": [
+        "Idle", 
+        "Ready"
+      ]
+    }, 
+    "configure_run": {
+      "descriptor": "Try and configure and run a device in one step. It blocks until the\n        device is in a rest state:\n         * Normally it will return a DState.Idle Status\n         * If the device allows many runs from a single configure then it\n           will return a DState.Ready Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
+      "args": {
+        "exposure": {
+          "value": null, 
+          "type": "float", 
+          "tags": [
+            "required"
+          ], 
+          "descriptor": "Detector exposure"
+        }, 
+        "nframes": {
+          "value": null, 
+          "type": "int", 
+          "tags": [
+            "required"
+          ], 
+          "descriptor": "Number of frames"
+        }
+      }, 
+      "valid_states": [
+        "Fault", 
+        "Idle", 
+        "Configuring", 
+        "Ready", 
+        "Running", 
+        "Pausing", 
+        "Paused", 
+        "Aborting", 
+        "Aborted", 
         "Resetting"
       ]
     }, 
@@ -254,27 +192,58 @@ class ZmqDetSystemTest(unittest.TestCase):
         "Resetting"
       ]
     }, 
-    "configure_run": {
-      "descriptor": "Try and configure and run a device in one step. It blocks until the\n        device is in a rest state:\n         * Normally it will return a DState.Idle Status\n         * If the device allows many runs from a single configure then it\n           will return a DState.Ready Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
+    "pause": {
+      "descriptor": "Pause a run so that it can be resumed later. It blocks until the\n        device is in a pause done state:\n         * Normally it will return a DState.Paused Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
+      "args": {}, 
+      "valid_states": [
+        "Running"
+      ]
+    }, 
+    "reset": {
+      "descriptor": "Try and reset the device into DState.Idle. It blocks until the \n        device is in a rest state:\n         * Normally it will return a DState.Idle Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
+      "args": {}, 
+      "valid_states": [
+        "Fault", 
+        "Aborted"
+      ]
+    }, 
+    "resume": {
+      "descriptor": "Resume the current scan. It returns as soon as the device has\n        continued to run:\n         * Normally it will return a DState.Running Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
+      "args": {}, 
+      "valid_states": [
+        "Paused"
+      ]
+    }, 
+    "retrace": {
+      "descriptor": "Retrace a number of steps in the current scan. It blocks until the\n        device is in pause done state:\n         * Normally it will return a DState.Paused Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
       "args": {
-        "nframes": {
-          "descriptor": "Number of frames", 
+        "retrace_steps": {
+          "value": null, 
           "type": "int", 
-          "value": null, 
           "tags": [
             "required"
-          ]
-        }, 
-        "exposure": {
-          "descriptor": "Detector exposure", 
-          "type": "float", 
-          "value": null, 
-          "tags": [
-            "required"
-          ]
+          ], 
+          "descriptor": "Number of steps to retrace by"
         }
       }, 
       "valid_states": [
+        "Paused"
+      ]
+    }, 
+    "run": {
+      "descriptor": "Start a configured device running. It blocks until the device is in a\n        rest state:\n         * Normally it will return a DState.Idle Status\n         * If the device allows many runs from a single configure the it\n           will return a DState.Ready Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
+      "args": {}, 
+      "valid_states": [
+        "Ready", 
+        "Paused"
+      ]
+    }
+  }, 
+  "status": {
+    "message": "", 
+    "state": {
+      "index": 1, 
+      "choices": [
         "Fault", 
         "Idle", 
         "Configuring", 
@@ -286,6 +255,54 @@ class ZmqDetSystemTest(unittest.TestCase):
         "Aborted", 
         "Resetting"
       ]
+    }, 
+    "timeStamp": null
+  }, 
+  "attributes": {
+    "current_step": {
+      "value": null, 
+      "type": "int", 
+      "descriptor": "Current scan step"
+    }, 
+    "total_steps": {
+      "value": null, 
+      "type": "int", 
+      "descriptor": "Number of scan steps"
+    }, 
+    "retrace_steps": {
+      "value": null, 
+      "type": "int", 
+      "tags": [
+        "retrace", 
+        "retrace"
+      ], 
+      "descriptor": "Number of steps to retrace by"
+    }, 
+    "exposure": {
+      "value": null, 
+      "type": "float", 
+      "tags": [
+        "assert_valid", 
+        "configure", 
+        "configure_run", 
+        "assert_valid", 
+        "configure", 
+        "configure_run"
+      ], 
+      "descriptor": "Detector exposure"
+    }, 
+    "nframes": {
+      "value": null, 
+      "type": "int", 
+      "tags": [
+        "assert_valid", 
+        "configure", 
+        "configure_run", 
+        "assert_valid", 
+        "configure", 
+        "configure_run"
+      ], 
+      "descriptor": "Number of frames"
     }
   }
 }'''

@@ -1,4 +1,5 @@
 from timeStamp import TimeStamp
+from collections import OrderedDict
 import logging
 log = logging.getLogger(__name__)
 
@@ -42,6 +43,7 @@ class Status(object):
         self.listeners.remove(callback)
 
     def to_dict(self):
-        d = dict(
-            message=self.message, state=self.state, timeStamp=self.timeStamp)
+        d = OrderedDict(message=self.message)
+        d.update(state=self.state)
+        d.update(timeStamp=self.timeStamp)
         return d

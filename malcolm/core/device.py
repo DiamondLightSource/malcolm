@@ -2,6 +2,7 @@ from enum import Enum
 from stateMachine import StateMachine
 from attribute import Attributes
 from method import Method, wrap_method
+from collections import OrderedDict
 
 
 class DState(Enum):
@@ -48,17 +49,18 @@ class DEvent(Enum):
 
 class Device(StateMachine):
     """External API wrapping a Device"""
-    attributes = {}
 
     def __init__(self, name):
         # superclass init
         super(Device, self).__init__(name, DState.Idle, DState.Fault)
 
-        # make the attributes object from dictionary
-        self.attributes = Attributes(**self.attributes)
+        # make the attributes object
+        self.attributes = Attributes()
 
+    def start_event_loop(self):
         # dict of Method wrappers to @wrap_method decorated methods
         self.methods = Method.describe_methods(self)
+        super(Device, self).start_event_loop()
 
     def shortcuts(self):
         # Shortcut to all the self.do_ functions
@@ -77,7 +79,10 @@ class Device(StateMachine):
     def __getattr__(self, attr):
         """If we haven't defined a class attribute, then get its value from 
         the self.attributes object"""
-        return getattr(self.attributes, attr)
+        if hasattr(self, "attributes"):
+            return getattr(self.attributes, attr)
+        else:
+            raise KeyError("No attributes defined")
 
     def __setattr__(self, attr, value):
         """If we have an attribute, then set it, otherwise set it as a local
@@ -94,6 +99,10 @@ class Device(StateMachine):
         self.event_loop_proc.Wait()
 
     def to_dict(self):
-        d = dict(name=self.name, classname=type(self).__name__, descriptor=self.__doc__,
-                 status=self.status, methods=self.methods, attributes=self.attributes)
+        d = OrderedDict(name=self.name)
+        d.update(classname=type(self).__name__)
+        d.update(descriptor=self.__doc__)
+        d.update(methods=self.methods)
+        d.update(status=self.status)
+        d.update(attributes=self.attributes)
         return d

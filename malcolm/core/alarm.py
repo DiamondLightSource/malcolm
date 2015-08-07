@@ -1,16 +1,18 @@
 from enum import Enum
+from collections import OrderedDict
 
 
 class AlarmSeverity(Enum):
     noAlarm, minorAlarm, majorAlarm, invalidAlarm, undefinedAlarm = range(5)
+
     def to_dict(self):
         return self.value
-
 
 
 class AlarmStatus(Enum):
     noStatus, deviceStatus, driverStatus, recordStatus, dbStatus, confStatus, \
         undefinedStatus, clientStatus = range(8)
+
     def to_dict(self):
         return self.value
 
@@ -33,5 +35,7 @@ class Alarm(object):
         return cls(AlarmSeverity.noAlarm, AlarmStatus.noStatus, "No alarm")
 
     def to_dict(self):
-        d = dict(severity=self.severity, status=self.status, message=self.message)
+        d = OrderedDict(severity=self.severity)
+        d.update(status=self.status)
+        d.update(message=self.message)
         return d

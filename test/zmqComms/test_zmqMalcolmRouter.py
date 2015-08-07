@@ -37,7 +37,7 @@ class ZmqMalcolmRouterTest(unittest.TestCase):
             id=0, type="Call", method="malcolm.devices")
 
     def test_get_malcolm_returns_devices(self):
-        self.expected_reply = '{"type": "Return", "id": 0, "val": {"methods": {"exit": {"descriptor": "Stop the router and all of the devices attached to it", "args": {}}, "devices": {"descriptor": "List all available malcolm devices", "args": {}}}}}'
+        self.expected_reply = '{"type": "Return", "id": 0, "val": {"methods": {"devices": {"descriptor": "List all available malcolm devices", "args": {}}, "exit": {"descriptor": "Stop the router and all of the devices attached to it", "args": {}}}}}'
         self.send_request_check_reply(id=0, type="Get", param="malcolm")
 
     def test_get_device_forwarded_single_device(self):
@@ -53,8 +53,7 @@ class ZmqMalcolmRouterTest(unittest.TestCase):
 
     @patch("malcolm.zmqComms.zmqMalcolmRouter.log.exception")
     def test_no_providers_error(self, mock_exception):
-        self.expected_reply = json.dumps(
-            dict(id=0, type="Error", message="No device named foo registered"))
+        self.expected_reply = '{"type": "Error", "id": 0, "message": "No device named foo registered"}'
         self.send_request_check_reply(
             id=0, type="Call", method="foo.func", args=dict(bar="bat"))
         self.assertEqual(mock_exception.call_count, 1)

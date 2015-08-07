@@ -1,4 +1,5 @@
 import time
+from collections import OrderedDict
 
 
 class TimeStamp(object):
@@ -28,5 +29,7 @@ class TimeStamp(object):
         return self.secondsPastEpoch + float(self.nanoseconds) * 1e-9
 
     def to_dict(self):
-        return dict(secondsPastEpoch=self.secondsPastEpoch,
-                    nanoseconds=self.nanoseconds, userTag=self.userTag)
+        d = OrderedDict(secondsPastEpoch=self.secondsPastEpoch)
+        d.update(nanoseconds=self.nanoseconds)
+        d.update(userTag=self.userTag)
+        return d

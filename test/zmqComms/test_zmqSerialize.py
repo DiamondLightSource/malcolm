@@ -3,6 +3,8 @@ from pkg_resources import require
 from malcolm.core.status import Status
 from malcolm.core.device import DState
 from malcolm.core.alarm import Alarm, AlarmSeverity, AlarmStatus
+from collections import OrderedDict
+from IPython.core.display import Pretty
 require("mock")
 import unittest
 import sys
@@ -15,20 +17,23 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.zmqComms.zmqSerialize import serialize_return, serialize_call, serialize_get,\
     serialize_error, serialize_ready, serialize_value
 from malcolm.core.method import Method, wrap_method
-from malcolm.core.attribute import Attributes
+from malcolm.core.attribute import Attributes, Attribute
 from malcolm.core.timeStamp import TimeStamp
 import difflib
 
 
 class DummyDevice(object):
-    attributes = Attributes(foo=(int, "foodesc"), bar=(str, "bardesc"))
+    attributes = Attributes(
+        foo=Attribute(int, "foodesc"),
+        bar=Attribute(str, "bardesc")
+    )
 
 
 class DummyZebra(object):
     attributes = Attributes(
-        PC_BIT_CAP=(int, "Which encoders to capture"),
-        PC_TSPRE=(str, "What time units for capture"),
-        CONNECTED=(int, "Is zebra connected"),
+        PC_BIT_CAP=Attribute(int, "Which encoders to capture"),
+        PC_TSPRE=Attribute(str, "What time units for capture"),
+        CONNECTED=Attribute(int, "Is zebra connected"),
     )
     status = Status("", DState.Configuring)
 
@@ -41,11 +46,14 @@ class DummyZebra(object):
     def run(self):
         "Start a scan running"
         pass
-    methods = dict(configure=configure, run=run)
+    methods = OrderedDict(configure=configure)
+    methods.update(run=run)
 
     def to_dict(self):
-        return dict(status=self.status, methods=self.methods,
-                    attributes=self.attributes)
+        d = OrderedDict(methods=self.methods)
+        d.update(status=self.status)
+        d.update(attributes=self.attributes)
+        return d
 
 
 class ZmqSerializeTest(unittest.TestCase):
@@ -62,35 +70,38 @@ class ZmqSerializeTest(unittest.TestCase):
                 first.splitlines(True), second.splitlines(True)))
             self.fail("Multi-line strings are unequal: %s\n" % message)
 
+    def prettify(self, s):
+        pretty = json.dumps(json.loads(s, object_pairs_hook=OrderedDict), indent=2)
+        return pretty
+
     def test_serialize_function_call(self):
         s = serialize_call(0, "zebra1.configure", PC_BIT_CAP=1, PC_TSPRE="ms")
-        pretty = json.dumps(json.loads(s), indent=2)
-#        print pretty
+        pretty = self.prettify(s)
         expected = '''{
+  "type": "Call", 
+  "id": 0, 
+  "method": "zebra1.configure", 
   "args": {
     "PC_BIT_CAP": 1, 
     "PC_TSPRE": "ms"
-  }, 
-  "type": "Call", 
-  "method": "zebra1.configure", 
-  "id": 0
+  }
 }'''
         self.assertStringsEqual(pretty, expected)
 
     def test_serialize_malcolm_function_call(self):
         s = serialize_call(0, "malcolm.devices")
-        pretty = json.dumps(json.loads(s), indent=2)
+        pretty = self.prettify(s)
 #        print pretty
         expected = '''{
   "type": "Call", 
-  "method": "malcolm.devices", 
-  "id": 0
+  "id": 0, 
+  "method": "malcolm.devices"
 }'''
         self.assertStringsEqual(pretty, expected)
 
     def test_serialize_get(self):
         s = serialize_get(0, "zebra1.status")
-        pretty = json.dumps(json.loads(s), indent=2)
+        pretty = self.prettify(s)
         expected = '''{
   "type": "Get", 
   "id": 0, 
@@ -100,10 +111,10 @@ class ZmqSerializeTest(unittest.TestCase):
 
     def test_device_ready(self):
         s = serialize_ready("zebra1")
-        pretty = json.dumps(json.loads(s), indent=2)
+        pretty = self.prettify(s)
         expected = """{
-  "device": "zebra1", 
-  "type": "Ready"
+  "type": "Ready", 
+  "device": "zebra1"
 }"""
         self.assertStringsEqual(pretty, expected)
 
@@ -114,7 +125,7 @@ class ZmqSerializeTest(unittest.TestCase):
         method = Method(f)
         method.describe(DummyDevice)
         s = serialize_return(0, method)
-        pretty = json.dumps(json.loads(s), indent=2)
+        pretty = self.prettify(s)
         expected = '''{
   "type": "Return", 
   "id": 0, 
@@ -122,17 +133,17 @@ class ZmqSerializeTest(unittest.TestCase):
     "descriptor": "Hello", 
     "args": {
       "foo": {
-        "descriptor": "foodesc", 
-        "type": "int", 
         "value": null, 
+        "type": "int", 
         "tags": [
           "required"
-        ]
+        ], 
+        "descriptor": "foodesc"
       }, 
       "bar": {
-        "descriptor": "bardesc", 
+        "value": "bat", 
         "type": "str", 
-        "value": "bat"
+        "descriptor": "bardesc"
       }
     }
   }
@@ -144,16 +155,12 @@ class ZmqSerializeTest(unittest.TestCase):
         status.update(
             "message", DState.Idle, timeStamp=TimeStamp.from_time(1437663079.853469))
         s = serialize_return(0, status)
-        pretty = json.dumps(json.loads(s), indent=2)
+        pretty = self.prettify(s)
         expected = '''{
   "type": "Return", 
   "id": 0, 
   "val": {
-    "timeStamp": {
-      "nanoseconds": 853468894, 
-      "userTag": 0, 
-      "secondsPastEpoch": 1437663079
-    }, 
+    "message": "message", 
     "state": {
       "index": 1, 
       "choices": [
@@ -169,7 +176,11 @@ class ZmqSerializeTest(unittest.TestCase):
         "Resetting"
       ]
     }, 
-    "message": "message"
+    "timeStamp": {
+      "secondsPastEpoch": 1437663079, 
+      "nanoseconds": 853468894, 
+      "userTag": 0
+    }
   }
 }'''
         self.assertStringsEqual(pretty, expected)
@@ -180,46 +191,44 @@ class ZmqSerializeTest(unittest.TestCase):
         DummyDevice.attributes.set_value(
             "bar", "bat", timeStamp=TimeStamp.from_time(1437663842.11881113))
         s = serialize_return(0, DummyDevice.attributes)
-        pretty = json.dumps(json.loads(s), indent=2)
+        pretty = self.prettify(s)
         expected = '''{
   "type": "Return", 
   "id": 0, 
   "val": {
     "foo": {
+      "value": 3, 
+      "type": "int", 
       "descriptor": "foodesc", 
       "alarm": {
+        "severity": 0, 
         "status": 0, 
-        "message": "No alarm", 
-        "severity": 0
+        "message": "No alarm"
       }, 
-      "type": "int", 
-      "value": 3, 
       "timeStamp": {
+        "secondsPastEpoch": 1437663842, 
         "nanoseconds": 118811130, 
-        "userTag": 0, 
-        "secondsPastEpoch": 1437663842
+        "userTag": 0
       }
     }, 
     "bar": {
+      "value": "bat", 
+      "type": "str", 
       "descriptor": "bardesc", 
       "alarm": {
+        "severity": 0, 
         "status": 0, 
-        "message": "No alarm", 
-        "severity": 0
+        "message": "No alarm"
       }, 
-      "type": "str", 
-      "value": "bat", 
       "timeStamp": {
+        "secondsPastEpoch": 1437663842, 
         "nanoseconds": 118811130, 
-        "userTag": 0, 
-        "secondsPastEpoch": 1437663842
+        "userTag": 0
       }
     }
   }
 }'''
         self.assertStringsEqual(pretty, expected)
-
-
 
     def test_serialize_zebra_return(self):
         z = DummyZebra()
@@ -234,17 +243,45 @@ class ZmqSerializeTest(unittest.TestCase):
         z.attributes.set_value("CONNECTED", 0, alarm=Alarm(AlarmSeverity.invalidAlarm, AlarmStatus.deviceStatus,
                                                            message="Communication problem"), timeStamp=TimeStamp.from_time(1437663842.11881113))
         s = serialize_return(0, z)
-        pretty = json.dumps(json.loads(s), indent=2)
+        pretty = self.prettify(s)
         expected = '''{
   "type": "Return", 
   "id": 0, 
   "val": {
-    "status": {
-      "timeStamp": {
-        "nanoseconds": 853468894, 
-        "userTag": 0, 
-        "secondsPastEpoch": 1437663079
+    "methods": {
+      "configure": {
+        "descriptor": "Configure the device", 
+        "args": {
+          "PC_BIT_CAP": {
+            "value": null, 
+            "type": "int", 
+            "tags": [
+              "required"
+            ], 
+            "descriptor": "Which encoders to capture"
+          }, 
+          "PC_TSPRE": {
+            "value": "ms", 
+            "type": "str", 
+            "descriptor": "What time units for capture"
+          }
+        }, 
+        "valid_states": [
+          "Idle", 
+          "Ready"
+        ]
       }, 
+      "run": {
+        "descriptor": "Start a scan running", 
+        "args": {}, 
+        "valid_states": [
+          "Ready", 
+          "Paused"
+        ]
+      }
+    }, 
+    "status": {
+      "message": "Configuring...", 
       "state": {
         "index": 2, 
         "choices": [
@@ -260,107 +297,75 @@ class ZmqSerializeTest(unittest.TestCase):
           "Resetting"
         ]
       }, 
-      "message": "Configuring..."
+      "timeStamp": {
+        "secondsPastEpoch": 1437663079, 
+        "nanoseconds": 853468894, 
+        "userTag": 0
+      }
     }, 
     "attributes": {
       "PC_BIT_CAP": {
+        "value": 5, 
+        "type": "int", 
         "tags": [
           "configure"
         ], 
-        "timeStamp": {
-          "nanoseconds": 118811130, 
-          "userTag": 0, 
-          "secondsPastEpoch": 1437663842
-        }, 
-        "alarm": {
-          "status": 0, 
-          "message": "No alarm", 
-          "severity": 0
-        }, 
-        "value": 5, 
         "descriptor": "Which encoders to capture", 
-        "type": "int"
-      }, 
-      "CONNECTED": {
-        "descriptor": "Is zebra connected", 
         "alarm": {
-          "status": 1, 
-          "message": "Communication problem", 
-          "severity": 3
+          "severity": 0, 
+          "status": 0, 
+          "message": "No alarm"
         }, 
-        "type": "int", 
-        "value": 0, 
         "timeStamp": {
+          "secondsPastEpoch": 1437663842, 
           "nanoseconds": 118811130, 
-          "userTag": 0, 
-          "secondsPastEpoch": 1437663842
+          "userTag": 0
         }
       }, 
       "PC_TSPRE": {
+        "value": "ms", 
+        "type": "str", 
         "tags": [
           "configure"
         ], 
-        "timeStamp": {
-          "nanoseconds": 118811130, 
-          "userTag": 0, 
-          "secondsPastEpoch": 1437663842
-        }, 
-        "alarm": {
-          "status": 0, 
-          "message": "No alarm", 
-          "severity": 0
-        }, 
-        "value": "ms", 
         "descriptor": "What time units for capture", 
-        "type": "str"
-      }
-    }, 
-    "methods": {
-      "run": {
-        "descriptor": "Start a scan running", 
-        "args": {}, 
-        "valid_states": [
-          "Ready", 
-          "Paused"
-        ]
-      }, 
-      "configure": {
-        "descriptor": "Configure the device", 
-        "args": {
-          "PC_BIT_CAP": {
-            "descriptor": "Which encoders to capture", 
-            "type": "int", 
-            "value": null, 
-            "tags": [
-              "required"
-            ]
-          }, 
-          "PC_TSPRE": {
-            "descriptor": "What time units for capture", 
-            "type": "str", 
-            "value": "ms"
-          }
+        "alarm": {
+          "severity": 0, 
+          "status": 0, 
+          "message": "No alarm"
         }, 
-        "valid_states": [
-          "Idle", 
-          "Ready"
-        ]
+        "timeStamp": {
+          "secondsPastEpoch": 1437663842, 
+          "nanoseconds": 118811130, 
+          "userTag": 0
+        }
+      }, 
+      "CONNECTED": {
+        "value": 0, 
+        "type": "int", 
+        "descriptor": "Is zebra connected", 
+        "alarm": {
+          "severity": 3, 
+          "status": 1, 
+          "message": "Communication problem"
+        }, 
+        "timeStamp": {
+          "secondsPastEpoch": 1437663842, 
+          "nanoseconds": 118811130, 
+          "userTag": 0
+        }
       }
     }
   }
 }'''
         self.assertStringsEqual(pretty, expected)
         s = serialize_value(0, z.status)
-        pretty = json.dumps(json.loads(s), indent=2)
+        pretty = self.prettify(s)
         expected = '''{
   "type": "Value", 
   "id": 0, 
   "val": {
-    "timeStamp": {
-      "nanoseconds": 853468894, 
-      "userTag": 0, 
-      "secondsPastEpoch": 1437663079
-    }, 
+    "message": "Configuring...", 
     "state": {
       "index": 2, 
       "choices": [
@@ -376,7 +381,11 @@ class ZmqSerializeTest(unittest.TestCase):
         "Resetting"
       ]
     }, 
-    "message": "Configuring..."
+    "timeStamp": {
+      "secondsPastEpoch": 1437663079, 
+      "nanoseconds": 853468894, 
+      "userTag": 0
+    }
   }
 }'''
         self.assertStringsEqual(pretty, expected)
@@ -384,14 +393,13 @@ class ZmqSerializeTest(unittest.TestCase):
     def test_serialize_error(self):
         s = serialize_error(
             0, AssertionError("No device named foo registered"))
-        pretty = json.dumps(json.loads(s), indent=2)
+        pretty = self.prettify(s)
         expected = '''{
-  "message": "No device named foo registered", 
   "type": "Error", 
-  "id": 0
+  "id": 0, 
+  "message": "No device named foo registered"
 }'''
         self.assertStringsEqual(pretty, expected)
-
 
 
 if __name__ == '__main__':

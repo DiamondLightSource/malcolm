@@ -1,6 +1,7 @@
 from malcolm.core import wrap_method, DState, DEvent, PausableDevice
 from malcolm.core.stateMachine import StateMachine
 from enum import Enum
+from malcolm.core.attribute import Attribute
 
 
 class SState(Enum):
@@ -57,15 +58,14 @@ class DummyDetSim(StateMachine):
 class DummyDet(PausableDevice):
     """Dummy detector for testing purposes"""
 
-    attributes = dict(
-        nframes=(int, "Number of frames"),
-        exposure=(float, "Detector exposure"),
-        steps=(int, "Retrace number of steps"),
-    )
-
     def __init__(self, name, single=False):
         # TODO: add single step
         super(DummyDet, self).__init__(name)
+        # Add the attributes
+        self.attributes.add_attributes(
+            nframes=Attribute(int, "Number of frames"),
+            exposure=Attribute(float, "Detector exposure"),
+        )
         self.single = single
         self.sim = DummyDetSim(name + "Sim")
         self.sim.add_listener(self.on_status)

@@ -13,7 +13,7 @@ from mock import patch, MagicMock
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.core.method import wrap_method, Method
-from malcolm.core.attribute import Attributes
+from malcolm.core.attribute import Attributes, Attribute
 
 
 class TState(Enum):
@@ -34,8 +34,8 @@ class MethodTest(unittest.TestCase):
 
     def setUp(self):
         self.attributes = Attributes(
-            nframes=(int, "Number of frames"),
-            exposure=(float, "Detector exposure"),
+            nframes=Attribute(int, "Number of frames"),
+            exposure=Attribute(float, "Detector exposure"),
         )
         self.state = TState.State1
 

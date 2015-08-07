@@ -77,8 +77,8 @@ class ZmqDeviceWrapperProcTest(unittest.TestCase):
 
     def test_initial_ready(self):
         self.assertEqual(self.ready[1], "")
-        self.assertEqual(self.ready[2], json.dumps(
-            dict(type="Ready", device="zebra2")))
+        self.assertEqual(json.loads(self.ready[2]), 
+            dict(type="Ready", device="zebra2"))
 
     def test_simple_function(self):
         self.expected_reply = json.dumps(

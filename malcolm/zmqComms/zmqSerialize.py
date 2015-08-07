@@ -1,5 +1,6 @@
 import json
 from enum import Enum
+from collections import OrderedDict
 
 
 class SType(Enum):
@@ -17,56 +18,60 @@ class CustomSerializer(json.JSONEncoder):
 serializer = CustomSerializer()
 
 
-def serialize(typ, _id, **kwargs):
+def serialize(typ, _id, kwargs):
     assert type(_id) == int, "Need an integer ID, got {}".format(_id)
     assert typ in SType, \
         "Expected type in {}, got {}".format(list(SType.__members__), typ)
-    d = dict(id=_id, type=typ.name, **kwargs)
+    d = OrderedDict(type=typ.name)
+    d.update(id=_id)
+    d.update(kwargs)
     s = serializer.encode(d)
     return s
 
 
 def serialize_call(_id, method, **args):
+    d = OrderedDict(method=method)
     if args:
-        kwargs = dict(args=args)
-    else:
-        kwargs = {}
-    s = serialize(SType.Call, _id, method=method, **kwargs)
+        d.update(args=args)
+    s = serialize(SType.Call, _id, d)
     return s
 
 
 def serialize_get(_id, param):
-    s = serialize(SType.Get, _id, param=param)
+    d = OrderedDict(param=param)
+    s = serialize(SType.Get, _id, d)
     return s
 
 
 def serialize_error(_id, e):
-    s = serialize(SType.Error, _id, message=e.message)
+    d = OrderedDict(message=e.message)
+    s = serialize(SType.Error, _id, d)
     return s
 
 
 def serialize_return(_id, val):
+    d = OrderedDict()
     if val is not None:
-        kwargs = dict(val=val)
-    else:
-        kwargs = {}
-    s = serialize(SType.Return, _id, **kwargs)
+        d.update(val=val)
+    s = serialize(SType.Return, _id, d)
     return s
 
 
 def serialize_value(_id, val):
-    s = serialize(SType.Value, _id, val=val)
+    d = OrderedDict(val=val)
+    s = serialize(SType.Value, _id, d)
     return s
 
 
 def serialize_ready(device):
-    d = dict(type=SType.Ready.name, device=device)
+    d = OrderedDict(type=SType.Ready.name)
+    d.update(device=device)
     s = serializer.encode(d)
     return s
 
 
 def deserialize(s):
-    d = json.loads(s)
+    d = json.loads(s, object_pairs_hook=OrderedDict)
     typ = d["type"]
     assert typ in SType.__members__, \
         "Expected type in {}, got {}".format(list(SType.__members__), typ)

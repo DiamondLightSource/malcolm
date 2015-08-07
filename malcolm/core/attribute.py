@@ -1,14 +1,14 @@
 from alarm import Alarm
 from timeStamp import TimeStamp
+from collections import OrderedDict
 
 
 class Attributes(object):
     """Container for a number of attributes"""
 
     def __init__(self, **attributes):
-        self.attributes = {}
-        for name, (typ, desc) in attributes.items():
-            self.attributes[name] = Attribute(name, typ, desc)
+        self.attributes = OrderedDict()
+        self.add_attributes(**attributes)
 
     def __setattr__(self, attr, value):
         if attr == "attributes":
@@ -28,11 +28,17 @@ class Attributes(object):
     def to_dict(self):
         return self.attributes
 
+    def add_attributes(self, **attributes):
+        for name, attribute in attributes.items():
+            self.attributes[name] = attribute
+            attribute.name = name
+
+
 class Attribute(object):
     """Class representing an attribute"""
 
-    def __init__(self, name, typ, descriptor, value=None, alarm=None,
-                 timeStamp=None):
+    def __init__(self, typ, descriptor, value=None, alarm=None,
+                 timeStamp=None, name=None):
         # TODO: add validation here
         self.name = name
         self.typ = typ
@@ -48,11 +54,13 @@ class Attribute(object):
         self.timeStamp = timeStamp or TimeStamp.now()
 
     def to_dict(self):
-        d = dict(descriptor=self.descriptor, value=self.value, type=self.typ.__name__)
-        if self.alarm is not None:
-            d["alarm"] = self.alarm
-        if self.timeStamp is not None:
-            d["timeStamp"] = self.timeStamp
+        d = OrderedDict(value=self.value)
+        d.update(type=self.typ.__name__)
         if self.tags:
-            d["tags"] = self.tags
+            d.update(tags=self.tags)
+        d.update(descriptor=self.descriptor)
+        if self.alarm is not None:
+            d.update(alarm=self.alarm)
+        if self.timeStamp is not None:
+            d.update(timeStamp=self.timeStamp)
         return d

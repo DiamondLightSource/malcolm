@@ -1,7 +1,7 @@
 import functools
 import inspect
 from attribute import Attribute
-from json import JSONEncoder
+from collections import OrderedDict
 
 
 class Method():
@@ -47,8 +47,9 @@ class Method():
             attribute = device.attributes.attributes[arg]
             assert attribute.name == arg, \
                 "Attribute name {} should be {}".format(attribute.name, arg)
-            self.args[arg] = Attribute(
-                attribute.name, attribute.typ, attribute.descriptor)
+            self.args[arg] = Attribute(typ=attribute.typ,
+                                       descriptor=attribute.descriptor,
+                                       name=attribute.name)
             defaulti = i - len(args) + len(defaults)
             if defaulti < 0:
                 # required
@@ -69,18 +70,19 @@ class Method():
     def describe_methods(cls, device):
         def ismethod(thing):
             return isinstance(thing, cls)
-        methods = {}
+        methods = OrderedDict()
         for mname, method in inspect.getmembers(device, predicate=ismethod):
             method.describe(device)
             methods[mname] = method
         return methods
 
     def to_dict(self):
-        d = dict(descriptor=self.descriptor, args=self.args)
+        d = OrderedDict(descriptor=self.descriptor)
+        d.update(args=self.args)
         if self.valid_states:
             d["valid_states"] = [s.name for s in self.valid_states]
         return d
-    
+
 
 def wrap_method(only_in=None, args_from=None):
     """Provide a wrapper function that checks types"""
