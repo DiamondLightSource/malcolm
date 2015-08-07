@@ -111,8 +111,8 @@ class StateMachine(object):
         import cothread
         self.cothread = cothread
         self.inq = cothread.EventQueue()
-        cothread.Spawn(self.event_loop)
         log.debug("{0}: start_event_loop called".format(self.name))
+        self.event_loop_proc = cothread.Spawn(self.event_loop)
 
     def transition(self, from_state, event, transition_func, *to_states):
         """Add a transition to the table

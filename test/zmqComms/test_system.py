@@ -13,7 +13,7 @@ import zmq
 import time
 
 #import logging
-# logging.basicConfig(level=logging.DEBUG)#,
+#logging.basicConfig(level=logging.DEBUG)
 # format="%(asctime)s;%(levelname)s;%(message)s")
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -52,6 +52,8 @@ class Counter(Device):
         self.cothread.Sleep(0.5)
         return "long world"
 
+    def exit(self):
+        pass
 
 class ZmqSystemTest(unittest.TestCase):
 
@@ -102,7 +104,7 @@ class ZmqSystemTest(unittest.TestCase):
         """
         # Send a stop message to the prong process and wait until it joins
         self.caller_sock.send(
-            json.dumps(dict(id=0, type="Call", method="malcolm.pleasestopnow")))
+            json.dumps(dict(id=0, type="Call", method="malcolm.exit")))
         self.fr.join()
         self.dw.join()
         self.caller_sock.close()

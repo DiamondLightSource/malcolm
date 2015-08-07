@@ -148,13 +148,13 @@ class ZmqMalcolmRouter(ZmqProcess):
         return list(self._devices)
 
     @wrap_method(only_in=None)
-    def pleasestopnow(self):
+    def exit(self):
         "Stop the router and all of the devices attached to it"
-        # stop all of our devices
+        # exit all of our devices
         for device, deviceid in self._devices.items():
             self.be_send(
-                deviceid, "", serialize_call(-1, device + ".pleasestopnow"))
-        self.stop()
+                deviceid, "", serialize_call(-1, device + ".exit"))
+        super(ZmqMalcolmRouter, self).exit()
 
     def to_dict(self):
         d = dict(methods=self.methods)

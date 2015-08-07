@@ -5,9 +5,12 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 `Unreleased`_ - unreleased
 --------------------------
+Added:
+
+- Added device name and type to structure, along with exit() method
 
 `0-2`_ - 2014-08-05
---------------------
+-------------------
 Added:
 
 - Documentation

@@ -51,6 +51,8 @@ class Counter(object):
     def to_dict(self):
         return dict(status=self.status, attributes=self.attributes, methods=self.methods)
 
+    def exit(self):
+        pass
 
 class ZmqDeviceWrapperProcTest(unittest.TestCase):
 
@@ -108,8 +110,8 @@ class ZmqDeviceWrapperProcTest(unittest.TestCase):
         """
         # Send a stop message to the prong process and wait until it joins
         self.router_sock.send_multipart(
-            [self.ready[0], "", json.dumps(dict(id=0, type="Call", method="zebra2.pleasestopnow"))])
-        #self.dw.join()
+            [self.ready[0], "", json.dumps(dict(id=0, type="Call", method="zebra2.exit"))])
+        self.dw.join()
         self.router_sock.close()
 
 

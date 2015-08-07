@@ -55,10 +55,12 @@ class DummyDetSim(StateMachine):
 
 
 class DummyDet(PausableDevice):
+    """Dummy detector for testing purposes"""
 
     attributes = dict(
         nframes=(int, "Number of frames"),
         exposure=(float, "Detector exposure"),
+        steps=(int, "Retrace number of steps"),
     )
 
     def __init__(self, name, single=False):

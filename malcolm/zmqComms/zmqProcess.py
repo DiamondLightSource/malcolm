@@ -123,9 +123,9 @@ class ZmqProcess(multiprocessing.Process):
         for stream in self.streams:
             self.loops.append(self.cothread.Spawn(
                 stream.event_loop, raise_on_wait=True))
-        self.quitsig = self.cothread.Pulse()
+        self.exitsig = self.cothread.Pulse()
         if block:
-            self.quitsig.Wait()
+            self.exitsig.Wait()
             self.wait_loops()
 
     def wait_loops(self):
@@ -137,6 +137,6 @@ class ZmqProcess(multiprocessing.Process):
             except zmq.ZMQError as e:
                 log.debug("Exception raised in event loop {}".format(e))
 
-    def stop(self):
+    def exit(self):
         """Stops the event loop."""
-        self.quitsig.Signal()
+        self.exitsig.Signal()

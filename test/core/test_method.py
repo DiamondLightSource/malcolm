@@ -51,11 +51,13 @@ class MethodTest(unittest.TestCase):
         nframes = method.args["nframes"]
         self.assertEqual(nframes.descriptor, "Number of frames")
         self.assertEqual(nframes.typ, int)
-        self.assertEqual(nframes.value, "arg_required")
+        self.assertEqual(nframes.value, None)
+        self.assertEqual(nframes.tags, ["required"])
         exposure = method.args["exposure"]
         self.assertEqual(exposure.descriptor, "Detector exposure")
         self.assertEqual(exposure.typ, float)
         self.assertEqual(exposure.value, 0.1)
+        self.assertEqual(exposure.tags, [])
         self.assertEqual(method.valid_states, [TState.State1])
 
     def test_attribute_override_description(self):
@@ -66,11 +68,13 @@ class MethodTest(unittest.TestCase):
         nframes = method.args["nframes"]
         self.assertEqual(nframes.descriptor, "Number of frames")
         self.assertEqual(nframes.typ, int)
-        self.assertEqual(nframes.value, "arg_required")
+        self.assertEqual(nframes.value, None)
+        self.assertEqual(nframes.tags, ["required"])
         exposure = method.args["exposure"]
         self.assertEqual(exposure.descriptor, "Detector exposure")
         self.assertEqual(exposure.typ, float)
         self.assertEqual(exposure.value, 0.1)
+        self.assertEqual(exposure.tags, [])
         self.assertEqual(method.valid_states, [TState.State2])
 
 if __name__ == '__main__':

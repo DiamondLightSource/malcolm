@@ -73,7 +73,7 @@ class ZmqMalcolmRouterProcTest(unittest.TestCase):
     def tearDown(self):
         # Send a stop message to the process and wait until it joins
         self.caller_sock.send(
-            json.dumps(dict(id=-1, type="Call", method="malcolm.pleasestopnow")))
+            json.dumps(dict(id=-1, type="Call", method="malcolm.exit")))
         self.fr.join()
         self.caller_sock.close()
         self.dev_sock.close()

@@ -35,8 +35,8 @@ class MiniRouter(ZmqProcess):
 
     def handle_fe(self, msg):
         clientid, data = msg
-        if data == "pleasestopnow":
-            self.stop()
+        if data == "exit":
+            self.exit()
         else:
             _id = json.loads(data)["id"]
             returnval = json.dumps(
@@ -103,8 +103,8 @@ class ZmqDeviceClientProcTest(unittest.TestCase):
         Sends a kill message to the pp and waits for the process to terminate.
 
         """
-        # Send a stop message to the prong process and wait until it joins
-        self.req_sock.send("pleasestopnow")
+        # Send a exit message to the prong process and wait until it joins
+        self.req_sock.send("exit")
         self.mr.join()
         self.req_sock.close()
         self.fc.wait_loops()

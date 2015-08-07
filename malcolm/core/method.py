@@ -43,15 +43,19 @@ class Method():
         self.args = {}
         if defaults is None:
             defaults = []
-        else:
-            padding = ["arg_required"] * (len(args) - len(defaults))
-            defaults = padding + list(defaults)
-        for arg, default in zip(args, defaults):
+        for i, arg in enumerate(args):
             attribute = device.attributes.attributes[arg]
             assert attribute.name == arg, \
                 "Attribute name {} should be {}".format(attribute.name, arg)
             self.args[arg] = Attribute(
-                attribute.name, attribute.typ, attribute.descriptor, default)
+                attribute.name, attribute.typ, attribute.descriptor)
+            defaulti = i - len(args) + len(defaults)
+            if defaulti < 0:
+                # required
+                self.args[arg].tags.append("required")
+            else:
+                # default
+                self.args[arg].value = defaults[defaulti]
             attribute.tags.append(self.function.__name__)
 
     def __call__(self, *args, **kwargs):

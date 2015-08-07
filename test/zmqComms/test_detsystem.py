@@ -88,16 +88,37 @@ class ZmqDetSystemTest(unittest.TestCase):
     }, 
     "message": ""
   }, 
+  "name": "det", 
+  "classname": "DummyDet", 
+  "descriptor": "Dummy detector for testing purposes", 
   "attributes": {
     "nframes": {
       "descriptor": "Number of frames", 
       "type": "int", 
-      "value": null
+      "value": null, 
+      "tags": [
+        "assert_valid", 
+        "configure", 
+        "configure_run"
+      ]
+    }, 
+    "steps": {
+      "descriptor": "Retrace number of steps", 
+      "type": "int", 
+      "value": null, 
+      "tags": [
+        "retrace"
+      ]
     }, 
     "exposure": {
       "descriptor": "Detector exposure", 
       "type": "float", 
-      "value": null
+      "value": null, 
+      "tags": [
+        "assert_valid", 
+        "configure", 
+        "configure_run"
+      ]
     }
   }, 
   "methods": {
@@ -126,7 +147,24 @@ class ZmqDetSystemTest(unittest.TestCase):
     }, 
     "configure": {
       "descriptor": "Assert params are valid, then use them to configure a device for a run.\n        It blocks until the device is in a rest state:\n         * Normally it will return a DState.Configured Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
-      "args": {}, 
+      "args": {
+        "nframes": {
+          "descriptor": "Number of frames", 
+          "type": "int", 
+          "value": null, 
+          "tags": [
+            "required"
+          ]
+        }, 
+        "exposure": {
+          "descriptor": "Detector exposure", 
+          "type": "float", 
+          "value": null, 
+          "tags": [
+            "required"
+          ]
+        }
+      }, 
       "valid_states": [
         "Idle", 
         "Ready"
@@ -141,14 +179,40 @@ class ZmqDetSystemTest(unittest.TestCase):
     }, 
     "retrace": {
       "descriptor": "Retrace a number of steps in the current scan. It blocks until the\n        device is in pause done state:\n         * Normally it will return a DState.Paused Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
-      "args": {}, 
+      "args": {
+        "steps": {
+          "descriptor": "Retrace number of steps", 
+          "type": "int", 
+          "value": null, 
+          "tags": [
+            "required"
+          ]
+        }
+      }, 
       "valid_states": [
         "Paused"
       ]
     }, 
     "assert_valid": {
       "descriptor": "Check whether the configuration parameters are valid or not. This set\n        of parameters are checked in isolation, no device state is taken into\n        account. It raises an error if the set of configuration parameters is\n        invalid.\n        ", 
-      "args": {}, 
+      "args": {
+        "nframes": {
+          "descriptor": "Number of frames", 
+          "type": "int", 
+          "value": null, 
+          "tags": [
+            "required"
+          ]
+        }, 
+        "exposure": {
+          "descriptor": "Detector exposure", 
+          "type": "float", 
+          "value": null, 
+          "tags": [
+            "required"
+          ]
+        }
+      }, 
       "valid_states": [
         "Fault", 
         "Idle", 
@@ -174,9 +238,42 @@ class ZmqDetSystemTest(unittest.TestCase):
         "Resetting"
       ]
     }, 
+    "exit": {
+      "descriptor": "Stop the event loop and destroy the device", 
+      "args": {}, 
+      "valid_states": [
+        "Fault", 
+        "Idle", 
+        "Configuring", 
+        "Ready", 
+        "Running", 
+        "Pausing", 
+        "Paused", 
+        "Aborting", 
+        "Aborted", 
+        "Resetting"
+      ]
+    }, 
     "configure_run": {
       "descriptor": "Try and configure and run a device in one step. It blocks until the\n        device is in a rest state:\n         * Normally it will return a DState.Idle Status\n         * If the device allows many runs from a single configure then it\n           will return a DState.Ready Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
-      "args": {}, 
+      "args": {
+        "nframes": {
+          "descriptor": "Number of frames", 
+          "type": "int", 
+          "value": null, 
+          "tags": [
+            "required"
+          ]
+        }, 
+        "exposure": {
+          "descriptor": "Detector exposure", 
+          "type": "float", 
+          "value": null, 
+          "tags": [
+            "required"
+          ]
+        }
+      }, 
       "valid_states": [
         "Fault", 
         "Idle", 
@@ -201,7 +298,7 @@ class ZmqDetSystemTest(unittest.TestCase):
         """
         # Send a stop message to the prong process and wait until it joins
         self.caller_sock.send(
-            json.dumps(dict(id=0, type="Call", method="malcolm.pleasestopnow")))
+            json.dumps(dict(id=0, type="Call", method="malcolm.exit")))
         self.fr.join()
         self.dw.join()
         self.caller_sock.close()

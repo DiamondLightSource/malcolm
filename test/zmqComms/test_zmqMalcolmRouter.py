@@ -37,7 +37,7 @@ class ZmqMalcolmRouterTest(unittest.TestCase):
             id=0, type="Call", method="malcolm.devices")
 
     def test_get_malcolm_returns_devices(self):
-        self.expected_reply = '{"type": "Return", "id": 0, "val": {"methods": {"devices": {"descriptor": "List all available malcolm devices", "args": {}}, "pleasestopnow": {"descriptor": "Stop the router and all of the devices attached to it", "args": {}}}}}'
+        self.expected_reply = '{"type": "Return", "id": 0, "val": {"methods": {"exit": {"descriptor": "Stop the router and all of the devices attached to it", "args": {}}, "devices": {"descriptor": "List all available malcolm devices", "args": {}}}}}'
         self.send_request_check_reply(id=0, type="Get", param="malcolm")
 
     def test_get_device_forwarded_single_device(self):

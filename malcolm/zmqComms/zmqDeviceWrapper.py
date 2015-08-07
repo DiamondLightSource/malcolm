@@ -61,9 +61,9 @@ class ZmqDeviceWrapper(ZmqProcess):
         device, method = d["method"].split(".", 1)
         assert device == self.name, "Wrong device name {}".format(device)
         assert "id" in d, "No id in {}".format(d)
-        if method == "pleasestopnow":
-            # Just stop now
-            self.be_send(clientid, serialize_return(d["id"], self.stop()))
+        if method == "exit":
+            # Just exit now
+            self.be_send(clientid, serialize_return(d["id"], self.exit()))
         else:
             # Call a device method
             assert method in self.device.methods, \
@@ -112,3 +112,7 @@ class ZmqDeviceWrapper(ZmqProcess):
         except Exception as e:
             # send error up the chain
             self.be_send(clientid, serialize_error(d["id"], e))
+    
+    def exit(self):
+        self.device.exit()
+        super(ZmqDeviceWrapper, self).exit()

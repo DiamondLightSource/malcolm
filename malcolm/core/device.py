@@ -1,8 +1,7 @@
-import inspect
 from enum import Enum
 from stateMachine import StateMachine
 from attribute import Attributes
-from method import Method
+from method import Method, wrap_method
 
 
 class DState(Enum):
@@ -39,6 +38,7 @@ class DState(Enum):
         choices = [e.name for e in self.__class__]
         d = dict(index=self.value, choices=choices)
         return d
+
 
 class DEvent(Enum):
     # These are the messages that we will respond to
@@ -87,6 +87,13 @@ class Device(StateMachine):
         except (AttributeError, KeyError) as e:
             return object.__setattr__(self, attr, value)
 
+    @wrap_method(only_in=DState)
+    def exit(self):
+        """Stop the event loop and destroy the device"""
+        self.inq.close()
+        self.event_loop_proc.Wait()
+
     def to_dict(self):
-        d = dict(status=self.status, methods=self.methods, attributes=self.attributes)
+        d = dict(name=self.name, classname=type(self).__name__, descriptor=self.__doc__,
+                 status=self.status, methods=self.methods, attributes=self.attributes)
         return d
