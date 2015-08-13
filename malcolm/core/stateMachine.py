@@ -12,30 +12,83 @@ class StateMachine(object):
     :param name: A human readable name for this state machine
     """
 
-    def __init__(self, name, initial_state, error_state=None):
+    def __init__(self, name, initial_state, error_state=None, timeout=None):
         # self.transitions[(from_state, event)] = (transition_f, to_state_list)
         self.transitions = OrderedDict()
         # store initial, error and current states
-        self.status = Status(name, initial_state)
+        self.status = Status(initial_state)
         if error_state is None:
             error_state = initial_state
         self.error_state = error_state
+        # Monitor status for changes
+        self.status.on_trait_change(self._status_changed)
         # name for logging
         self.name = name
         # this is what we set the status message variable to at the end
         # of a transition function
         self._status_message = None
+        # These are the callback functions to be called when something changes
+        self.callbacks = {}
+        # These are the changes that have happened since the last
+        # notify_callbacks
+        self._changes = []
+        # This is how long to wait in wait_for_transition
+        self.timeout = timeout
 
-    def add_listener(self, callback):
+    def _status_changed(self, name, value):
+        """Called when status changes value"""
+        self._changes.append("status.{}".format(name))
+
+    def add_listener(self, callback, prefix="status", changes=False):
         """Add a listener callback function to be called when we change state.
         It should have call signature:
           def on_transition(state, message, timeStamp)
         """
-        self.status.add_listener(callback)
+        assert callback not in self.callbacks, \
+            "Callback function {} already in callback list".format(
+                callback)
+        self.callbacks[callback] = (prefix, changes)
 
     def remove_listener(self, callback):
         """Remove listener callback function"""
-        self.status.remove_listener(callback)
+        self.callbacks.pop(callback)
+
+    def get_child(self, child=None):
+        ret = self
+        if child is not None:
+            for p in child.split("."):
+                try:
+                    ret = ret[p]
+                except:
+                    ret = ret.to_dict()[p]
+        return ret
+
+    def notify_callbacks(self):
+        """Notify all listeners of all changes"""
+        for callback, (prefix, want_changes) in self.callbacks.items():
+            # Find all changes that we are interested
+            changes = []
+            for name in self._changes:
+                if name not in changes:
+                    if prefix is None:
+                        # monitoring everything
+                        changes.append(name)
+                    elif name == prefix:
+                        # monitoring this
+                        changes.append("")
+                    elif name.startswith(prefix + "."):
+                        # monitoring substructure
+                        changes.append(name[len(prefix) + 1:])
+            if changes:
+                # Now find the current value
+                value = self.get_child(prefix)
+                log.debug("{}: notifying {} of updates to {}"
+                          .format(self.name, callback, prefix))
+                if want_changes:
+                    callback(value, changes=changes)
+                else:
+                    callback(value)
+        self._changes = []
 
     def post(self, event, *args, **kwargs):
         """Post a event to the input queue that the state machine can deal
@@ -99,6 +152,11 @@ class StateMachine(object):
             if self._status_message is None and new_state != self.state:
                 self._status_message = "State change"
             self.status.update(self._status_message, new_state)
+            try:
+                self.notify_callbacks()
+            except:
+                log.exception("{}: Got exception in callback functions"
+                              .format(self.name))
 
     def do_error(self, event, error):
         log.error("{}: event {} caused error {} in transition func"
@@ -168,12 +226,16 @@ class StateMachine(object):
             assert isinstance(state, Enum)
         done = self.cothread.Pulse()
 
-        def on_transition(state, message, timeStamp):
+        def on_transition(state):
             if state in states:
                 done.Signal()
 
-        self.add_listener(on_transition)
-        done.Wait()
+        self.add_listener(on_transition, "status.state")
+        done.Wait(timeout=self.timeout)
         self.remove_listener(on_transition)
         if self.state == self.error_state:
             raise AssertionError(self.status.message)
+
+    def to_dict(self):
+        d = OrderedDict(status=self.status)
+        return d

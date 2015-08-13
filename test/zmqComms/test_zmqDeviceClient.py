@@ -10,7 +10,7 @@ import cothread
 
 #import logging
 # logging.basicConfig(level=logging.DEBUG)
-from mock import MagicMock
+from mock import MagicMock, call
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.zmqComms.zmqDeviceClient import ZmqDeviceClient
@@ -68,6 +68,34 @@ class ZmqDeviceClientTest(unittest.TestCase):
         self.assertRaises(AssertionError, self.fc.get, "myparam")
         self.fc.fe_stream.send.assert_called_once_with(
             json.dumps(dict(id=0, type="Get", param="mydevice.myparam")))
+
+    def test_subscribe(self):
+        def do_response():
+            self.fc.handle_fe([json.dumps(
+                dict(id=0, type="Value", val="initial"))])
+            self.fc.handle_fe([json.dumps(
+                dict(id=0, type="Value", val="subsequent"))])
+
+        cb = MagicMock()
+        s = self.fc.subscribe(cb, "myparam")
+        cothread.Spawn(do_response)
+        # Yield once to allow spawned do_response and _do_process
+        cothread.Yield()
+        self.fc.fe_stream.send.assert_called_once_with(
+            json.dumps(dict(id=0, type="Subscribe", param="mydevice.myparam")))
+        self.fc.fe_stream.reset_mock()
+        # Yield again to allow subscribe event loop
+        cothread.Yield()
+        cb.assert_has_calls([call("initial"), call("subsequent")])
+        cb.reset_mock()
+        # Now unsubcribe
+        s.unsubscribe()
+        self.fc.fe_stream.send.assert_called_once_with(
+            json.dumps(dict(id=0, type="Unsubscribe")))
+        # Now check new updates
+        cothread.Spawn(do_response)
+        cothread.Yield()
+        self.assertFalse(cb.called)
 
 
 if __name__ == '__main__':

@@ -2,14 +2,15 @@ from method import wrap_method
 from device import DState, DEvent
 from attribute import Attribute
 from runnableDevice import RunnableDevice
+from malcolm.core.traitsapi import Int
 
 
 class PausableDevice(RunnableDevice):
     """Adds pause command to Device"""
 
-    def __init__(self, name):
+    def __init__(self, name, timeout=None):
         # superclass init
-        super(PausableDevice, self).__init__(name)
+        super(PausableDevice, self).__init__(name, timeout=timeout)
 
         # some shortcuts for the state table
         do, t, s, e = self.shortcuts()
@@ -21,8 +22,10 @@ class PausableDevice(RunnableDevice):
         t(s.Paused,      e.Run,       do.run,       s.Running)
 
         # Add attributes
-        self.attributes.add_attributes(
-            retrace_steps=Attribute(int, "Number of steps to retrace by"),
+        self.add_attributes(
+            total_steps=Attribute(Int, "Number of scan steps"),
+            current_step=Attribute(Int, "Current scan step"),
+            retrace_steps=Attribute(Int, "Number of steps to retrace by"),
         )
 
     def do_pause(self, event, steps=None):

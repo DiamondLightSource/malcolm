@@ -77,6 +77,22 @@ class ZmqMalcolmRouterTest(unittest.TestCase):
         self.fr.fe_stream.send_multipart.assert_called_once_with(
             [client, data])
 
+    def test_get_monitor_forwarded_single_device(self):
+        client = "CUUID"
+        data = json.dumps(
+            dict(id=0, type="Ready", device="zebra1"))
+        device = "DUUID"
+        self.fr.handle_be([device, client, data])
+        request = json.dumps(dict(id=0, type="Subscribe", param="zebra1.status"))
+        self.fr.handle_fe([client, request])
+        self.fr.be_stream.send_multipart.assert_called_once_with(
+            [device, client, request])
+        self.fr.be_stream.reset_mock()
+        request = json.dumps(dict(id=0, type="Unsubscribe"))
+        self.fr.handle_fe([client, request])
+        self.fr.be_stream.send_multipart.assert_called_once_with(
+            [device, client, request])
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

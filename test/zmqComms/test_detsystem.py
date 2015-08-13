@@ -12,8 +12,8 @@ import json
 import zmq
 import time
 
-#import logging
-# logging.basicConfig(level=logging.DEBUG)#,
+import logging
+#logging.basicConfig(level=logging.DEBUG)#,
 # format="%(asctime)s;%(levelname)s;%(message)s")
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -60,10 +60,18 @@ class ZmqDetSystemTest(unittest.TestCase):
         then = time.time()
         self.assertAlmostEqual(then - now, 0.5, delta=0.08)
         now = time.time()
-        self.fc.call("configure_run", nframes=5, exposure=0.1)
+        results = list(self.fc.calliter("configure_run", nframes=5, exposure=0.1))
         then = time.time()
         self.assertAlmostEqual(then - now, 0.5, delta=0.08)
-
+        result = results[-1]
+        self.assertEqual(result, None)
+        states = [r["state"]["choices"][r["state"]["index"]] for r in results[:-1]]
+        expected = [u'Configuring', u'Ready', u'Running', u'Running', u'Running', u'Running', u'Running', u'Running', u'Idle']
+        self.assertEqual(states, expected)
+        messages = [r["message"] for r in results[:-1]]
+        expected = [u'Configuring started', u'Configuring finished', u'Starting run', u'Running in progress 0% done', u'Running in progress 20% done', u'Running in progress 40% done', u'Running in progress 60% done', u'Running in progress 80% done', u'Running in progress 100% done']
+        self.assertEqual(messages, expected)
+        
     def test_get(self):
         time.sleep(0.2)
         ret = self.fc.get()
@@ -90,7 +98,7 @@ class ZmqDetSystemTest(unittest.TestCase):
       "args": {
         "exposure": {
           "value": null, 
-          "type": "float", 
+          "type": "Float", 
           "tags": [
             "required"
           ], 
@@ -98,7 +106,7 @@ class ZmqDetSystemTest(unittest.TestCase):
         }, 
         "nframes": {
           "value": null, 
-          "type": "int", 
+          "type": "Int", 
           "tags": [
             "required"
           ], 
@@ -123,7 +131,7 @@ class ZmqDetSystemTest(unittest.TestCase):
       "args": {
         "exposure": {
           "value": null, 
-          "type": "float", 
+          "type": "Float", 
           "tags": [
             "required"
           ], 
@@ -131,7 +139,7 @@ class ZmqDetSystemTest(unittest.TestCase):
         }, 
         "nframes": {
           "value": null, 
-          "type": "int", 
+          "type": "Int", 
           "tags": [
             "required"
           ], 
@@ -148,7 +156,7 @@ class ZmqDetSystemTest(unittest.TestCase):
       "args": {
         "exposure": {
           "value": null, 
-          "type": "float", 
+          "type": "Float", 
           "tags": [
             "required"
           ], 
@@ -156,7 +164,7 @@ class ZmqDetSystemTest(unittest.TestCase):
         }, 
         "nframes": {
           "value": null, 
-          "type": "int", 
+          "type": "Int", 
           "tags": [
             "required"
           ], 
@@ -219,7 +227,7 @@ class ZmqDetSystemTest(unittest.TestCase):
       "args": {
         "retrace_steps": {
           "value": null, 
-          "type": "int", 
+          "type": "Int", 
           "tags": [
             "required"
           ], 
@@ -261,26 +269,26 @@ class ZmqDetSystemTest(unittest.TestCase):
   "attributes": {
     "current_step": {
       "value": null, 
-      "type": "int", 
+      "type": "Int", 
       "descriptor": "Current scan step"
-    }, 
-    "total_steps": {
-      "value": null, 
-      "type": "int", 
-      "descriptor": "Number of scan steps"
     }, 
     "retrace_steps": {
       "value": null, 
-      "type": "int", 
+      "type": "Int", 
       "tags": [
         "retrace", 
         "retrace"
       ], 
       "descriptor": "Number of steps to retrace by"
     }, 
+    "total_steps": {
+      "value": null, 
+      "type": "Int", 
+      "descriptor": "Number of scan steps"
+    }, 
     "exposure": {
       "value": null, 
-      "type": "float", 
+      "type": "Float", 
       "tags": [
         "assert_valid", 
         "configure", 
@@ -293,7 +301,7 @@ class ZmqDetSystemTest(unittest.TestCase):
     }, 
     "nframes": {
       "value": null, 
-      "type": "int", 
+      "type": "Int", 
       "tags": [
         "assert_valid", 
         "configure", 

@@ -1,54 +1,33 @@
 from alarm import Alarm
 from timeStamp import TimeStamp
 from collections import OrderedDict
+from malcolm.core.traitsapi import HasTraits, Str, ListStr, Instance, Undefined
 
 
-class Attributes(object):
-    """Container for a number of attributes"""
-
-    def __init__(self, **attributes):
-        self.attributes = OrderedDict()
-        self.add_attributes(**attributes)
-
-    def __setattr__(self, attr, value):
-        if attr == "attributes":
-            return object.__setattr__(self, attr, value)
-        else:
-            self.attributes[attr].set_value(value)
-
-    def __getattr__(self, attr):
-        if attr == "attributes":
-            return object.__getattr__(self, attr)
-        else:
-            return self.attributes[attr].value
-
-    def set_value(self, attr, value, alarm=None, timeStamp=None):
-        self.attributes[attr].set_value(value, alarm, timeStamp)
-
-    def to_dict(self):
-        return self.attributes
-
-    def add_attributes(self, **attributes):
-        for name, attribute in attributes.items():
-            self.attributes[name] = attribute
-            attribute.name = name
-
-
-class Attribute(object):
+class Attribute(HasTraits):
     """Class representing an attribute"""
+    name = Str
+    tags = ListStr
+    descriptor = Str
+    alarm = Instance(Alarm)
+    timeStamp = Instance(TimeStamp)
 
     def __init__(self, typ, descriptor, value=None, alarm=None,
                  timeStamp=None, name=None):
-        # TODO: add validation here
-        self.name = name
+        self.add_trait("value", typ(Undefined))
+        self.value.update = self.update
         self.typ = typ
         self.descriptor = descriptor
-        self.value = value
-        self.alarm = alarm
-        self.timeStamp = timeStamp
-        self.tags = []
+        if name is not None:
+            self.name = name
+        if value is not None:
+            self.value = value
+        if alarm is not None:
+            self.alarm = alarm
+        if timeStamp is not None:
+            self.timeStamp = timeStamp
 
-    def set_value(self, value, alarm=None, timeStamp=None):
+    def update(self, value, alarm=None, timeStamp=None):
         self.value = value
         self.alarm = alarm or Alarm.ok()
         self.timeStamp = timeStamp or TimeStamp.now()
@@ -64,3 +43,5 @@ class Attribute(object):
         if self.timeStamp is not None:
             d.update(timeStamp=self.timeStamp)
         return d
+
+

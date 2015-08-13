@@ -26,7 +26,7 @@ class Counter(object):
             who=dict(descriptor="Who name", value="Me", tags=["hello"]))
         self.methods = dict(get_count=self.get_count, hello=self.hello)
 
-    def add_listener(self, func):
+    def add_listener(self, func, **kwargs):
         pass
 
     def remove_listener(self, func):

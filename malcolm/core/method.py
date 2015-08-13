@@ -44,7 +44,7 @@ class Method():
         if defaults is None:
             defaults = []
         for i, arg in enumerate(args):
-            attribute = device.attributes.attributes[arg]
+            attribute = device.attributes[arg]
             assert attribute.name == arg, \
                 "Attribute name {} should be {}".format(attribute.name, arg)
             self.args[arg] = Attribute(typ=attribute.typ,

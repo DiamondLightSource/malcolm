@@ -1,16 +1,19 @@
 import json
 from enum import Enum
 from collections import OrderedDict
+from malcolm.core.traitsapi import Undefined
 
 
 class SType(Enum):
-    Call, Get, Error, Return, Value, Ready = range(6)
+    Call, Get, Error, Return, Value, Ready, Subscribe, Unsubscribe = range(8)
 
 
 class CustomSerializer(json.JSONEncoder):
 
     def default(self, o):
-        if hasattr(o, "to_dict"):
+        if o is Undefined:
+            return None
+        elif hasattr(o, "to_dict"):
             return o.to_dict()
         else:
             return super(CustomSerializer, self).default(o)
@@ -18,13 +21,14 @@ class CustomSerializer(json.JSONEncoder):
 serializer = CustomSerializer()
 
 
-def serialize(typ, _id, kwargs):
+def serialize(typ, _id, kwargs=None):
     assert type(_id) == int, "Need an integer ID, got {}".format(_id)
     assert typ in SType, \
         "Expected type in {}, got {}".format(list(SType.__members__), typ)
     d = OrderedDict(type=typ.name)
     d.update(id=_id)
-    d.update(kwargs)
+    if kwargs is not None:
+        d.update(kwargs)
     s = serializer.encode(d)
     return s
 
@@ -44,7 +48,10 @@ def serialize_get(_id, param):
 
 
 def serialize_error(_id, e):
-    d = OrderedDict(message=e.message)
+    if type(e) == KeyError:
+        d = OrderedDict(message=str(e))
+    else:
+        d = OrderedDict(message=e.message)
     s = serialize(SType.Error, _id, d)
     return s
 
@@ -57,8 +64,10 @@ def serialize_return(_id, val):
     return s
 
 
-def serialize_value(_id, val):
+def serialize_value(_id, val, changes=None):
     d = OrderedDict(val=val)
+    if changes is not None:
+        d.update(changes=changes)
     s = serialize(SType.Value, _id, d)
     return s
 
@@ -67,6 +76,19 @@ def serialize_ready(device):
     d = OrderedDict(type=SType.Ready.name)
     d.update(device=device)
     s = serializer.encode(d)
+    return s
+
+
+def serialize_subscribe(_id, param, changes=False):
+    d = OrderedDict(param=param)
+    if changes:
+        d.update(changes=True)
+    s = serialize(SType.Subscribe, _id, d)
+    return s
+
+
+def serialize_unsubscribe(_id):
+    s = serialize(SType.Unsubscribe, _id)
     return s
 
 

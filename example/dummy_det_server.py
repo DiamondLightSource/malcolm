@@ -6,6 +6,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from pkg_resources import require
 require("cothread==2.12")
 require("pyzmq==13.1.0")
+require("traits==4.5.0")
 from malcolm.devices.dummyDet import DummyDet
 from malcolm.zmqComms.zmqDeviceWrapper import ZmqDeviceWrapper
 from malcolm.zmqComms.zmqMalcolmRouter import ZmqMalcolmRouter

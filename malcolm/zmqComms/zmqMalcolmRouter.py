@@ -18,6 +18,8 @@ class ZmqMalcolmRouter(ZmqProcess):
         self.be_stream = None
         self._devices = {}
         self.methods = Method.describe_methods(self)
+        # id->device
+        self.subscriptions = {}
 
     def setup(self):
         """Sets up PyZMQ and creates all streams."""
@@ -77,6 +79,26 @@ class ZmqMalcolmRouter(ZmqProcess):
             # dispatch event to device
             self.be_send(self._devices[device], clientid, data)
 
+    def do_subscribe(self, clientid, d, data):
+        param = d["param"]
+        if "." in param:
+            device, param = param.split(".", 1)
+        else:
+            device, param = param, None        
+        assert device != "malcolm", "Can't subscribe to malcolm"
+        assert device in self._devices, \
+            "No device named {} registered".format(device)        
+        assert d["id"] not in self.subscriptions, \
+            "Subscription already exists for id {}".format(d["id"])        
+        self.be_send(self._devices[device], clientid, data)
+        self.subscriptions[d["id"]] = device
+
+    def do_unsubscribe(self, clientid, d, data):
+        assert d["id"] in self.subscriptions, \
+            "Subscription doesn't exist for id {}".format(d["id"])
+        device = self.subscriptions.pop(d["id"])
+        self.be_send(self._devices[device], clientid, data)
+
     def handle_fe(self, msg):
         log.debug("handle_fe {}".format(msg))
         clientid, data = msg
@@ -91,6 +113,8 @@ class ZmqMalcolmRouter(ZmqProcess):
                 func = {
                     SType.Call: self.do_call,
                     SType.Get: self.do_get,
+                    SType.Subscribe: self.do_subscribe,
+                    SType.Unsubscribe: self.do_unsubscribe,                    
                 }[d["type"]]
                 func(clientid, d, data)
             except Exception as e:

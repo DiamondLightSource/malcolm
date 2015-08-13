@@ -1,13 +1,12 @@
 from method import wrap_method
 from device import DState, DEvent, Device
-from attribute import Attribute
 
 
 class RunnableDevice(Device):
 
-    def __init__(self, name):
+    def __init__(self, name, timeout=None):
         # superclass init
-        super(RunnableDevice, self).__init__(name)
+        super(RunnableDevice, self).__init__(name, timeout=timeout)
 
         # some shortcuts for the state table
         do, t, s, e = self.shortcuts()
@@ -25,12 +24,6 @@ class RunnableDevice(Device):
         # Abort
         t(s.abortable(), e.Abort,     do.abort,     s.Aborting)
         t(s.Aborting,    e.AbortSta,  do.abortsta,  s.Aborting, s.Aborted)
-
-        # Add attributes
-        self.attributes.add_attributes(
-            total_steps=Attribute(int, "Number of scan steps"),
-            current_step=Attribute(int, "Current scan step"),
-        )
 
     def do_reset(self, event):
         """Check and attempt to clear any error state, arranging for a

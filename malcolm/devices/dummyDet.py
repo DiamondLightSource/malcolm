@@ -2,6 +2,7 @@ from malcolm.core import wrap_method, DState, DEvent, PausableDevice
 from malcolm.core.stateMachine import StateMachine
 from enum import Enum
 from malcolm.core.attribute import Attribute
+from malcolm.core.traitsapi import Int, Float
 
 
 class SState(Enum):
@@ -58,13 +59,13 @@ class DummyDetSim(StateMachine):
 class DummyDet(PausableDevice):
     """Dummy detector for testing purposes"""
 
-    def __init__(self, name, single=False):
+    def __init__(self, name, single=False, timeout=None):
         # TODO: add single step
-        super(DummyDet, self).__init__(name)
+        super(DummyDet, self).__init__(name, timeout=timeout)
         # Add the attributes
-        self.attributes.add_attributes(
-            nframes=Attribute(int, "Number of frames"),
-            exposure=Attribute(float, "Detector exposure"),
+        self.add_attributes(
+            nframes=Attribute(Int, "Number of frames"),
+            exposure=Attribute(Float, "Detector exposure"),
         )
         self.single = single
         self.sim = DummyDetSim(name + "Sim")
@@ -93,8 +94,9 @@ class DummyDet(PausableDevice):
         else:
             return DState.Fault
 
-    def on_status(self, state, message, timeStamp):
+    def on_status(self, status):
         """Respond to status updates from the sim state machine"""
+        state = status.state
         if self.state == DState.Configuring and state == SState.Ready:
             self.post(DEvent.ConfigSta, "finished")
         elif self.state == DState.Running and state == SState.Acquiring:
@@ -112,7 +114,7 @@ class DummyDet(PausableDevice):
         elif self.state == DState.Aborting and state == SState.Idle:
             self.post(DEvent.AbortSta, "finished")
         else:
-            print "Unhandled", state, message
+            print "Unhandled", status
 
     def do_config(self, event, nframes, exposure):
         """Check config params and send them to sim state machine"""

@@ -1,18 +1,16 @@
 import time
 from collections import OrderedDict
+from malcolm.core.traitsapi import HasTraits, ReadOnly
 
 
-class TimeStamp(object):
+class TimeStamp(HasTraits):
+    secondsPastEpoch = ReadOnly
+    nanoseconds = ReadOnly
+    userTag = ReadOnly
 
     def __init__(self, secondsPastEpoch, nanoseconds, userTag=0):
-        assert type(secondsPastEpoch) is int, \
-            "secondsPastEpoch {} is not an int".format(secondsPastEpoch)
         self.secondsPastEpoch = secondsPastEpoch
-        assert type(nanoseconds) is int, \
-            "nanoseconds {} is not an int".format(nanoseconds)
         self.nanoseconds = nanoseconds
-        assert type(userTag) is int, \
-            "userTag {} is not an int".format(userTag)
         self.userTag = userTag
 
     @classmethod

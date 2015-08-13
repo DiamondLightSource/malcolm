@@ -1,6 +1,6 @@
 from enum import Enum
 from stateMachine import StateMachine
-from attribute import Attributes
+from attributes import Attributes
 from method import Method, wrap_method
 from collections import OrderedDict
 
@@ -50,16 +50,27 @@ class DEvent(Enum):
 class Device(StateMachine):
     """External API wrapping a Device"""
 
-    def __init__(self, name):
+    def __init__(self, name, timeout=None):
         # superclass init
-        super(Device, self).__init__(name, DState.Idle, DState.Fault)
+        super(Device, self).__init__(name, DState.Idle, DState.Fault, timeout=timeout)
 
         # make the attributes object
         self.attributes = Attributes()
 
+    def add_attributes(self, **attributes):
+        self.attributes.add_attributes(**attributes)
+        # add listener to attributes
+        for aname in attributes:
+
+            def _attribute_change(name, value):
+                self._changes.append("attributes.{}.{}".format(aname, name))
+
+            self.attributes[aname].on_trait_change(_attribute_change)
+
     def start_event_loop(self):
         # dict of Method wrappers to @wrap_method decorated methods
         self.methods = Method.describe_methods(self)
+        # monitor attributes
         super(Device, self).start_event_loop()
 
     def shortcuts(self):
@@ -80,7 +91,7 @@ class Device(StateMachine):
         """If we haven't defined a class attribute, then get its value from 
         the self.attributes object"""
         if hasattr(self, "attributes"):
-            return getattr(self.attributes, attr)
+            return self.attributes[attr].value
         else:
             raise KeyError("No attributes defined")
 
@@ -88,7 +99,7 @@ class Device(StateMachine):
         """If we have an attribute, then set it, otherwise set it as a local
         variable"""
         try:
-            return setattr(self.attributes, attr, value)
+            self.attributes[attr].update(value)
         except (AttributeError, KeyError) as e:
             return object.__setattr__(self, attr, value)
 

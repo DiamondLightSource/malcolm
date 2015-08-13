@@ -17,6 +17,8 @@ class ZmqDeviceWrapper(ZmqProcess):
         self.be_stream = None
         self.device_class = device_class
         self.device_kwargs = device_kwargs
+        # id->callback function
+        self.subscriptions = {}
 
     def setup(self):
         """Sets up PyZMQ and creates all streams."""
@@ -42,10 +44,11 @@ class ZmqDeviceWrapper(ZmqProcess):
     def do_func(self, clientid, f, _id, args):
         log.debug("do_func {} {}".format(f, args))
 
-        def send_status(**args):
-            self.be_send(clientid, serialize_value(_id, args))
+        def send_status(status, changes):
+            if changes != ["timeStamp"]:
+                self.be_send(clientid, serialize_value(_id, status))
 
-        self.device.add_listener(send_status)
+        self.device.add_listener(send_status, prefix="status", changes=True)
         try:
             ret = f(**args)
         except Exception as e:
@@ -74,7 +77,7 @@ class ZmqDeviceWrapper(ZmqProcess):
             import cothread
             cothread.Spawn(self.do_func, clientid, f, d["id"], args)
 
-    def do_get(self, clientid, d):
+    def prepare_parameters(self, d):
         # check that we have the right type of message
         param = d["param"]
         if "." in param:
@@ -90,7 +93,29 @@ class ZmqDeviceWrapper(ZmqProcess):
                     parameters = parameters[p]
                 except:
                     parameters = parameters.to_dict()[p]
+        return parameters
+
+    def do_get(self, clientid, d):
+        parameters = self.prepare_parameters(d)
         self.be_send(clientid, serialize_return(d["id"], parameters))
+
+    def do_subscribe(self, clientid, d):
+        assert d["id"] not in self.subscriptions, \
+            "Subscription already exists for id {}".format(d["id"])
+        parameters = self.prepare_parameters(d)
+        self.be_send(clientid, serialize_value(d["id"], parameters))
+
+        def subscription(value, changes=None):
+            self.be_send(clientid, serialize_value(d["id"], value, changes))
+
+        self.device.add_listener(subscription, d["param"].split(".", 1)[-1])
+        self.subscriptions[d["id"]] = subscription
+
+    def do_unsubscribe(self, clientid, d):
+        assert d["id"] in self.subscriptions, \
+            "Subscription doesn't exist for id {}".format(d["id"])
+        self.device.remove_listener(self.subscriptions.pop(d["id"]))
+        self.be_send(clientid, serialize_return(d["id"], None))
 
     def handle_be(self, msg):
         log.debug("handle_be {}".format(msg))
@@ -107,12 +132,16 @@ class ZmqDeviceWrapper(ZmqProcess):
             func = {
                 SType.Call: self.do_call,
                 SType.Get: self.do_get,
+                SType.Subscribe: self.do_subscribe,
+                SType.Unsubscribe: self.do_unsubscribe,
             }[d["type"]]
             func(clientid, d)
         except Exception as e:
+            log.exception(
+                "{}: threw exception handling {}".format(self.name, d))
             # send error up the chain
             self.be_send(clientid, serialize_error(d["id"], e))
-    
+
     def exit(self):
         self.device.exit()
         super(ZmqDeviceWrapper, self).exit()
