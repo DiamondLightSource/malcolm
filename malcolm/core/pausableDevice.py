@@ -9,9 +9,9 @@ from .runnableDevice import RunnableDevice
 class PausableDevice(RunnableDevice):
     """Adds pause command to Device"""
 
-    def __init__(self, name, process, timeout=None):
+    def __init__(self, name, timeout=None):
         # superclass init
-        super(PausableDevice, self).__init__(name, process, timeout=timeout)
+        super(PausableDevice, self).__init__(name, timeout=timeout)
 
         # some shortcuts for the state table
         do, t, s, e = self.shortcuts()

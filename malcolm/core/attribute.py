@@ -41,7 +41,7 @@ class HasAttributes(HasListeners):
         variable"""
         try:
             self.attributes[attr].update(value)
-        except (AttributeError, KeyError) as e:
+        except (AttributeError, KeyError) as _:
             return object.__setattr__(self, attr, value)
 
 

@@ -8,9 +8,9 @@ from .attribute import Attribute
 
 class RunnableDevice(Device):
 
-    def __init__(self, name, process, timeout=None):
+    def __init__(self, name, timeout=None):
         # superclass init
-        super(RunnableDevice, self).__init__(name, process, timeout=timeout)
+        super(RunnableDevice, self).__init__(name, timeout=timeout)
 
         # Make a statemachine
         sm = StateMachine(name + ".stateMachine", DState.Idle, DState.Fault)
@@ -32,10 +32,10 @@ class RunnableDevice(Device):
         # Abort
         t(s.abortable(), e.Abort,     do.abort,     s.Aborting)
         t(s.Aborting,    e.AbortSta,  do.abortsta,  s.Aborting, s.Aborted)
-        
+
         # Timeout for functions
         self.add_attributes(
-            timeout = Attribute(float, "Time in seconds to wait for function"))
+            timeout=Attribute(float, "Time in seconds to wait for function"))
 
         # Override the error handler of the stateMachine
         sm.do_error = self.do_error
@@ -120,7 +120,7 @@ class RunnableDevice(Device):
 
     @wrap_method(only_in=DState.resettable())
     def reset(self, timeout=None):
-        """Try and reset the device into DState.Idle. It blocks until the 
+        """Try and reset the device into DState.Idle. It blocks until the
         device is in a rest state:
          * Normally it will return a DState.Idle Status
          * If something goes wrong it will return a DState.Fault Status

@@ -42,9 +42,9 @@ class HasListeners(Base):
                     filt_changes = filt_changes[""]
                 cname = getattr(callback, "__name__", "callback")
                 self.log_debug("Calling {}({})"
-                                .format(cname, filt_changes))
+                               .format(cname, filt_changes))
                 try:
                     callback(filt_changes)
                 except:
                     self.log_exception("{}({}) raised exception"
-                                        .format(callback.__name__, filt_changes))
+                                       .format(callback.__name__, filt_changes))

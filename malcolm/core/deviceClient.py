@@ -31,10 +31,10 @@ class ValueQueue(ILoop):
 
 class DeviceClient(Device):
 
-    def __init__(self, name, process, timeout=None):
-        super(DeviceClient, self).__init__(name, process, timeout)
+    def __init__(self, name, sock, timeout=None):
+        super(DeviceClient, self).__init__(name, timeout)
         # Assume process can make us a sock for the named device
-        self.sock = process.get_sock(name)
+        self.sock = sock
 
     def do_call(self, method, **kwargs):
         # Setup a ValueQueue that will handle the returns

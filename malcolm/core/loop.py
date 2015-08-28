@@ -130,7 +130,7 @@ class EventLoop(ILoop):
         self.inq.Signal((event, args, kwargs))
 
     def get_next_event(self, timeout=None):
-        """Return the next event to be processed as a callable. Co-operatively block and
+        """Return the next event to be processed. Co-operatively block and
         allow interruption from stop()
         Returns (event, args, kwargs)"""
         return self.inq.Wait(timeout)

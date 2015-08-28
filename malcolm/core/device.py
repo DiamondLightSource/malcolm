@@ -51,14 +51,14 @@ class DEvent(Enum):
         Pause, PauseSta = range(11)
 
 
-class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops, Serializable):
+class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops, 
+             Serializable):
     _endpoints = "name,descriptor,tags,methods,stateMachine,attributes".split(
         ",")
 
-    def __init__(self, name, process, timeout=None):
+    def __init__(self, name, timeout=None):
         super(Device, self).__init__(name)
         self.timeout = timeout
-        self.process = process
         self.add_attributes()
 
     def shortcuts(self):
@@ -78,6 +78,15 @@ class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops, Serializable)
     def loop_run(self):
         self.add_methods()
         super(Device, self).loop_run()
+
+    @classmethod
+    def all_subclasses(cls):
+        """Return list of all non-abstract subclasses"""
+        direct = cls.__subclasses__()
+        indirect = [g for s in direct for g in s.all_subclasses()]
+        all = [self] + direct + indirect
+        concrete = [c for c in all if not inspect.isabstract(c)]
+        return concrete
 
     @wrap_method(only_in=DState)
     def exit(self):
