@@ -1,176 +1,130 @@
-from collections import OrderedDict
-import logging
-from enum import Enum
-from status import Status
-log = logging.getLogger(__name__)
+import functools
+import time
+
+from .loop import HasLoops, EventLoop
+from .listener import HasListeners
+from .serialize import Serializable
 
 
-class StateMachine(object):
+class HasStateMachine(HasLoops, HasListeners):
+    _stateMachine_prefix = "stateMachine."
+
+    def add_stateMachine(self, stateMachine):
+        self.stateMachine = stateMachine
+        self.add_loop(stateMachine)
+        stateMachine.notify_listeners = functools.partial(
+            self.notify_listeners, prefix=self._stateMachine_prefix)
+
+    def wait_until(self, states, timeout=None):
+        """Listen to the state machine status updates until we transition to
+        one of the given states, yielding them as we go"""
+        # Construct object that will wait for us
+        waiter = EventLoop("StateWaiter", timeout)
+        # Get a list of states we should wait until
+        try:
+            states = list(states)
+        except TypeError:
+            states = [states]
+        # If we match one of these states, stop the waiter
+        for state in states:
+            waiter.add_event_handler(state, waiter.loop_stop)
+
+        # Add a do_nothing handler for other events
+        def do_nothing():
+            pass
+        waiter.add_event_handler(None, do_nothing)
+        # Add the waiter to our list of loops, and listen for state
+        self.add_loop(waiter)
+        self.add_listener(
+            waiter.post, self._stateMachine_prefix + "state")
+        # Wait for the state to match
+        waiter.loop_wait()
+        # Tidy up
+        self.remove_listener(waiter.post)
+        self.remove_loop(waiter)
+
+
+class StateMachine(EventLoop, Serializable):
     """Create a state machine object that will listen for events on its
     input queue, and call the respective transition function
 
     :param name: A human readable name for this state machine
     """
+    _endpoints = "message,state,timeStamp".split(",")
 
     def __init__(self, name, initial_state, error_state=None, timeout=None):
-        # self.transitions[(from_state, event)] = (transition_f, to_state_list)
-        self.transitions = OrderedDict()
+        super(StateMachine, self).__init__(name, timeout)
         # store initial, error and current states
-        self.status = Status(initial_state)
+        self.initial_state = initial_state
+        self.states = list(initial_state.__class__)
         if error_state is None:
             error_state = initial_state
         self.error_state = error_state
-        # Monitor status for changes
-        self.status.on_trait_change(self._status_changed)
-        # name for logging
-        self.name = name
-        # this is what we set the status message variable to at the end
-        # of a transition function
-        self._status_message = None
-        # These are the callback functions to be called when something changes
-        self.callbacks = {}
-        # These are the changes that have happened since the last
-        # notify_callbacks
-        self._changes = []
-        # This is how long to wait in wait_for_transition
-        self.timeout = timeout
+        self.state = initial_state
+        self.message = ""
+        self.timeStamp = None
 
-    def _status_changed(self, name, value):
-        """Called when status changes value"""
-        self._changes.append("status.{}".format(name))
+    def get_next_event(self, timeout=None):
+        """Return the next event to be processed. Co-operatively block and
+        allow interruption from stop()
+        Returns (event, args, kwargs)"""
+        event, args, kwargs = self.inq.Wait(timeout=timeout)
+        return ((self.state, event), args, kwargs)
 
-    def add_listener(self, callback, prefix="status", changes=False):
-        """Add a listener callback function to be called when we change state.
-        It should have call signature:
-          def on_transition(state, message, timeStamp)
-        """
-        assert callback not in self.callbacks, \
-            "Callback function {} already in callback list".format(
-                callback)
-        self.callbacks[callback] = (prefix, changes)
+    def update(self, state=None, message=None, timeStamp=None):
+        changes = {}
+        if state is not None and state != self.state:
+            assert state in self.states, \
+                "State {} should be one of {}".format(state, self.states)
+            changes.update(state=state)
+            self.state = state
+        if message is not None and message != self.message:
+            message = str(message)
+            changes.update(message=message)
+            self.message = message
+        timeStamp = timeStamp or time.time()
+        if timeStamp != self.timeStamp:
+            changes.update(timeStamp=timeStamp)
+            self.timeStamp = timeStamp
+        # Notify anyone listening
+        if hasattr(self, "notify_listeners"):
+            self.notify_listeners(changes)
 
-    def remove_listener(self, callback):
-        """Remove listener callback function"""
-        self.callbacks.pop(callback)
+    def run_transition_func(self, transition_func, to_states, *args, **kwargs):
+        """Run the transition function"""
+        # Transition function can return:
+        # - None for no change
+        # - State for a state change (with message "State Change")
+        # - "message" for no state change, just message
+        # - (State, "message") for state change with message
+        self.log_debug(
+            "Running transition_function {}".format(transition_func))
+        ret = transition_func(*args, **kwargs)
+        self.log_debug("Return is {}".format(ret))
+        assert type(ret) in (tuple, list) and len(ret) == 2, \
+            "Needed tuple or list of length 2, got {}".format(ret)
+        state, message = ret
+        assert message is None or type(message) == str, \
+            "Message should be string or None, got {}".format(message)
+        if state is None:
+            state = self.state
+        assert state in to_states, "State {} is not one of {}".format(
+            state, to_states)
+        self.update(state, message)
 
-    def get_child(self, child=None):
-        ret = self
-        if child is not None:
-            for p in child.split("."):
-                try:
-                    ret = ret[p]
-                except:
-                    ret = ret.to_dict()[p]
-        return ret
+    def do_error(self, error):
+        """Handle an error"""
+        return (self.error_state, str(error))
 
-    def notify_callbacks(self):
-        """Notify all listeners of all changes"""
-        for callback, (prefix, want_changes) in self.callbacks.items():
-            # Find all changes that we are interested
-            changes = []
-            for name in self._changes:
-                if name not in changes:
-                    if prefix is None:
-                        # monitoring everything
-                        changes.append(name)
-                    elif name == prefix:
-                        # monitoring this
-                        changes.append("")
-                    elif name.startswith(prefix + "."):
-                        # monitoring substructure
-                        changes.append(name[len(prefix) + 1:])
-            if changes:
-                # Now find the current value
-                value = self.get_child(prefix)
-                log.debug("{}: notifying {} of updates to {}"
-                          .format(self.name, callback, prefix))
-                if want_changes:
-                    callback(value, changes=changes)
-                else:
-                    callback(value)
-        self._changes = []
-
-    def post(self, event, *args, **kwargs):
-        """Post a event to the input queue that the state machine can deal
-        with
-
-        :param event: a event enum
-        """
-        self.inq.Signal((event, args, kwargs))
-
-    @property
-    def state(self):
-        return self.status.state
-
-    def status_message(self, message):
-        """Set the status message that will be sent when the transition
-        function completes"""
-        assert self._status_message is None, "Status message has already " \
-            "been set to {}".format(self._status_message)
-        self._status_message = message
-
-    def event_loop(self):
-        """Listen for inputs on input queue and implement state transitions"""
-        # input queue for events
-        for event, args, kwargs in self.inq:
-            # get the transition_func for this state and event
-            self._status_message = None
-            try:
-                transition_func, to_state_list = self.transitions[
-                    (self.state, event)]
-            except KeyError:
-                log.warning("{0}: in state {1} has no transition functions "
-                            "registered for event {2}".format(
-                                self.name, self.state, event))
-                continue
-            # If no transition_func and only one to_state return it
-            try:
-                # new state is the return value
-                new_state = transition_func(event, *args, **kwargs)
-            except Exception, error:
-                # error give a different return value, any allowed
-                new_state = self.do_error(event, error)
-            else:
-                # if no state returned and there is only one possibility then
-                # it is implied
-                if new_state is None and len(to_state_list) == 1:
-                    new_state = to_state_list[0]
-                # If state is ok then do a transition
-                elif new_state not in to_state_list:
-                    self._status_message = \
-                        "Returned state {} in response to event {} " \
-                        "is not one of the registered states {}" \
-                        .format(new_state, event, to_state_list)
-                    log.warning(
-                        "{}: {}".format(self.name, self._status_message))
-                    new_state = self.error_state
-            func_name = getattr(transition_func, "__name__", transition_func)
-            log.info("{}: event {} caused func {} to be called "
-                     "transitioning {} -> {}"
-                     .format(self.name, event, func_name, self.state,
-                             new_state))
-            if self._status_message is None and new_state != self.state:
-                self._status_message = "State change"
-            self.status.update(self._status_message, new_state)
-            try:
-                self.notify_callbacks()
-            except:
-                log.exception("{}: Got exception in callback functions"
-                              .format(self.name))
-
-    def do_error(self, event, error):
-        log.error("{}: event {} caused error {} in transition func"
-                  .format(self.name, event, repr(error)))
-        self._status_message = error.message
-        return self.error_state
-
-    def start_event_loop(self):
-        """Run the event loop in a new cothread"""
-        import cothread
-        self.cothread = cothread
-        self.inq = cothread.EventQueue()
-        log.debug("{0}: start_event_loop called".format(self.name))
-        self.event_loop_proc = cothread.Spawn(self.event_loop)
+    def error_handler(self, error, *args, **kwargs):
+        """Called if an event handler raises an error"""
+        super(StateMachine, self).error_handler(error, *args, **kwargs)
+        try:
+            state, message = self.do_error(error)
+        except Exception as error:
+            # User supplied do_error function failed
+            state, message = StateMachine.do_error(self, error)
+        self.update(state, message)
 
     def transition(self, from_state, event, transition_func, *to_states):
         """Add a transition to the table
@@ -193,49 +147,24 @@ class StateMachine(object):
                     to_state_list += list(to_state)
                 except TypeError:
                     to_state_list.append(to_state)
-            if (from_state, event) in self.transitions:
-                log.warning("{0}: overwriting state transitions for "
-                            "from_state {1}, event {2}"
-                            .format(self.name, from_state, event))
+            if (from_state, event) in self.handlers:
+                self.log_warning("overwriting state transitions for from_state"
+                                 " {}, event {}".format(from_state, event))
             # check transition func exists or single state
             if transition_func is None:
                 assert len(to_state_list) == 1, \
                     "Can't have multiple to_states with no transition func"
 
                 # make a transition function that does nothing
-                def do_nothing(event, *args, **kwargs):
-                    return None
-                transition_func = do_nothing
+                def simple_state_change(*args, **kwargs):
+                    self.update(to_state_list[0], "State change")
+
+                handler = simple_state_change
             else:
-                assert callable(transition_func), \
-                    "transition_func {0} is not callable".format(
-                        transition_func)
-            self.transitions[(from_state, event)] = (transition_func,
-                                                     to_state_list)
-
-    def wait_for_transition(self, states):
-        """Wait until self.state matches one of states
-
-        :param states: The state enum (or list of enums) to wait for
-        """
-        try:
-            states = list(states)
-        except TypeError:
-            states = [states]
-        for state in states:
-            assert isinstance(state, Enum)
-        done = self.cothread.Pulse()
-
-        def on_transition(state):
-            if state in states:
-                done.Signal()
-
-        self.add_listener(on_transition, "status.state")
-        done.Wait(timeout=self.timeout)
-        self.remove_listener(on_transition)
-        if self.state == self.error_state:
-            raise AssertionError(self.status.message)
-
-    def to_dict(self):
-        d = OrderedDict(status=self.status)
-        return d
+                handler = functools.partial(
+                    self.run_transition_func, transition_func, to_state_list)
+                if not hasattr(transition_func, "__name__"):
+                    # Think this is only for mock objects...
+                    transition_func.__name__ = "transition_func"
+                functools.update_wrapper(handler, transition_func)
+            self.add_event_handler((from_state, event), handler)

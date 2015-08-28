@@ -1,4 +1,5 @@
-from device import DEvent, DState, Device
-from runnableDevice import RunnableDevice
-from pausableDevice import PausableDevice
-from method import wrap_method, Method
+from .method import wrap_method
+from .attribute import Attribute
+from .device import DState, DEvent, Device
+from .pausableDevice import PausableDevice
+from .runnableDevice import RunnableDevice

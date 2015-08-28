@@ -59,7 +59,7 @@ class ZmqDeviceClientProcTest(unittest.TestCase):
             self.context, zmq.DEALER, MiniRouter.fe_addr, bind=False, timeout=1)
 
     def make_minirouter(self, ret):
-        self.fdq = multiprocessing.Queue()
+        self.fdq = multiprocessing.EventLoop()
         self.mr = MiniRouter(self.fdq, ret, timeout=1)
         for x in sys.modules.keys():
             if x.startswith("cothread"):

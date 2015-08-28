@@ -1,8 +1,12 @@
+import inspect
+
 from enum import Enum
-from stateMachine import StateMachine
-from attributes import Attributes
-from method import Method, wrap_method
-from collections import OrderedDict
+
+from .attribute import HasAttributes
+from .stateMachine import HasStateMachine
+from .method import HasMethods, wrap_method
+from .loop import HasLoops
+from malcolm.core.serialize import Serializable
 
 
 class DState(Enum):
@@ -47,31 +51,15 @@ class DEvent(Enum):
         Pause, PauseSta = range(11)
 
 
-class Device(StateMachine):
-    """External API wrapping a Device"""
+class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops, Serializable):
+    _endpoints = "name,descriptor,tags,methods,stateMachine,attributes".split(
+        ",")
 
-    def __init__(self, name, timeout=None):
-        # superclass init
-        super(Device, self).__init__(name, DState.Idle, DState.Fault, timeout=timeout)
-
-        # make the attributes object
-        self.attributes = Attributes()
-
-    def add_attributes(self, **attributes):
-        self.attributes.add_attributes(**attributes)
-        # add listener to attributes
-        for aname in attributes:
-
-            def _attribute_change(name, value):
-                self._changes.append("attributes.{}.{}".format(aname, name))
-
-            self.attributes[aname].on_trait_change(_attribute_change)
-
-    def start_event_loop(self):
-        # dict of Method wrappers to @wrap_method decorated methods
-        self.methods = Method.describe_methods(self)
-        # monitor attributes
-        super(Device, self).start_event_loop()
+    def __init__(self, name, process, timeout=None):
+        super(Device, self).__init__(name)
+        self.timeout = timeout
+        self.process = process
+        self.add_attributes()
 
     def shortcuts(self):
         # Shortcut to all the self.do_ functions
@@ -82,38 +70,28 @@ class Device(StateMachine):
                 setattr(do, fname[3:], getattr(self, fname))
 
         # Shortcut to transition function, state list and event list
-        t = self.transition
+        t = self.stateMachine.transition
         s = DState
         e = DEvent
         return (do, t, s, e)
 
-    def __getattr__(self, attr):
-        """If we haven't defined a class attribute, then get its value from 
-        the self.attributes object"""
-        if hasattr(self, "attributes"):
-            return self.attributes[attr].value
-        else:
-            raise KeyError("No attributes defined")
-
-    def __setattr__(self, attr, value):
-        """If we have an attribute, then set it, otherwise set it as a local
-        variable"""
-        try:
-            self.attributes[attr].update(value)
-        except (AttributeError, KeyError) as e:
-            return object.__setattr__(self, attr, value)
+    def loop_run(self):
+        self.add_methods()
+        super(Device, self).loop_run()
 
     @wrap_method(only_in=DState)
     def exit(self):
-        """Stop the event loop and destroy the device"""
-        self.inq.close()
-        self.event_loop_proc.Wait()
+        """Stop the event loop and destoy the device"""
+        super(Device, self).loop_stop()
+        super(Device, self).loop_wait()
+        self.process.device_exited(self.name)
 
     def to_dict(self):
-        d = OrderedDict(name=self.name)
-        d.update(classname=type(self).__name__)
-        d.update(descriptor=self.__doc__)
-        d.update(methods=self.methods)
-        d.update(status=self.status)
-        d.update(attributes=self.attributes)
-        return d
+        """Serialize this object"""
+        baseclasses = [x.__name__ for x in inspect.getmro(type(self))]
+        return super(Device, self).to_dict(
+            tags=baseclasses,
+            descriptor=self.__doc__,
+            attributes=getattr(self, "_attributes", None),
+            methods=getattr(self, "_methods", None),
+            stateMachine=getattr(self, "stateMachine", None))

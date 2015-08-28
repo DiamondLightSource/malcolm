@@ -7,13 +7,13 @@ import unittest
 import sys
 import os
 import cothread
-#import logging
-#logging.basicConfig(level=logging.DEBUG)
+import logging
+logging.basicConfig()#level=logging.DEBUG)
 import time
 from mock import patch, MagicMock
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from malcolm.core.stateMachine import StateMachine
+from malcolm.core.stateMachine import StateMachine, HasStateMachine
 
 
 class VState(Enum):
@@ -29,92 +29,106 @@ class StateMachineTest(unittest.TestCase):
     def setUp(self):
         self.sm = StateMachine("SM", VState.State1, VState.Err)
         self.reset_cb_lists()
-    
+
     def reset_cb_lists(self):
         self.states = []
         self.timeStamps = []
         self.messages = []
-        self.changes = []
 
-    def callback(self, status, changes=None):
-        self.states.append(status.state)
-        self.timeStamps.append(status.timeStamp.to_time())
-        self.messages.append(status.message)
-        self.changes.append(changes)     
+    def callback(self, changes):
+        for k, v in changes.items():
+            pre, k = k.split(".")
+            assert pre == "stateMachine"
+            assert k in ("state", "timeStamp", "message")
+            getattr(self, k + "s").append(v)
 
     def test_state1_2_transition_works(self):
-        trans = MagicMock(return_value=VState.State2)
+        trans = MagicMock(return_value=(VState.State2, "mess"))
         self.sm.transition(VState.State1, VEvent.Event1, trans, VState)
-        self.sm.start_event_loop()
+        self.sm.loop_run()
         self.sm.post(VEvent.Event1)
         cothread.Yield()
         self.assertEquals(self.sm.state, VState.State2)
-        trans.assert_called_once_with(VEvent.Event1)
+        trans.assert_called_once_with()
 
-    def test_transition_with_no_return_gives_only_registered_state(self):
+    def test_transition_with_no_return_gives_error(self):
+        mock_exception = MagicMock()
+        self.sm.log_exception = mock_exception
         trans = MagicMock(return_value=None)
         self.sm.transition(VState.State1, VEvent.Event1, trans, VState.State2)
-        self.sm.start_event_loop()
-        self.sm.post(VEvent.Event1)
-        cothread.Yield()
-        self.assertEquals(self.sm.state, VState.State2)
-        trans.assert_called_once_with(VEvent.Event1)
-
-    @patch("malcolm.core.stateMachine.log.warning")
-    def test_trans_with_no_return_and_mult_states_fails(self, mock_warning):
-        trans = MagicMock(return_value=None)
-        self.sm.transition(VState.State1, VEvent.Event1, trans, VState)
-        self.sm.start_event_loop()
+        self.sm.loop_run()
         self.sm.post(VEvent.Event1)
         cothread.Yield()
         self.assertEquals(self.sm.state, VState.Err)
-        trans.assert_called_once_with(VEvent.Event1)
-        mock_warning.assert_called_once_with(
-            'SM: Returned state None in response to event VEvent.Event1 is not one of the registered states [<VState.State1: 0>, <VState.State2: 1>, <VState.Err: 2>]')
+        trans.assert_called_once_with()
+        mock_exception.assert_called_once_with(
+            'Handler raised error: Needed tuple or list of length 2, got None')
 
-    @patch("malcolm.core.stateMachine.log.warning")
-    def test_transition_with_no_matching_func(self, mock_warning):
-        trans = MagicMock(return_value=None)
+    def test_transition_with_no_matching_func(self):
+        mock_info = MagicMock()
+        self.sm.log_info = mock_info
+        trans = MagicMock(return_value=(VState.State2, "Boo"))
         self.sm.transition(VState.State1, VEvent.Event1, trans, VState.State2)
-        self.sm.start_event_loop()
+        self.sm.loop_run()
         self.sm.post(VEvent.Event2)
         cothread.Yield()
         self.assertEquals(self.sm.state, VState.State1)
         self.assertFalse(trans.called)
-        mock_warning.assert_called_once_with(
-            'SM: in state VState.State1 has no transition functions registered for event VEvent.Event2')
-        mock_warning.reset_mock()
+        mock_info.assert_called_once_with(
+            "No handler functions for event (<VState.State1: 0>, <VEvent.Event2: 1>)")
+        mock_info.reset_mock()
         self.sm.post(VEvent.Event1)
         cothread.Yield()
         self.assertEquals(self.sm.state, VState.State2)
-        self.assertFalse(mock_warning.called)
+        self.assertFalse(mock_info.called)
 
     def test_2_transitions_works(self):
-        self.test_state1_2_transition_works()
-        trans2 = MagicMock(return_value=VState.State1)
+        self.sm.transition(VState.State1, VEvent.Event1, None, VState.State2)
+        trans2 = MagicMock(return_value=(VState.State1, None))
         self.sm.transition(VState.State2, VEvent.Event2, trans2, VState)
+        self.sm.loop_run()
+        self.sm.post(VEvent.Event1)
+        cothread.Yield()
+        self.assertEquals(self.sm.state, VState.State2)
+        self.assertEquals(self.sm.message, "State change")
         self.sm.post(VEvent.Event2)
         cothread.Yield()
         self.assertEquals(self.sm.state, VState.State1)
-        trans2.assert_called_once_with(VEvent.Event2)
+        self.assertEquals(self.sm.message, "State change")
+        trans2.assert_called_once_with()
 
-    @patch("malcolm.core.stateMachine.log.error")
-    def test_raising_error_notifies_status(self, mock_error):
-        self.test_state1_2_transition_works()
-        trans2 = MagicMock(side_effect=ValueError("My Error Message"))
-        self.sm.transition(VState.State2, VEvent.Event2, trans2, VState.State1)
-        self.sm.add_listener(self.callback)
-        self.sm.post(VEvent.Event2)
+    def test_raising_error_notifies_status(self):
+        mock_exception = MagicMock()
+        self.sm.log_exception = mock_exception
+        c = HasStateMachine("C")
+        trans = MagicMock(side_effect=ValueError("My Error Message"))
+        self.sm.transition(VState.State1, VEvent.Event1, trans, VState.State2)
+        c.add_stateMachine(self.sm)
+        c.add_listener(self.callback)
+        c.loop_run()
+        self.sm.post(VEvent.Event1)
         cothread.Yield()
         self.assertEquals(self.sm.state, VState.Err)
         self.assertEquals(self.states, [VState.Err])
         self.assertEquals(self.messages, ["My Error Message"])
-        mock_error.assert_called_once_with(
-            "SM: event VEvent.Event2 caused error ValueError('My Error Message',) in transition func")
+        mock_exception.assert_called_once_with(
+            'Handler raised error: My Error Message')
+        mock_exception.reset_mock()
+    
+    def test_raising_exception_with_args(self):
+        mock_exception = MagicMock()
+        self.sm.log_exception = mock_exception
+        trans = MagicMock(side_effect=ValueError("My Error Message"))
+        self.sm.transition(VState.State1, VEvent.Event1, trans, VState.State2)
+        self.sm.loop_run()
+        self.sm.post(VEvent.Event1, 3, boo="foo")
+        cothread.Yield()
+        mock_exception.assert_called_once_with(
+            "Handler (called with args=(3,), kwargs={'boo': 'foo'}) raised error: My Error Message")
 
     def test_None_transition_func_returns_single_state(self):
         self.sm.transition(VState.State1, VEvent.Event1, None, VState.State2)
-        self.sm.start_event_loop()
+        self.sm.loop_run()
         self.sm.post(VEvent.Event1)
         cothread.Yield()
         self.assertEquals(self.sm.state, VState.State2)
@@ -124,65 +138,65 @@ class StateMachineTest(unittest.TestCase):
             AssertionError, self.sm.transition, VState.State1, VEvent.Event1, None,
             VState)
 
-    def test_want_changes_works(self):        
-        self.sm.add_listener(self.callback, changes=True)
+    def test_want_changes_works(self):
+        c = HasStateMachine("C")
         self.i = 0
-        def trans(event):
+
+        def trans():
             self.i += 1
             if self.i == 1:
                 # Change message
-                self.sm.status_message("Message")                
-                return VState.State1
+                return VState.State1, "Message"
             elif self.i == 2:
                 # No change
-                return VState.State1
+                return VState.State1, "Message"
             elif self.i == 3:
                 # State change
-                return VState.State2
-        
-        self.sm.transition(VState.State1, VEvent.Event1, trans, VState)
-        self.sm.start_event_loop()
-        self.sm.post(VEvent.Event1)
-        cothread.Yield()
-        self.assertEquals(self.changes, [["message", "timeStamp"]])
-        self.assertEquals(self.states, [VState.State1])
-        self.assertEquals(self.messages, ["Message"])
-        self.assertAlmostEquals(self.timeStamps[0], time.time(), delta=0.01)
-        self.reset_cb_lists()       
-        self.sm.post(VEvent.Event1)
-        cothread.Yield()
-        self.assertEquals(self.changes, [["timeStamp"]])
-        self.assertEquals(self.states, [VState.State1])
-        self.assertEquals(self.messages, ["Message"])
-        self.assertAlmostEquals(self.timeStamps[0], time.time(), delta=0.01)
-        self.reset_cb_lists()  
-        self.sm.post(VEvent.Event1)
-        cothread.Yield()
-        self.assertEquals(self.changes, [["state", "message", "timeStamp"]])
-        self.assertEquals(self.states, [VState.State2])
-        self.assertEquals(self.messages, ["State change"])
-        self.assertAlmostEquals(self.timeStamps[0], time.time(), delta=0.01)
-        self.reset_cb_lists()  
+                return VState.State2, "Message"
+            elif self.i == 4:
+                # Both change
+                return VState.State1, "New Message"
 
-    def test_listener_works(self):
-        self.sm.add_listener(self.callback)
-        self.test_2_transitions_works()
-        for i, state in enumerate((VState.State2, VState.State1)):
-            self.assertEquals(self.states[i], state)
-            self.assertEquals(self.messages[i], "State change")
+        self.sm.transition(VState, VEvent.Event1, trans, VState)
+        c.add_stateMachine(self.sm)
+        c.add_listener(self.callback)
+        c.loop_run()
+        t = self.sm.timeStamp
+
+        def check_output(states, messages, t):
+            self.reset_cb_lists()
+            self.sm.post(VEvent.Event1)
+            cothread.Yield()
+            self.assertEquals(self.states, states)
+            self.assertEquals(self.messages, messages)
+            self.assertEqual(len(self.timeStamps), 1)
+            self.assertNotEqual(self.timeStamps[0], t)
+            return self.timeStamps[0]
+
+        # Change message
+        t = check_output([], ["Message"], t)
+        # No change
+        t = check_output([], [], t)
+        # Change state
+        t = check_output([VState.State2], [], t)
+        # Change both
+        t = check_output([VState.State1], ["New Message"], t)
 
     def test_waiting_for_single_state(self):
+        c = HasStateMachine("C")
         self.sm.transition(VState.State1, VEvent.Event1, None, VState.State2)
-        self.sm.start_event_loop()
+        c.add_stateMachine(self.sm)
+        c.loop_run()
         start = time.time()
 
         def post_msg1():
             cothread.Sleep(0.1)
             self.sm.post(VEvent.Event1)
         cothread.Spawn(post_msg1)
-        self.sm.wait_for_transition(VState.State2)
+        c.wait_until(VState.State2, timeout=0.2)
         end = time.time()
         self.assertAlmostEqual(start + 0.1, end, delta=0.01)
+        self.assertEqual(self.sm.state, VState.State2)
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
