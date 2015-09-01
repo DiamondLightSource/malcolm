@@ -1,5 +1,6 @@
 from abc import ABCMeta
 import logging
+import weakref
 
 
 class Base(object):
@@ -17,3 +18,18 @@ class Base(object):
     @property
     def name(self):
         return self._name
+
+
+def weak_method(method):
+    # If a method
+    if hasattr(method, "__func__"):
+        self = weakref.proxy(method.__self__)
+        func = method.__func__
+
+        def f(*args, **kwargs):
+            return func(self, *args, **kwargs)
+
+        return f
+    else:
+        # already just a function
+        return method

@@ -55,6 +55,17 @@ class ZmqClientSocketTest(unittest.TestCase):
         send(SType.Value, dict(value=99))
         self.cs.sock.send_multipart.assertCalledOnceWith(['{"type": "Return", "id": 0, "value": 32}'])
 
+    def test_2_send_funcs_are_same(self):
+        def side_effect(flags):
+            cothread.Yield()
+            return [43, '{"type": "Call", "id": 0, "endpoint": "zebra.run"}']
+        self.cs.sock.recv_multipart.side_effect = side_effect
+        typ1, args1, kwargs1 = self.inq.Wait()
+        typ2, args2, kwargs2 = self.inq.Wait()
+        self.assertEqual(typ1, typ2)
+        self.assertEqual(args1, args2)
+        self.assertEqual(kwargs1, kwargs2)
+
     def test_creation(self):
         self.cs = ServerSocket.make_socket("zmq://ipc://frfess.ipc", self.inq)
         self.assertEqual(self.cs.name, "ipc://frfess.ipc")

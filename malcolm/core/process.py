@@ -6,45 +6,35 @@ import functools
 from .loop import EventLoop
 from .serialize import SType
 from .method import Method, wrap_method
+from .base import weak_method
 from .device import Device
 from .deviceClient import DeviceClient
 from .socket import ClientSocket, ServerSocket
 
 
-class Subscription(EventLoop):
-
-    def __init__(self, device, ename, send, timeout=None):
-        name = "subq.{}.{}".format(device.name, ename)
-        super(Subscription, self).__init__(name, timeout)
-        self.send = send
-        self.add_event_handler(None, send)
-        self.device = device
-        device.add_listener(self.post, ename)
-
-    def loop_stop(self):
-        self.send(SType.Return)
-        self.device.remove_listener(self.post)
-        super(Subscription, self).loop_stop()
-
-
 class Process(multiprocessing.Process, Device):
 
-    def __init__(self, name, server_strings, remote_processes, timeout=None):
+    def __init__(self, server_strings, name, ds_name="DirectoryService",
+                 ds_string=None, timeout=None):
         """name is process name
-        remote processes is dict processname -> connection string
+        server_strings is list of "zmq://tcp://172.23.122.23:5600"
         """
         super(Process, self).__init__(name, timeout)
+        # Add attributes
+        self.add_attributes(
+            server_strings=([str], "List of server strings for server socks"),
+            device_types=([str], "Available device types"),
+            local_devices=([str], "Devices we are hosting"),
+        )
         # Local devices
-        self._devices = {}
+        self._device_servers = {}
         # Weak references to DeviceClients for remote devices
         self._device_clients = weakref.WeakValueDictionary()
-        # DeviceClients connecting to remote processes
-        self._process_clients = {}
         # Server socks
         self._server_socks = {}
         # Weak references to Client socks
         self._client_socks = weakref.WeakValueDictionary()
-        # List of spawned cothreads 
+        # List of spawned cothreads
         self.spawned = []
         # send function -> Subscription
         self.subscriptions = {}
@@ -55,16 +45,8 @@ class Process(multiprocessing.Process, Device):
         router.add_event_handler(SType.Subscribe, self.do_subscribe)
         router.add_event_handler(SType.Unsubscribe, self.do_unsubscribe)
         router.error_handler = self.do_error
+        self.router = router
         self.add_loop(router)
-        # Add attributes
-        self.add_attributes(
-            server_strings=([str], "List of server strings for server socks"),
-            device_types=([str], "Available device types"),
-            local_devices=([str], "Devices we are hosting"),
-            remote_processes=([str], "Remote processes we are watching"),
-            remote_devices=([str], "Remote devices we can connect to"),
-            device=(str, "Device (or Process) name"),
-        )
         # populate server strings
         self.server_strings = server_strings
         for string in server_strings:
@@ -78,73 +60,55 @@ class Process(multiprocessing.Process, Device):
             if d not in [Device, Process]:
                 # Add it to the device_types attribute
                 self.device_types.append(d.__name__)
-
-                # Make a method for it
-                @functools.wraps(d)
-                def f(name, **kwargs):
-                    device = d(name, **kwargs)
-                    self._devices[name] = device
-
-                # Set the name and wrap it
+                # Make a method to create an instance of it
+                f = functools.partial(self.create_device, d)
+                # Make it look like the original
+                functools.update_wrapper(f, d)
+                # Set the name and create a Method wrapper for it
                 f.__name__ = "create_{}".format(d.__name__)
                 class_attributes = getattr(d, "class_attributes", {})
                 self.add_method(Method(f), **class_attributes)
         # Local devices
         self.local_devices = []
-        # populate remote processes and devices
-        self.remote_devices = []
-        self.remote_processes = []
-        for process, server_strings in sorted(remote_processes.items()):
-            self.add_remote_process(process, server_strings)
+        # Create a client to directory service
+        if ds_string is not None:
+            self.ds = self.get_device(ds_name, [ds_string])
+        else:
+            self.ds = None
 
-    @wrap_method()
-    def connection_string(self, device):
-        """Return the server strings for a particular device"""
-        for process in self.remote_processes:
-            process = self.get_device(process)
-            if device == process or device in process.local_devices:
-                return process.server_strings
+    def create_device(self, cls, name, *args, **kwargs):
+        device = cls(name, **kwargs)
+        device.create_device = weak_method(self.create_device)
+        device.get_device = weak_method(self.get_device)
+        self._device_servers[name] = device
+        return device
 
-    def update_remote_devices(self, changes=None):
-        devices = []
-        for process in self.remote_processes:
-            process = self.get_device(process)
-            devices += process.local_devices
-        self.remote_devices = devices
-
-    def get_device(self, device):
-        """Create a weak reference to a new DeviceClient object (or existing)"""
+    def get_device(self, device, server_strings=None):
+        """Create a weak reference to a new DeviceClient object (or existing)
+        """
         if device in self._device_clients:
             return self._device_clients[device]
-        elif device in self._process_clients:
-            return self._process_clients[device]
-        elif device in self._devices:
-            return self._devices[device]
-        else:
-            # Don't add loop, we want it to go when no-one needs it
-            server_strings = self.connection_string(device)
-            dc = DeviceClient(device, self.get_client_sock(server_strings))
-            dc.loop_run()
-            self._device_clients[device] = dc
-            return dc
+        elif device in self._device_servers:
+            return self._device_servers[device]
+        # Calculate server strings if not given
+        if server_strings is None:
+            assert self.ds is not None, "Can't lookup server string for {} "\
+                "as no DirectoryService present".format(device)
+            server_strings = self.ds.connection_string(device)
+        dc = DeviceClient(device, self.get_client_sock(server_strings))
+        # Don't add loop, we want it to go when no-one needs it
+        dc.loop_run()
+        self._device_clients[device] = dc
+        return dc
 
     def get_client_sock(self, server_strings):
+        # If we already have a client sock, return that
         for string in server_strings:
             if string in self._client_socks:
                 return self._client_socks[string]
         cs = ClientSocket.make_socket(string)
         self._client_socks[string] = cs
         return cs
-
-    @wrap_method()
-    def add_remote_process(self, device, server_strings):
-        """Tell this process about a remove process to start watching"""
-        if device not in self._process_clients:
-            dc = DeviceClient(device, self.get_client_sock(server_strings))
-            self._process_clients[device] = dc
-            dc.add_listener(self.update_remote_devices,
-                            "attributes.local_devices")
-            self.add_loop(dc)
 
     def run(self, block=True):
         """Sets up everything and starts the event loops."""
@@ -177,8 +141,8 @@ class Process(multiprocessing.Process, Device):
             devicename, ename = endpoint.split(".", 1)[0]
         else:
             devicename, ename = endpoint, None
-        if devicename in self._devices:
-            device = self._devices[devicename]
+        if devicename in self._device_servers:
+            device = self._device_servers[devicename]
         elif devicename == self.name:
             device = self
         else:
@@ -205,7 +169,7 @@ class Process(multiprocessing.Process, Device):
         endpoint = self._get_endpoint(device, ename)
         assert callable(endpoint), "Expected function, got {}".format(endpoint)
         if ename == "exit":
-            self._devices.pop(device.name)
+            self._device_servers.pop(device.name)
         ct = self.cothread.Spawn(self.do_func, send, endpoint, args)
         self.process.spawned.append(ct)
 
@@ -215,16 +179,21 @@ class Process(multiprocessing.Process, Device):
 
     def do_subscribe(self, send, endpoint):
         device, ename = self._get_device(endpoint)
-        subq = Subscription(device, ename, send)
+        subq = EventLoop("subq.{}.{}".format(device.name, ename), send)
+        subq.add_event_handler(None, send)
+        subq.device = device
         self.subscriptions[send] = subq
-        self.process.add_loop(subq)
+        self.add_loop(subq)
+        device.add_listener(subq.post, ename)
 
     def do_unsubscribe(self, send):
         subq = self.subscriptions.pop(send)
+        send(SType.Return)
+        subq.device.remove_listener(subq.post)
         subq.loop_stop()
         subq.loop_wait()
         self.process.remove_loop(subq)
 
     def do_error(self, error, send, *args, **kwargs):
-        EventLoop(self.router, error, send, *args, **kwargs)
+        EventLoop.error_handler(self.router, error, send, *args, **kwargs)
         send(SType.Error, error)

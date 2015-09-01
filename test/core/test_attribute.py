@@ -80,6 +80,6 @@ class AttributeTest(unittest.TestCase):
         self.assertEqual(d.keys(), ['value', 'type', 'descriptor', 'alarm', 'timeStamp'])
         self.assertEqual(d.values(), ['wow', 'str', 'The String', Alarm.ok(), 3.2])
         
-
+        
 if __name__ == '__main__':
     unittest.main(verbosity=2)

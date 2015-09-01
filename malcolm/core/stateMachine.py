@@ -1,9 +1,11 @@
 import functools
 import time
+import weakref
 
 from .loop import HasLoops, EventLoop
 from .listener import HasListeners
 from .serialize import Serializable
+from .base import weak_method
 
 
 class HasStateMachine(HasLoops, HasListeners):
@@ -13,11 +15,12 @@ class HasStateMachine(HasLoops, HasListeners):
         self.stateMachine = stateMachine
         self.add_loop(stateMachine)
         stateMachine.notify_listeners = functools.partial(
-            self.notify_listeners, prefix=self._stateMachine_prefix)
+            weak_method(self.notify_listeners),
+            prefix=self._stateMachine_prefix)
 
     def wait_until(self, states, timeout=None):
         """Listen to the state machine status updates until we transition to
-        one of the given states, yielding them as we go"""
+        one of the given states"""
         # Construct object that will wait for us
         waiter = EventLoop("StateWaiter", timeout)
         # Get a list of states we should wait until
@@ -33,6 +36,7 @@ class HasStateMachine(HasLoops, HasListeners):
         def do_nothing():
             pass
         waiter.add_event_handler(None, do_nothing)
+
         # Add the waiter to our list of loops, and listen for state
         self.add_loop(waiter)
         self.add_listener(
@@ -90,27 +94,33 @@ class StateMachine(EventLoop, Serializable):
         if hasattr(self, "notify_listeners"):
             self.notify_listeners(changes)
 
-    def run_transition_func(self, transition_func, to_states, *args, **kwargs):
+    def make_transition_func(self, transition_func, to_states):
         """Run the transition function"""
         # Transition function can return:
         # - None for no change
         # - State for a state change (with message "State Change")
         # - "message" for no state change, just message
         # - (State, "message") for state change with message
-        self.log_debug(
-            "Running transition_function {}".format(transition_func))
-        ret = transition_func(*args, **kwargs)
-        self.log_debug("Return is {}".format(ret))
-        assert type(ret) in (tuple, list) and len(ret) == 2, \
-            "Needed tuple or list of length 2, got {}".format(ret)
-        state, message = ret
-        assert message is None or type(message) == str, \
-            "Message should be string or None, got {}".format(message)
-        if state is None:
-            state = self.state
-        assert state in to_states, "State {} is not one of {}".format(
-            state, to_states)
-        self.update(state, message)
+        self = weakref.proxy(self)
+        transition_func = weak_method(transition_func)
+
+        def generated_transition_func(*args, **kwargs):
+            self.log_debug(
+                "Running transition_function {}".format(transition_func))
+            ret = transition_func(*args, **kwargs)
+            self.log_debug("Return is {}".format(ret))
+            assert type(ret) in (tuple, list) and len(ret) == 2, \
+                "Needed tuple or list of length 2, got {}".format(ret)
+            state, message = ret
+            assert message is None or type(message) == str, \
+                "Message should be string or None, got {}".format(message)
+            if state is None:
+                state = self.state
+            assert state in to_states, "State {} is not one of {}".format(
+                state, to_states)
+            self.update(state, message)
+
+        return generated_transition_func
 
     def do_error(self, error):
         """Handle an error"""
@@ -157,14 +167,14 @@ class StateMachine(EventLoop, Serializable):
 
                 # make a transition function that does nothing
                 def simple_state_change(*args, **kwargs):
-                    self.update(to_state_list[0], "State change")
+                    weak_method(self.update)(to_state_list[0], "State change")
 
                 handler = simple_state_change
             else:
-                handler = functools.partial(
-                    self.run_transition_func, transition_func, to_state_list)
+                handler = self.make_transition_func(transition_func,
+                                                    to_state_list)
                 if not hasattr(transition_func, "__name__"):
                     # Think this is only for mock objects...
-                    transition_func.__name__ = "transition_func"
+                    transition_func.__name__ = "mock_transition_func"
                 functools.update_wrapper(handler, transition_func)
             self.add_event_handler((from_state, event), handler)

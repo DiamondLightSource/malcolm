@@ -1,3 +1,5 @@
+import weakref
+
 from .zmqSocket import ZmqSocket
 from malcolm.core.socket import ServerSocket
 
@@ -13,14 +15,18 @@ class ZmqServerSocket(ZmqSocket, ServerSocket):
     def make_send_function(self, kwargs):
         """Make a send function that will call send with suitable arguments
         to be used as a response function"""
-        _id = kwargs.pop("id")
+        if not hasattr(self, "_send_functions"):
+            self._send_functions = weakref.WeakValueDictionary()
         zmq_id = kwargs.pop("zmq_id")
+        _id = kwargs.pop("id")
+        if (zmq_id, _id) not in self._send_functions:
 
-        def send(typ, kwargs):
-            kwargs.update(id=_id, zmq_id=zmq_id)
-            msg = self.serialize(typ, kwargs)
-            self.send(msg)
+            def send(typ, kwargs):
+                kwargs.update(id=_id, zmq_id=zmq_id)
+                msg = self.serialize(typ, kwargs)
+                self.send(msg)
 
-        return send
+            self._send_functions[(zmq_id, _id)] = send
+        return self._send_functions[(zmq_id, _id)]
 
 ZmqServerSocket.register("zmq://")

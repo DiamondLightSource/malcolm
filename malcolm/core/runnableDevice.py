@@ -1,6 +1,7 @@
 import abc
 
 from .method import wrap_method
+from .base import weak_method
 from .device import DState, DEvent, Device
 from .stateMachine import StateMachine
 from .attribute import Attribute
@@ -38,7 +39,7 @@ class RunnableDevice(Device):
             timeout=Attribute(float, "Time in seconds to wait for function"))
 
         # Override the error handler of the stateMachine
-        sm.do_error = self.do_error
+        sm.do_error = weak_method(self.do_error)
 
     def do_error(self, error):
         """Handle an error"""

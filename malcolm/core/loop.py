@@ -1,29 +1,13 @@
 import abc
-import weakref
 from collections import OrderedDict
 
 from enum import Enum
 
-from .base import Base
+from .base import Base, weak_method
 
 
 class LState(Enum):
     NotStarted, Running, Stopping, Stopped = range(4)
-
-
-def weak_method(method):
-    # If a method
-    if hasattr(method, "__func__"):
-        self = weakref.proxy(method.__self__)
-        func = method.__func__
-
-        def f(*args, **kwargs):
-            func(self, *args, **kwargs)
-
-        return f
-    else:
-        # already just a function
-        return method
 
 
 class ILoop(Base):
@@ -72,7 +56,7 @@ class ILoop(Base):
             try:
                 self.loop_wait()
             except ReferenceError:
-                pass
+                self.log_debug("Garbage collecting caught ref error")
         self.log_debug("Loop garbage collected")
 
 
@@ -133,7 +117,8 @@ class EventLoop(ILoop):
         """Return the next event to be processed. Co-operatively block and
         allow interruption from stop()
         Returns (event, args, kwargs)"""
-        return self.inq.Wait(timeout)
+        ret = self.inq.Wait(timeout)
+        return ret
 
     def add_event_handler(self, event, function):
         assert callable(function), \
@@ -143,9 +128,12 @@ class EventLoop(ILoop):
         self.handlers[event] = weak_method(function)
 
     def event_loop(self):
-        while self.loop_state() == LState.Running:
+        while True:
             try:
                 event, args, kwargs = self.get_next_event(timeout=self.timeout)
+            except StopIteration:
+                self.log_debug("Event loop stopped by StopIteration")
+                break
             except:
                 self.log_exception("Exception raised getting next event")
                 continue
@@ -161,6 +149,9 @@ class EventLoop(ILoop):
             self.log_debug("Running function {}".format(function.__name__))
             try:
                 function(*args, **kwargs)
+            except ReferenceError:
+                self.log_debug("Event loop stopped by ReferenceError")
+                break
             except Exception, error:
                 self.error_handler(error, *args, **kwargs)
         self.loop_confirm_stopped()
@@ -193,3 +184,34 @@ class EventLoop(ILoop):
     def loop_wait(self):
         """Wait for the event loop to finish"""
         self.event_loop_proc.Wait(timeout=self.timeout)
+
+
+class TimerLoop(ILoop):
+
+    def __init__(self, name, callback, timeout):
+        super(EventLoop, self).__init__(name)
+        self.timeout = timeout
+        self.finished = self.cothread.Pulse()
+        self.callback = callback
+
+    def loop_run(self):
+        """Start the event loop running"""
+        super(TimerLoop, self).loop_run()
+        self.timer = self.cothread.Timer(self.timeout,
+                                         self.callback,
+                                         retrigger=True)
+
+    def loop_stop(self):
+        """Signal the event loop to stop running and wait for it to finish"""
+        super(TimerLoop, self).loop_stop()
+        self.timer.cancel()
+        self.loop_confirm_stopped()
+
+    def loop_confirm_stopped(self):
+        super(TimerLoop, self).loop_confirm_stopped()
+        self.finished.Signal()
+
+    def loop_wait(self):
+        """Wait for a loop to finish"""
+        if self.loop_state() != LState.Stopped:
+            self.finished.Wait()

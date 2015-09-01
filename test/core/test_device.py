@@ -8,17 +8,19 @@ import os
 import time
 import cothread
 import logging
-#logging.basicConfig(level=logging.DEBUG)
-logging.basicConfig()
+# logging.basicConfig(level=logging.DEBUG)
+
+# logging.basicConfig()
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from malcolm.devices.dummyDet import DummyDet, DState, SState
+from malcolm.devices.dummyDet import DummyDet, DState, SState, DEvent
+from malcolm.core import Device
 
 
 class DeviceTest(unittest.TestCase):
 
     def setUp(self):
-        self.d = DummyDet("D", None, timeout=1)
+        self.d = DummyDet("D", timeout=1)
         self.d.loop_run()
         self.reset_cb_lists()
 
@@ -150,7 +152,7 @@ class DeviceTest(unittest.TestCase):
         expected = [0] + [0.05 * i for i in range(6)] + [0.26, 0.26, 0.3]
         self.assertEqual(len(expected), len(self.timeStamps))
         for e, a in zip(expected, self.timeStamps):
-            self.assertAlmostEqual(e, a-start, delta=0.005)
+            self.assertAlmostEqual(e, a - start, delta=0.005)
 
     def test_attribute_settings_and_locals(self):
         self.assertEqual(self.d.nframes, None)
@@ -165,7 +167,21 @@ class DeviceTest(unittest.TestCase):
         self.d.nframes = 3
         self.assertEqual(len(self.d.attributes), 7)
         items = [(k, v.value) for k, v in self.d.attributes.items()]
-        self.assertEqual(items, [('single', False), ('timeout', None), ('current_step', None), ('retrace_steps', None), ('total_steps', None), ('exposure', None), ('nframes', 3)])
+        self.assertEqual(items, [('single', False), ('timeout', None), ('current_step', None), (
+            'retrace_steps', None), ('total_steps', None), ('exposure', None), ('nframes', 3)])
+
+    def test_del_called_when_out_of_scope(self):
+        self.d.add_listener(self.callback, "stateMachine")
+        self.d.configure(nframes=10, exposure=0.05)
+        expected = [DState.Configuring, DState.Ready]
+        self.assertEqual(self.states, expected)
+        self.states = []
+        self.d.stateMachine.post(DEvent.Run)
+        cothread.Sleep(0.3)
+        self.assertEqual(len(self.states), 7)
+        self.d = None
+        cothread.Sleep(0.3)
+        self.assertEqual(len(self.states), 7)
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

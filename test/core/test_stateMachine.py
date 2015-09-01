@@ -1,5 +1,6 @@
 #!/bin/env dls-python
 from pkg_resources import require
+import weakref
 require("mock")
 require("cothread")
 from enum import Enum
@@ -8,7 +9,7 @@ import sys
 import os
 import cothread
 import logging
-logging.basicConfig()#level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 import time
 from mock import patch, MagicMock
 # Module import
@@ -197,6 +198,29 @@ class StateMachineTest(unittest.TestCase):
         end = time.time()
         self.assertAlmostEqual(start + 0.1, end, delta=0.01)
         self.assertEqual(self.sm.state, VState.State2)
+
+    def test_del_called_when_out_of_scope(self):
+        class Container(HasStateMachine):
+            def trans(self):
+                cothread.Sleep(0.05)
+                if self.stateMachine.state == VState.State1:
+                    return VState.State2, "Toggle"
+                else:
+                    return VState.State1, "Toggle"
+
+        c = Container("C")
+        self.sm.transition(VState, VEvent.Event1, c.trans, VState)
+        c.add_stateMachine(self.sm)
+        c.add_listener(self.callback)
+        c.loop_run()
+        for i in range(5):
+            self.sm.post(VEvent.Event1)
+        self.sm = None
+        cothread.Sleep(0.2)
+        self.assertEqual(len(self.states), 3)
+        del c
+        cothread.Sleep(0.2)
+        self.assertEqual(len(self.states), 3)
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

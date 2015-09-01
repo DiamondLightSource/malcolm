@@ -5,6 +5,7 @@ import functools
 from .alarm import Alarm
 from .serialize import Serializable
 from .listener import HasListeners
+from .base import weak_method
 
 
 class HasAttributes(HasListeners):
@@ -12,27 +13,30 @@ class HasAttributes(HasListeners):
     _attributes_prefix = "attributes."
 
     def add_attributes(self, **attributes):
+        for name, attribute in sorted(attributes.items()):
+            self.add_attribute(name, attribute)
+
+    def add_attribute(self, name, attribute):
         # Lazily make attributes dict
         if not hasattr(self, "attributes"):
             self.attributes = OrderedDict()
             if hasattr(self, "class_attributes"):
                 self.add_attributes(**self.class_attributes)
-        for name, attribute in sorted(attributes.items()):
-            assert name not in self.attributes, \
-                "Name {} already exists as attribute".format(name)
-            self.attributes[name] = attribute
-            attribute._name = name
-            attribute.notify_listeners = functools.partial(
-                self.notify_listeners,
-                prefix=self._attributes_prefix + name + ".")
+        assert name not in self.attributes, \
+            "Name {} already exists as attribute".format(name)
+        self.attributes[name] = attribute
+        attribute._name = name
+        attribute.notify_listeners = functools.partial(
+            weak_method(self.notify_listeners),
+            prefix=self._attributes_prefix + name + ".")
 
     def __getattr__(self, attr):
         """If we haven't defined a class attribute, then get its value from 
         the self.attributes object"""
-        if hasattr(self, "attributes"):
+        if hasattr(self, "attributes") and attr in self.attributes:
             return self.attributes[attr].value
         else:
-            raise KeyError(
+            raise AttributeError(
                 "Object has no attribute '{}' and self.attributes not defined"
                 .format(attr))
 

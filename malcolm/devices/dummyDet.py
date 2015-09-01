@@ -1,5 +1,6 @@
 from enum import Enum
 from malcolm.core import wrap_method, DState, DEvent, PausableDevice, Attribute
+from malcolm.core.base import weak_method
 from malcolm.core.stateMachine import StateMachine
 from malcolm.core.listener import HasListeners
 
@@ -51,7 +52,10 @@ class DummyDetSim(StateMachine, HasListeners):
         while self.nframes > 0 and not self.need_abort:
             self.cothread.Sleep(self.exposure)
             self.nframes -= 1
-            self.post(SEvent.Status)
+            try:
+                self.post(SEvent.Status)
+            except:
+                break
 
 
 class DummyDet(PausableDevice):
@@ -59,9 +63,9 @@ class DummyDet(PausableDevice):
     class_attributes = dict(
         single=Attribute(bool, "Whether to single step or not"))
 
-    def __init__(self, name, process, single=False, timeout=None):
+    def __init__(self, name, single=False, timeout=None):
         # TODO: add single step
-        super(DummyDet, self).__init__(name, process, timeout=timeout)
+        super(DummyDet, self).__init__(name, timeout=timeout)
         self.single = single
         # Add the attributes
         self.add_attributes(
@@ -69,8 +73,8 @@ class DummyDet(PausableDevice):
             exposure=Attribute(float, "Detector exposure"),
         )
         self.sim = DummyDetSim(name + "Sim")
-        self.sim.add_listener(self.on_status)
-        self.sim.loop_run()
+        self.sim.add_listener(weak_method(self.on_status))
+        self.add_loop(self.sim)
         self.sim_post = self.sim.post
 
     @wrap_method(only_in=DState)

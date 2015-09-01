@@ -16,7 +16,7 @@ class ZmqMalcolmRouter(ZmqProcess):
         self.be_addr = be_addr
         self.fe_stream = None
         self.be_stream = None
-        self._devices = {}
+        self._device_servers = {}
         self.methods = Method.describe_methods(self)
         # id->device
         self.subscriptions = {}
@@ -52,10 +52,10 @@ class ZmqMalcolmRouter(ZmqProcess):
             ret = self.methods[method]()
             self.fe_send(clientid, serialize_return(d["id"], ret))
         else:
-            assert device in self._devices, \
+            assert device in self._device_servers, \
                 "No device named {} registered".format(device)
             # dispatch event to device
-            self.be_send(self._devices[device], clientid, data)
+            self.be_send(self._device_servers[device], clientid, data)
 
     def do_get(self, clientid, d, data):
         # check that we have the right type of message
@@ -74,10 +74,10 @@ class ZmqMalcolmRouter(ZmqProcess):
                         parameters = parameters.to_dict()[p]
             self.fe_send(clientid, serialize_return(d["id"], parameters))
         else:
-            assert device in self._devices, \
+            assert device in self._device_servers, \
                 "No device named {} registered".format(device)
             # dispatch event to device
-            self.be_send(self._devices[device], clientid, data)
+            self.be_send(self._device_servers[device], clientid, data)
 
     def do_subscribe(self, clientid, d, data):
         param = d["param"]
@@ -86,18 +86,18 @@ class ZmqMalcolmRouter(ZmqProcess):
         else:
             device, param = param, None        
         assert device != "malcolm", "Can't subscribe to malcolm"
-        assert device in self._devices, \
+        assert device in self._device_servers, \
             "No device named {} registered".format(device)        
         assert d["id"] not in self.subscriptions, \
             "Subscription already exists for id {}".format(d["id"])        
-        self.be_send(self._devices[device], clientid, data)
+        self.be_send(self._device_servers[device], clientid, data)
         self.subscriptions[d["id"]] = device
 
     def do_unsubscribe(self, clientid, d, data):
         assert d["id"] in self.subscriptions, \
             "Subscription doesn't exist for id {}".format(d["id"])
         device = self.subscriptions.pop(d["id"])
-        self.be_send(self._devices[device], clientid, data)
+        self.be_send(self._device_servers[device], clientid, data)
 
     def handle_fe(self, msg):
         log.debug("handle_fe {}".format(msg))
@@ -129,10 +129,10 @@ class ZmqMalcolmRouter(ZmqProcess):
     def do_ready(self, deviceid, clientid, d, data):
         # initial clientid connect
         device = d["device"]
-        assert device not in self._devices, \
+        assert device not in self._device_servers, \
             "Device {} already registered".format(device)
         log.info("Device {} connected".format(device))
-        self._devices[device] = deviceid
+        self._device_servers[device] = deviceid
 
     def do_return(self, deviceid, clientid, d, data):
         assert "id" in d, "No id in {}".format(d)
@@ -169,13 +169,13 @@ class ZmqMalcolmRouter(ZmqProcess):
     @wrap_method(only_in=None)
     def devices(self):
         "List all available malcolm devices"
-        return list(self._devices)
+        return list(self._device_servers)
 
     @wrap_method(only_in=None)
     def exit(self):
         "Stop the router and all of the devices attached to it"
         # exit all of our devices
-        for device, deviceid in self._devices.items():
+        for device, deviceid in self._device_servers.items():
             self.be_send(
                 deviceid, "", serialize_call(-1, device + ".exit"))
         super(ZmqMalcolmRouter, self).exit()

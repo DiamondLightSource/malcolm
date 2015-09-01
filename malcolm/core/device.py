@@ -6,7 +6,7 @@ from .attribute import HasAttributes
 from .stateMachine import HasStateMachine
 from .method import HasMethods, wrap_method
 from .loop import HasLoops
-from malcolm.core.serialize import Serializable
+from .serialize import Serializable
 
 
 class DState(Enum):
@@ -51,7 +51,7 @@ class DEvent(Enum):
         Pause, PauseSta = range(11)
 
 
-class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops, 
+class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops,
              Serializable):
     _endpoints = "name,descriptor,tags,methods,stateMachine,attributes".split(
         ",")
@@ -59,7 +59,6 @@ class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops,
     def __init__(self, name, timeout=None):
         super(Device, self).__init__(name)
         self.timeout = timeout
-        self.add_attributes()
 
     def shortcuts(self):
         # Shortcut to all the self.do_ functions
@@ -79,21 +78,34 @@ class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops,
         self.add_methods()
         super(Device, self).loop_run()
 
+    def create_device(self, cls, name, *args, **kwargs):
+        """Locally available method to create device, will be overridden if
+        running under a process"""
+        return cls(name, *args, **kwargs)
+
+    def get_device(self, device):
+        """If running under a process, this will allow devices to be connected to
+        from the local process or DirectoryService"""
+        raise AssertionError("Device not running under Process")
+
     @classmethod
     def all_subclasses(cls):
-        """Return list of all non-abstract subclasses"""
+        """Return list of subclasses non-abstract subclasses"""
         direct = cls.__subclasses__()
         indirect = [g for s in direct for g in s.all_subclasses()]
-        all = [self] + direct + indirect
-        concrete = [c for c in all if not inspect.isabstract(c)]
+        subclasses = [self] + direct + indirect
+        concrete = [c for c in subclasses if not inspect.isabstract(c)]
         return concrete
 
-    @wrap_method(only_in=DState)
+    @wrap_method()
     def exit(self):
         """Stop the event loop and destoy the device"""
-        super(Device, self).loop_stop()
-        super(Device, self).loop_wait()
-        self.process.device_exited(self.name)
+        self.__del__()
+
+    @wrap_method()
+    def ping(self):
+        """Just return pong. Used for heartbeat"""
+        return "pong"
 
     def to_dict(self):
         """Serialize this object"""

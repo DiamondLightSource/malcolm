@@ -1,6 +1,7 @@
 from collections import OrderedDict
 import inspect
 import functools
+import weakref
 
 from .base import Base
 from .serialize import Serializable
@@ -33,10 +34,10 @@ class HasMethods(Base):
         self.methods[method.name] = method
 
 
-def wrap_method(only_in=None, args_from=None):
+def wrap_method(only_in=None, args_from=None, **attributes):
     """Provide a wrapper function that checks types"""
     def decorator(function):
-        return Method(function, only_in, args_from)
+        return Method(function, only_in, args_from, **attributes)
     return decorator
 
 
@@ -44,7 +45,8 @@ class Method(Serializable):
     """Class representing a callable method"""
     _endpoints = "name,descriptor,args,valid_states".split(",")
 
-    def __init__(self, function, valid_states=None, args_from=None):
+    def __init__(self, function, valid_states=None, args_from=None,
+                 **attributes):
         assert inspect.isfunction(function), \
             "Expected function, got {}".format(function)
         # Set the name and docstring from the _actual_ function
@@ -61,9 +63,11 @@ class Method(Serializable):
         self.args_from = args_from
         functools.update_wrapper(self, function)
         self.device = None
+        self.attributes = attributes
 
     def describe(self, device, attributes):
-        self.device = device
+        self.attributes.update(attributes)
+        self.device = weakref.proxy(device)
         # If args_from then get the args from another named member functions
         if self.args_from:
             # Get method object from device using the supplied function name
@@ -93,7 +97,7 @@ class Method(Serializable):
                 # default
                 tags = []
                 value = defaults[defaulti]
-            attribute = attributes[arg]
+            attribute = self.attributes[arg]
             self.args[arg] = Attribute(typ=attribute.typ,
                                        descriptor=attribute.descriptor,
                                        name=arg,
