@@ -11,7 +11,7 @@ import logging
 #logging.basicConfig(level=logging.DEBUG)
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from malcolm.core.loop import ILoop, EventLoop
+from malcolm.core.loop import ILoop, EventLoop, HasLoops
 
 
 class PulseLoop(ILoop):
@@ -81,7 +81,7 @@ class LoopTest(unittest.TestCase):
                 except ReferenceError:
                     break
                 cothread.Sleep(0.01)
-        
+
         cothread.Spawn(poster)
         cothread.Sleep(0.1)
         self.assertEqual(self.outs, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
@@ -89,5 +89,17 @@ class LoopTest(unittest.TestCase):
         cothread.Sleep(0.1)
         self.assertEqual(self.outs, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 
+    def test_self_stopping_loop_gc(self):
+        c = HasLoops("thing")
+        l = EventLoop("el")
+        l.add_event_handler(None, l.loop_stop)
+        c.add_loop(l)
+        self.assertEqual(c._loops, [l])
+        c.loop_run()
+        l.post(None)
+        l = None
+        cothread.Yield()
+        self.assertEqual(c._loops, [])
+        
 if __name__ == '__main__':
     unittest.main(verbosity=2)

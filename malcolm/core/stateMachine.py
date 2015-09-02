@@ -6,6 +6,7 @@ from .loop import HasLoops, EventLoop
 from .listener import HasListeners
 from .serialize import Serializable
 from .base import weak_method
+from .subscription import Subscription
 
 
 class HasStateMachine(HasLoops, HasListeners):
@@ -21,31 +22,20 @@ class HasStateMachine(HasLoops, HasListeners):
     def wait_until(self, states, timeout=None):
         """Listen to the state machine status updates until we transition to
         one of the given states"""
-        # Construct object that will wait for us
-        waiter = EventLoop("StateWaiter", timeout)
         # Get a list of states we should wait until
         try:
             states = list(states)
         except TypeError:
             states = [states]
-        # If we match one of these states, stop the waiter
+        # Construct object that will wait for us
+        sub = Subscription(self, self._stateMachine_prefix + "state",
+                           timeout=timeout)
         for state in states:
-            waiter.add_event_handler(state, waiter.loop_stop)
-
-        # Add a do_nothing handler for other events
-        def do_nothing():
-            pass
-        waiter.add_event_handler(None, do_nothing)
-
+            sub.add_event_handler(state, sub.loop_stop)
         # Add the waiter to our list of loops, and listen for state
-        self.add_loop(waiter)
-        self.add_listener(
-            waiter.post, self._stateMachine_prefix + "state")
+        self.add_loop(sub)
         # Wait for the state to match
-        waiter.loop_wait()
-        # Tidy up
-        self.remove_listener(waiter.post)
-        self.remove_loop(waiter)
+        sub.loop_wait()
 
 
 class StateMachine(EventLoop, Serializable):

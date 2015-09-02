@@ -36,10 +36,10 @@ class HasListeners(Base):
                 if cname.startswith(prefix):
                     filt_changes[cname[len(prefix):].lstrip(".")] = cvalue
             # If we have a dict with a single entry "", we are monitoring
-            # a single item, not a structure, so collapse it
+            # a single item, not a structure, so make it "."
             if filt_changes:
                 if filt_changes.keys() == [""]:
-                    filt_changes = filt_changes[""]
+                    filt_changes["."] = filt_changes.pop("")
                 cname = getattr(callback, "__name__", "callback")
                 self.log_debug("Calling {}({})"
                                .format(cname, filt_changes))

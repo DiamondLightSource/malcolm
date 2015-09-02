@@ -11,6 +11,8 @@ class LState(Enum):
 
 
 class ILoop(Base):
+    # Will be written in by HasLoops
+    loop_remove_from_parent = None
 
     @abc.abstractmethod
     def loop_run(self):
@@ -47,16 +49,21 @@ class ILoop(Base):
     def loop_confirm_stopped(self):
         """Wait for a loop to finish"""
         self._loop_state = LState.Stopped
+        if self.loop_remove_from_parent:
+            self.loop_remove_from_parent(self)
 
     def __del__(self):
         self.log_debug("Garbage collecting loop")
         if self.loop_state() == LState.Running:
-            self.loop_stop()
+            try:
+                self.loop_stop()
+            except ReferenceError:
+                self.log_debug("Garbage collecting caught ref error in stop")
         if self.loop_state() == LState.Stopping:
             try:
                 self.loop_wait()
             except ReferenceError:
-                self.log_debug("Garbage collecting caught ref error")
+                self.log_debug("Garbage collecting caught ref error in wait")
         self.log_debug("Loop garbage collected")
 
 
@@ -82,6 +89,7 @@ class HasLoops(ILoop):
         """Start the event loop running"""
         super(HasLoops, self).loop_run()
         for loop in getattr(self, "_loops", []):
+            loop.loop_remove_from_parent = weak_method(self.remove_loop)
             loop.loop_run()
 
     def loop_wait(self):

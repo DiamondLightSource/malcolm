@@ -14,7 +14,6 @@ import logging
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.devices.dummyDet import DummyDet, DState, SState, DEvent
-from malcolm.core import Device
 
 
 class DeviceTest(unittest.TestCase):

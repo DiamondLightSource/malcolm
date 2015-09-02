@@ -1,9 +1,8 @@
 import abc
 
 from .method import wrap_method
-from .device import DState, DEvent
 from .attribute import Attribute
-from .runnableDevice import RunnableDevice
+from .runnableDevice import RunnableDevice, DState, DEvent
 
 
 class PausableDevice(RunnableDevice):
@@ -35,7 +34,7 @@ class PausableDevice(RunnableDevice):
         callback doing self.post(DEvent.PauseSta, pausesta) when progress has
         been made, where pausesta is any device specific abort status
         """
- 
+
     @abc.abstractmethod
     def do_pausesta(self, pausesta):
         """Examine pausesta for pause progress, returning DState.Pausing if still

@@ -10,6 +10,7 @@ from .base import weak_method
 from .device import Device
 from .deviceClient import DeviceClient
 from .socket import ClientSocket, ServerSocket
+from malcolm.core.subscription import Subscription
 
 
 class Process(multiprocessing.Process, Device):
@@ -178,21 +179,12 @@ class Process(multiprocessing.Process, Device):
         send(SType.Return, endpoint)
 
     def do_subscribe(self, send, endpoint):
-        device, ename = self._get_device(endpoint)
-        subq = EventLoop("subq.{}.{}".format(device.name, ename), send)
-        subq.add_event_handler(None, send)
-        subq.device = device
-        self.subscriptions[send] = subq
-        self.add_loop(subq)
-        device.add_listener(subq.post, ename)
+        sub = Subscription(*self._get_device(endpoint), send)
+        self.subscriptions[send] = sub
+        self.add_loop(sub)
 
     def do_unsubscribe(self, send):
-        subq = self.subscriptions.pop(send)
-        send(SType.Return)
-        subq.device.remove_listener(subq.post)
-        subq.loop_stop()
-        subq.loop_wait()
-        self.process.remove_loop(subq)
+        self.subscriptions.pop(send).loop_stop()
 
     def do_error(self, error, send, *args, **kwargs):
         EventLoop.error_handler(self.router, error, send, *args, **kwargs)

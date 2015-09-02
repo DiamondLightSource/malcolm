@@ -31,7 +31,7 @@ class HasAttributes(HasListeners):
             prefix=self._attributes_prefix + name + ".")
 
     def __getattr__(self, attr):
-        """If we haven't defined a class attribute, then get its value from 
+        """If we haven't defined a class attribute, then get its value from
         the self.attributes object"""
         if hasattr(self, "attributes") and attr in self.attributes:
             return self.attributes[attr].value
