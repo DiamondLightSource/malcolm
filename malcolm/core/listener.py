@@ -41,10 +41,14 @@ class HasListeners(Base):
                 if filt_changes.keys() == [""]:
                     filt_changes["."] = filt_changes.pop("")
                 cname = getattr(callback, "__name__", "callback")
-                self.log_debug("Calling {}({})"
-                               .format(cname, filt_changes))
+                value = self
+                if prefix != "":
+                    for e in prefix.split("."):
+                        value = getattr(value, e)
+                self.log_debug("Calling {}({}, {})"
+                               .format(cname, value, filt_changes))
                 try:
-                    callback(filt_changes)
+                    callback(value, filt_changes)
                 except:
                     self.log_exception("{}({}) raised exception"
                                        .format(callback.__name__, filt_changes))

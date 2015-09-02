@@ -47,15 +47,31 @@ class ZmqClientSocketTest(unittest.TestCase):
         kwargs = OrderedDict()
         kwargs.update(endpoint="zebra1.run")
         self.cs.request(response, typ, kwargs)
-        self.cs.sock.send_multipart.assertCalledOnceWith(
+        self.cs.sock.send_multipart.assert_called_once_with(
             '{"type": "Call", "id": 0, "endpoint": "zebra1.run"}', flags=1)
         self.assertEqual(response.call_count, 0)
 
     def test_response(self):
         response = MagicMock()
-        self.cs.sock.recv_multipart.return_value = ['{"type": "Return", "id": 0, "value": 32}']
+        def f(flags):
+            cothread.Yield()
+            return ['{"type": "Return", "id": 0, "value": 32}']
+        self.cs.sock.recv_multipart.side_effect = f
         self.cs.request(response, SType.Call, dict(endpoint="zebra1.run"))
-        response.assertCalledOnceWith(SType.Return, value=32)
+        cothread.Yield()
+        cothread.Yield()
+        response.assert_called_once_with(SType.Return, value=32)
+
+    def test_timeStamp(self):
+        response = MagicMock()
+        def f(flags):
+            cothread.Yield()
+            return ['{"type": "Return", "id": 0, "value": {"timeStamp": {"secondsPastEpoch": 43, "nanoseconds": 200000000, "userTag": 0}}}']
+        self.cs.sock.recv_multipart.side_effect = f
+        self.cs.request(response, SType.Call, dict(endpoint="zebra1.run"))
+        cothread.Yield()
+        cothread.Yield()
+        response.assert_called_once_with(SType.Return, value=OrderedDict(timeStamp=43.2))
 
     def test_creation(self):
         self.cs = ClientSocket.make_socket("zmq://ipc://frfes.ipc")

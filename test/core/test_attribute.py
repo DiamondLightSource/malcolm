@@ -3,8 +3,8 @@ import unittest
 import sys
 import os
 import time
-# import logging
-# logging.basicConfig(level=logging.DEBUG)
+import logging
+#logging.basicConfig(level=logging.DEBUG)
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.core.attribute import Attribute, HasAttributes
@@ -44,7 +44,7 @@ class AttributeTest(unittest.TestCase):
     def test_monitors(self):
         self.changes = []
 
-        def cb(changes):
+        def cb(value, changes):
             self.changes.append(changes)
         self.c.i = 42
         self.c.add_listener(cb)

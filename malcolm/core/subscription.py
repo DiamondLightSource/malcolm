@@ -12,7 +12,6 @@ class Subscription(EventLoop):
             name += "." + ename
         super(Subscription, self).__init__(name, timeout)
         self.device = weakref.proxy(device)
-        self.ename = ename
         device.add_listener(self.post, ename)
         if send:
             self.send = send
@@ -23,15 +22,8 @@ class Subscription(EventLoop):
     def do_nothing(self, *args, **kwargs):
         pass
 
-    def post(self, changes):
-        if changes.keys() == ["."]:
-            endpoint = changes["."]
-        else:
-            endpoint = self.device
-            if self.ename is not None:
-                for e in self.ename.split("."):
-                    endpoint = endpoint.to_dict()[e]
-        super(Subscription, self).post(endpoint, SType.Value, endpoint, changes=changes)
+    def post(self, value, changes):
+        super(Subscription, self).post(value, SType.Value, value, changes=changes)
 
     def loop_stop(self, *args, **kwargs):
         super(Subscription, self).loop_stop()

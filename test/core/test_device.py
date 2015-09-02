@@ -28,15 +28,10 @@ class DeviceTest(unittest.TestCase):
         self.timeStamps = []
         self.messages = []
 
-    def callback(self, changes):
-        old_state, old_message = None, None
-        if self.states:
-            old_state = self.states[-1]
-        if self.messages:
-            old_message = self.messages[-1]
-        self.states.append(changes.get("state", old_state))
-        self.messages.append(changes.get("message", old_message))
-        self.timeStamps.append(changes["timeStamp"])
+    def callback(self, value, changes):
+        self.states.append(value.state)
+        self.messages.append(value.message)
+        self.timeStamps.append(value.timeStamp)
 
     def test_starts_in_correct_state(self):
         self.assertEqual(self.d.stateMachine.state, DState.Idle)

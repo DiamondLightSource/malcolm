@@ -197,14 +197,14 @@ class EventLoop(ILoop):
 class TimerLoop(ILoop):
 
     def __init__(self, name, callback, timeout):
-        super(EventLoop, self).__init__(name)
+        super(TimerLoop, self).__init__(name)
         self.timeout = timeout
-        self.finished = self.cothread.Pulse()
         self.callback = callback
 
     def loop_run(self):
         """Start the event loop running"""
         super(TimerLoop, self).loop_run()
+        self.finished = self.cothread.Pulse()
         self.timer = self.cothread.Timer(self.timeout,
                                          self.callback,
                                          retrigger=True)

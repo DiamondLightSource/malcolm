@@ -100,7 +100,7 @@ class Attribute(Serializable):
         # Assert type
         if value != self.value:
             assert type(value) == self.typ, \
-                "{} has wrong type, wanted {}".format(value, self.typ)
+                "{} has type {}, wanted {}".format(value, type(value), self.typ)
             changes.update(value=value)
             self._value = value
         # Check alarm

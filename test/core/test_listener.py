@@ -31,7 +31,7 @@ class ListenerTest(unittest.TestCase):
         self.l.add_listener(cb)
         changes = dict(foo=32)
         self.l.notify_listeners(changes)
-        cb.assert_called_once_with(changes)
+        cb.assert_called_once_with(self.l, changes)
         cb.reset_mock()
         self.l.remove_listener(cb)
         self.l.notify_listeners(dict(bo=3))
@@ -42,7 +42,7 @@ class ListenerTest(unittest.TestCase):
         self.l = None
         self.assertEqual(self.out, ["Deleted"])
 
-    def cb(self, changes):
+    def cb(self, value, changes):
         self.out.append(changes)
 
     def test_listener_del_called_when_has_listeners(self):

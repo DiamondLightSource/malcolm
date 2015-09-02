@@ -52,8 +52,8 @@ class ZmqClientSocketTest(unittest.TestCase):
         self.assertEqual(kwargs, OrderedDict(endpoint="zebra.run"))
         send = args[0]
         self.assertEqual(self.cs.sock.send_multipart.call_count, 0)
-        send(SType.Value, dict(value=99))
-        self.cs.sock.send_multipart.assertCalledOnceWith(['{"type": "Return", "id": 0, "value": 32}'])
+        send(SType.Return, dict(value=99))
+        self.cs.sock.send_multipart.assert_called_once_with('{"type": "Return", "id": 0, "value": 99}', flags=1)
 
     def test_2_send_funcs_are_same(self):
         def side_effect(flags):
@@ -65,6 +65,20 @@ class ZmqClientSocketTest(unittest.TestCase):
         self.assertEqual(typ1, typ2)
         self.assertEqual(args1, args2)
         self.assertEqual(kwargs1, kwargs2)
+
+    def test_timestamp(self):
+        def side_effect(flags):
+            cothread.Yield()
+            return [43, '{"type": "Call", "id": 0, "endpoint": "zebra.run"}']
+        self.cs.sock.recv_multipart.side_effect = side_effect
+        typ, args, kwargs = self.inq.Wait()
+        send = args[0]
+        self.assertEqual(self.cs.sock.send_multipart.call_count, 0)
+        class ts:
+            def to_dict(self):
+                return OrderedDict(timeStamp=43.2)
+        send(SType.Value, dict(value=ts()))
+        self.cs.sock.send_multipart.assert_called_once_with('{"type": "Value", "id": 0, "value": {"timeStamp": {"secondsPastEpoch": 43, "nanoseconds": 200000000, "userTag": 0}}}', flags=1)
 
     def test_creation(self):
         self.cs = ServerSocket.make_socket("zmq://ipc://frfess.ipc", self.inq)

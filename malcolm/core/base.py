@@ -26,7 +26,7 @@ def weak_method(method):
     if hasattr(method, "__func__"):
         self = weakref.proxy(method.__self__)
         func = method.__func__
-        
+
         @functools.wraps(func)
         def f(*args, **kwargs):
             return func(self, *args, **kwargs)

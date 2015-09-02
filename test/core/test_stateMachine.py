@@ -36,7 +36,7 @@ class StateMachineTest(unittest.TestCase):
         self.timeStamps = []
         self.messages = []
 
-    def callback(self, changes):
+    def callback(self, value, changes):
         for k, v in changes.items():
             pre, k = k.split(".")
             assert pre == "stateMachine"

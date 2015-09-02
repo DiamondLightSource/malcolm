@@ -98,9 +98,9 @@ class DummyDet(PausableDevice):
         else:
             return DState.Fault, "Unhandled reset message {}".format(resetsta)
 
-    def on_status(self, status):
+    def on_status(self, status, changes):
         """Respond to status updates from the sim sim_state machine"""
-        sim_state = self.sim.state
+        sim_state = status.state
         my_state = self.stateMachine.state
         if my_state == DState.Configuring and sim_state == SState.Ready:
             self.stateMachine.post(DEvent.ConfigSta, "finished")

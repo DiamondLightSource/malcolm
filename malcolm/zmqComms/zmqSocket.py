@@ -12,11 +12,25 @@ class CustomSerializer(json.JSONEncoder):
 
     def default(self, o):
         if hasattr(o, "to_dict"):
-            return o.to_dict()
+            d = o.to_dict()
+            if "timeStamp" in d:
+                ts = OrderedDict(secondsPastEpoch=int(d["timeStamp"]))
+                ts.update(nanoseconds=int(d["timeStamp"] % 1 / 1e-9))
+                ts.update(userTag=0)
+                d["timeStamp"] = ts
+            return d
         else:
             return super(CustomSerializer, self).default(o)
 
 serializer = CustomSerializer()
+
+
+def deserialize_hook(pairs):
+    d = OrderedDict(pairs)
+    if "timeStamp" in d:
+        d["timeStamp"] = d["timeStamp"]["secondsPastEpoch"] + \
+            float(d["timeStamp"]["nanoseconds"]) * 1e-9
+    return d
 
 
 class ZmqSocket(ISocket):
@@ -62,7 +76,7 @@ class ZmqSocket(ISocket):
         else:
             raise AssertionError("Message {} has wrong number of elements"
                                  .format(msg))
-        d = json.loads(data, object_pairs_hook=OrderedDict)
+        d = json.loads(data, object_pairs_hook=deserialize_hook)
         typ = d.pop("type")
         assert typ in SType.__members__, \
             "Expected type in {}, got {}".format(list(SType.__members__), typ)
