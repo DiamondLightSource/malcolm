@@ -1,5 +1,5 @@
 #!/bin/env dls-python
-if __name__=="__main__":
+if __name__ == "__main__":
     # Test
     from pkg_resources import require
     require("pyzmq==13.1.0")
@@ -11,7 +11,7 @@ if __name__=="__main__":
 from malcolm.core.directoryService import DirectoryService, \
     not_process_creatable
 import argparse
-import code
+import IPython
 import logging
 
 
@@ -42,9 +42,11 @@ class IMalcolmServer(DirectoryService):
         return parser.parse_args()
 
     def interact(self):
-        local = self._device_servers.copy()
-        local["self"] = self
-        code.interact(local=local)
+        locals().update(self._device_servers)
+        IPython.embed(header="""iMalcolmServer running on {}.
+These are the local devices:
+{}
+""".format(self.server_strings, self.local_devices))
 
 if __name__ == "__main__":
     # Test

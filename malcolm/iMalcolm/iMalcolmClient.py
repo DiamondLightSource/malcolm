@@ -11,7 +11,7 @@ if __name__ == "__main__":
 from malcolm.core.process import Process, not_process_creatable
 from malcolm.core.deviceClient import DeviceClient
 import argparse
-import code
+import IPython
 import logging
 
 
@@ -32,7 +32,7 @@ class IDeviceClient(DeviceClient):
             self.remove_listener(print_call)
 
 
-def main():
+def make_client():
     parser = argparse.ArgumentParser(
         description="Interactive client shell for malcolm")
     parser.add_argument('server',
@@ -51,11 +51,16 @@ def main():
         raise ValueError('Invalid log level: %s' % args.log)
     logging.basicConfig(level=numeric_level)
     ds_string = "zmq://tcp://{}".format(args.server)
-    self = Process([], "iMalcolmClient", ds_string=ds_string)
-    self.DeviceClient = IDeviceClient
+    client = Process([], "iMalcolmClient", ds_string=ds_string)
+    client.DeviceClient = IDeviceClient
+    return client
+
+
+def main():
+    self = make_client()
     self.run(block=False)
     all_devices = self.ds.Device_instances
-    code.interact(banner="""Welcome to iMalcolmClient.
+    IPython.embed(header="""Welcome to iMalcolmClient.
 You are connected to: {}
 These devices are available:
 {}
@@ -63,7 +68,7 @@ Type self.get_device("<device_name>") to get a device client
 Try:
 det = self.get_device("det")
 det.configure(exposure=0.1, nframes=10)
-""".format(self.ds_string, all_devices), local=locals())
+""".format(self.ds_string, all_devices))
 
 if __name__ == "__main__":
     # Entry point
