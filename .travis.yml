@@ -1,13 +1,12 @@
+sudo: false
 language: python
 python:
   - "2.7"
-  - "3.3"
-  - "3.4"
 
 install:
-  - "pip install -q -r requirements/test.txt"
+  - "pip install -r requirements/test.txt"
   - "pip install -q python-coveralls"
-  - "python setup.py -q install"
+  - "python setup.py install"
   
 # command to run tests
 script: nosetests
