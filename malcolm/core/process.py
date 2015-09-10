@@ -10,7 +10,7 @@ from .method import Method, wrap_method
 from .base import weak_method
 from .device import Device, not_process_creatable
 from .deviceClient import DeviceClient
-from .socket import ClientSocket, ServerSocket
+from malcolm.core.socketInterface import ClientSocket, ServerSocket
 from .subscription import Subscription
 from .attribute import Attribute
 
@@ -123,10 +123,12 @@ class Process(Device, multiprocessing.Process):
 
     def get_client_sock(self, server_strings):
         # If we already have a client sock, return that
+        # TODO: handle localhost conversion here?
         for string in server_strings:
             if string in self._client_socks:
                 return self._client_socks[string]
         cs = ClientSocket.make_socket(string)
+        assert cs, "Can't make socket for {}".format(string)
         self._client_socks[string] = cs
         cs.loop_run()
         return cs
@@ -141,11 +143,14 @@ class Process(Device, multiprocessing.Process):
             assert "cothread" not in sys.modules, \
                 "Cothread has already been imported, this will not work!"
         self.loop_run()
+        server_strings = []
         for string in self.server_strings:
             ss = ServerSocket.make_socket(string, self.router.inq)
             assert ss is not None, "Can't make socket for {}".format(string)
             self._server_socks[string] = ss
             self.add_loop(ss)
+            server_strings.append(ss.name)
+        self.server_strings = server_strings
         # Create a client to directory service
         if self.ds_string is not None:
             self.ds = self.get_device(self.ds_name, [self.ds_string])

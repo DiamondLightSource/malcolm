@@ -1,14 +1,18 @@
 import abc
+import socket
 
-from .loop import ILoop, LState
+from .loop import ILoop
 from .serialize import SType
-from malcolm.core.base import weak_method
+from .base import weak_method
 
 
 class ISocket(ILoop):
-
-    def __init__(self, address, timeout=None):
-        super(ISocket, self).__init__(address)
+    # Name is the server string we should use to connect to it
+    # Address is the address we should bind to
+    def __init__(self, name, address, timeout=None):
+        super(ISocket, self).__init__(name)
+        # Store
+        self.address = address
         self.timeout = timeout
 
     @abc.abstractmethod
@@ -45,7 +49,12 @@ class ISocket(ILoop):
     def make_socket(cls, address, *args, **kwargs):
         for prefix, socket_cls in cls.type_prefixes:
             if address.startswith(prefix):
-                return socket_cls(address[len(prefix):], *args, **kwargs)
+                # Calc name from address
+                hostname = socket.getfqdn()
+                ip = socket.gethostbyname(hostname)
+                name = address.replace("0.0.0.0", ip)
+                address = address[len(prefix):]
+                return socket_cls(name, address, *args, **kwargs)
 
     def loop_event(self):
         msg = weak_method(self.recv)()
@@ -55,7 +64,7 @@ class ISocket(ILoop):
 
     def loop_run(self):
         super(ISocket, self).loop_run()
-        self.open(self.name)
+        self.open(self.address)
 
     def loop_stop(self):
         super(ISocket, self).loop_stop()
@@ -99,8 +108,8 @@ class ServerSocket(ISocket):
         the baseclass make_socket() use the correct class for the prefix"""
         ServerSocket.type_prefixes.append((address_prefix, cls))
 
-    def __init__(self, address, processq, timeout=None):
-        super(ServerSocket, self).__init__(address, timeout)
+    def __init__(self, name, address, processq, timeout=None):
+        super(ServerSocket, self).__init__(name, address, timeout)
         self.processq = processq
 
     @abc.abstractmethod

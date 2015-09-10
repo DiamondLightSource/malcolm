@@ -12,7 +12,6 @@ from malcolm.core.directoryService import DirectoryService, \
     not_process_creatable
 import argparse
 import code
-import socket
 import logging
 
 
@@ -28,8 +27,6 @@ class IMalcolmServer(DirectoryService):
         if not isinstance(numeric_level, int):
             raise ValueError('Invalid log level: %s' % args.log)
         logging.basicConfig(level=numeric_level)
-        hostname = socket.getfqdn()
-        ip = socket.gethostbyname(hostname)
         server_string = "zmq://tcp://0.0.0.0:{}".format(args.port)
         super(IMalcolmServer, self).__init__([server_string])
         self.run(block=False)
@@ -41,7 +38,7 @@ class IMalcolmServer(DirectoryService):
         parser.add_argument('--log', default="INFO",
                             help="Lowest level of logs to see. One of: "
                             "ERROR, WARNING, INFO, DEBUG. "
-                            "Default is INFO")        
+                            "Default is INFO")
         return parser.parse_args()
 
     def interact(self):

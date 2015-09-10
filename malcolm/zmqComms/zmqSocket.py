@@ -4,7 +4,7 @@ from collections import OrderedDict
 
 import zmq
 
-from malcolm.core.socket import ISocket
+from malcolm.core.socketInterface import ISocket
 from malcolm.core.serialize import SType
 import weakref
 
@@ -122,7 +122,7 @@ class ZmqSocket(ISocket):
         self.POLLIN = coselect.POLLIN
         self.POLLOUT = coselect.POLLOUT
         self.context = zmq.Context()
-        self.sock = self.make_zmq_sock()
+        self.sock = self.make_zmq_sock(address)
 
     def close(self):
         """Close the socket"""

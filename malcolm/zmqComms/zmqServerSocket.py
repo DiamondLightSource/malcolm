@@ -3,7 +3,7 @@ import weakref
 import zmq
 
 from .zmqSocket import ZmqSocket
-from malcolm.core.socket import ServerSocket
+from malcolm.core.socketInterface import ServerSocket
 from collections import OrderedDict
 from malcolm.core.serialize import SType
 from malcolm.core.base import weak_method
@@ -11,10 +11,10 @@ from malcolm.core.base import weak_method
 
 class ZmqServerSocket(ZmqSocket, ServerSocket):
 
-    def make_zmq_sock(self):
+    def make_zmq_sock(self, address):
         """Make the zmq sock and bind or connect to address, returning it"""
         sock = self.context.socket(zmq.ROUTER)
-        sock.bind(self.name)
+        sock.bind(address)
         return sock
 
     def make_send_function(self, kwargs):

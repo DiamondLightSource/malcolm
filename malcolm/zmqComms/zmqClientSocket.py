@@ -1,15 +1,15 @@
 import zmq
 
 from .zmqSocket import ZmqSocket
-from malcolm.core.socket import ClientSocket
+from malcolm.core.socketInterface import ClientSocket
 
 
 class ZmqClientSocket(ZmqSocket, ClientSocket):
 
-    def make_zmq_sock(self):
+    def make_zmq_sock(self, address):
         """Make the zmq sock and bind or connect to address, returning it"""
         sock = self.context.socket(zmq.DEALER)
-        sock.connect(self.name)
+        sock.connect(address)
         return sock
 
     def request(self, response, typ, kwargs):

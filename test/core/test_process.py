@@ -8,11 +8,11 @@ from mock import MagicMock
 from malcolm.core.serialize import SType
 from malcolm.core.method import wrap_method
 # logging.basicConfig()
-# logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.core.process import Process
-from malcolm.core.socket import ServerSocket
+from malcolm.core.socketInterface import ServerSocket
 from malcolm.core.device import Device
 
 
@@ -66,7 +66,7 @@ class MockDevice(Device):
         return 32
 
 
-class AttributeTest(unittest.TestCase):
+class ProcessTest(unittest.TestCase):
 
     def setUp(self):
         self.p = Process(["tst://socket"], "The Process")
