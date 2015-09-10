@@ -19,29 +19,24 @@ class PulseLoop(ILoop):
     def __init__(self, name, outs):
         super(PulseLoop, self).__init__(name)
         self.outs = outs
+        self.i = 0
+
+    def loop_event(self):
+        if self.stop_requested:
+            raise StopIteration
+        cothread.Sleep(0.01)
+        self.outs.append(self.i)
+        self.i += 1
 
     def loop_run(self):
         """Start the event loop running"""
         super(PulseLoop, self).loop_run()
         self.stop_requested = self.cothread.Event(auto_reset=False)
-        self.proc = self.spawn(self.event_loop)
-
-    def event_loop(self):
-        i = 0
-        while not self.stop_requested:
-            cothread.Sleep(0.01)
-            self.outs.append(i)
-            i += 1
-        self.loop_confirm_stopped()
 
     def loop_stop(self):
         """Signal the event loop to stop running and wait for it to finish"""
         super(PulseLoop, self).loop_stop()
         self.stop_requested.Signal()
-
-    def loop_wait(self):
-        """Wait for a loop to finish"""
-        self.proc.Wait()
 
 
 class OutEventLoop(EventLoop):
@@ -59,22 +54,34 @@ class OutEventLoop(EventLoop):
 
 class LoopTest(unittest.TestCase):
 
+    def assert_gc(self):
+        msgs = []
+
+        def log_debug(msg):
+            msgs.append(msg)
+
+        self.l.log_debug = log_debug
+        self.l = None
+        self.assertEqual(msgs, ['Garbage collecting loop', 'Stopping loop',
+                                'Waiting for loop to finish', 'Loop finished',
+                                'Loop garbage collected'])
+
     def test_loop_del_called_when_out_of_scope(self):
         self.outs = []
-        l = PulseLoop("Loop", self.outs)
-        l.loop_run()
+        self.l = PulseLoop("Loop", self.outs)
+        self.l.loop_run()
         cothread.Sleep(0.1)
         self.assertEqual(self.outs, [0, 1, 2, 3, 4, 5, 6, 7, 8])
-        del l
+        self.assert_gc()
         cothread.Sleep(0.1)
         self.assertEqual(self.outs, [0, 1, 2, 3, 4, 5, 6, 7, 8])
 
     def test_event_loop_del_called_when_out_of_scope(self):
         self.outs = []
-        l = OutEventLoop("OutLoop", self.outs)
-        l.loop_run()
+        self.l = OutEventLoop("OutLoop", self.outs)
+        self.l.loop_run()
 
-        def poster(l=weakref.proxy(l)):
+        def poster(l=weakref.proxy(self.l)):
             for _ in range(15):
                 try:
                     l.post(None)
@@ -85,7 +92,7 @@ class LoopTest(unittest.TestCase):
         cothread.Spawn(poster)
         cothread.Sleep(0.1)
         self.assertEqual(self.outs, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-        l = None
+        self.assert_gc()
         cothread.Sleep(0.1)
         self.assertEqual(self.outs, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 
@@ -100,6 +107,7 @@ class LoopTest(unittest.TestCase):
         l = None
         cothread.Yield()
         self.assertEqual(c._loops, [])
-        
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

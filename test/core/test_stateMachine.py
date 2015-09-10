@@ -213,12 +213,12 @@ class StateMachineTest(unittest.TestCase):
         c.add_stateMachine(self.sm)
         c.add_listener(self.callback)
         c.loop_run()
-        for i in range(5):
+        for i in range(6):
             self.sm.post(VEvent.Event1)
         self.sm = None
         cothread.Sleep(0.2)
         self.assertEqual(len(self.states), 3)
-        del c
+        c = None
         cothread.Sleep(0.2)
         self.assertEqual(len(self.states), 3)
 

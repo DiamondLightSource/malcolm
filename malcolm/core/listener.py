@@ -22,7 +22,18 @@ class HasListeners(Base):
 
     def remove_listener(self, callback):
         """Remove listener callback function"""
+        self.log_debug("Removing listener {}".format(callback))
         self._listeners.pop(callback)
+
+    def get_endpoint(self, ename):
+        endpoint = self
+        if ename:
+            for e in ename.split("."):
+                if hasattr(endpoint, "to_dict"):
+                    endpoint = endpoint.to_dict()
+                assert e in endpoint, "{} not in {}".format(e, endpoint.keys())
+                endpoint = endpoint[e]
+        return endpoint
 
     def notify_listeners(self, changes, prefix=""):
         if not hasattr(self, "_listeners"):
@@ -41,10 +52,7 @@ class HasListeners(Base):
                 if filt_changes.keys() == [""]:
                     filt_changes["."] = filt_changes.pop("")
                 cname = getattr(callback, "__name__", "callback")
-                value = self
-                if prefix != "":
-                    for e in prefix.split("."):
-                        value = getattr(value, e)
+                value = self.get_endpoint(prefix)
                 self.log_debug("Calling {}({}, {})"
                                .format(cname, value, filt_changes))
                 try:

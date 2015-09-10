@@ -1,0 +1,82 @@
+#!/bin/env dls-python
+if __name__ == "__main__":
+    # Test
+    from pkg_resources import require
+    require("pyzmq==13.1.0")
+    require("cothread==2.12")
+    import sys
+    import os
+    sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+
+from malcolm.core.process import Process, not_process_creatable
+from malcolm.core.deviceClient import DeviceClient
+import argparse
+import code
+import logging
+
+
+@not_process_creatable
+class IDeviceClient(DeviceClient):
+
+    def do_call(self, endpoint, *args, **kwargs):
+
+        def print_call(sm, changes=None):
+            print "{}: {}".format(sm.state.name, sm.message)
+
+        self.add_listener(print_call, "stateMachine")
+        try:
+            return super(IDeviceClient, self).do_call(endpoint, *args, **kwargs)
+        except KeyboardInterrupt:
+            super(IDeviceClient, self).do_call("methods.abort")
+        finally:
+            self.remove_listener(print_call)
+
+
+@not_process_creatable
+class IMalcolmClient(Process):
+
+    def __init__(self):
+        args = self.parse_args()
+        # assuming loglevel is bound to the string value obtained from the
+        # command line argument. Convert to upper case to allow the user to
+        # specify --log=DEBUG or --log=debug
+        numeric_level = getattr(logging, args.log.upper(), None)
+        if not isinstance(numeric_level, int):
+            raise ValueError('Invalid log level: %s' % args.log)
+        logging.basicConfig(level=numeric_level)
+        ds_string = "zmq://tcp://{}".format(args.server)
+        super(IMalcolmClient, self).__init__([], "iMalcolmClient",
+                                             ds_string=ds_string)
+        self.DeviceClient = IDeviceClient
+        self.run(block=False)
+
+    def parse_args(self):
+        parser = argparse.ArgumentParser(
+            description="Interactive client shell for malcolm")
+        parser.add_argument('server',
+                            help="Server string for connection to malcolm "
+                            "directory server like 172.23.243.13:5600")
+        parser.add_argument('--log', default="INFO",
+                            help="Lowest level of logs to see. One of: "
+                            "ERROR, WARNING, INFO, DEBUG. "
+                            "Default is INFO")
+        return parser.parse_args()
+
+    @classmethod
+    def main(cls):
+        self = cls()
+        all_devices = self.ds.Device_instances
+        code.interact(banner="""Welcome to iMalcolmClient.
+You are connected to: {}
+These devices are available:
+{}
+Type self.get_device("<device_name>") to get a device client
+Try:
+det = self.get_device("det")
+det.configure(exposure=0.1, nframes=10)
+""".format(self.ds_string, all_devices), local=locals())
+
+if __name__ == "__main__":
+    # Entry point
+    IMalcolmClient.main()

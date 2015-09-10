@@ -2,6 +2,7 @@ import abc
 
 from .loop import ILoop, LState
 from .serialize import SType
+from malcolm.core.base import weak_method
 
 
 class ISocket(ILoop):
@@ -46,33 +47,19 @@ class ISocket(ILoop):
             if address.startswith(prefix):
                 return socket_cls(address[len(prefix):], *args, **kwargs)
 
-    def event_loop(self):
-        """Call recv() on socket and deal with return"""
-        while self.loop_state() == LState.Running:
-            try:
-                typ, kwargs = self.deserialize(self.recv())
-            except:
-                self.log_exception("Exception raised deserializing message")
-                continue
-            self.log_debug("Got message {} {}".format(typ, kwargs))
-            try:
-                self.handle_message(typ, kwargs)
-            except:
-                self.log_exception("Exception raised handling message")
-                continue
-        self.loop_confirm_stopped()
+    def loop_event(self):
+        msg = weak_method(self.recv)()
+        typ, kwargs = weak_method(self.deserialize)(msg)
+        self.log_debug("Got message {} {}".format(typ, kwargs))
+        weak_method(self.handle_message)(typ, kwargs)
 
     def loop_run(self):
         super(ISocket, self).loop_run()
         self.open(self.name)
-        self.event_loop_proc = self.spawn(self.event_loop)
 
     def loop_stop(self):
         super(ISocket, self).loop_stop()
         self.close()
-
-    def loop_wait(self):
-        self.event_loop_proc.Wait(timeout=self.timeout)
 
 
 class ClientSocket(ISocket):

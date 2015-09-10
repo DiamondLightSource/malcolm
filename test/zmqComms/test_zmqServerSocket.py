@@ -11,7 +11,7 @@ import weakref
 import cothread
 
 import logging
-logging.basicConfig()
+#logging.basicConfig()
 #logging.basicConfig(level=logging.DEBUG)
 from mock import patch, MagicMock
 # Module import
@@ -20,46 +20,47 @@ from malcolm.zmqComms.zmqServerSocket import ZmqServerSocket
 from malcolm.core.serialize import SType
 
 
+class InqSock(cothread.EventQueue):
+    def __init__(self):
+        super(InqSock, self).__init__()
+        self.send_multipart = MagicMock()
+
+    def recv_multipart(self, flags=None):
+        return self.Wait()
+
+
 class DummyZmqServerSocket(ZmqServerSocket):
 
+    def send(self, msg):
+        return self.sock.send_multipart(msg, flags=1)
+
+    def recv(self):
+        return self.sock.recv_multipart(flags=1)
+
     def make_zmq_sock(self):
-        return MagicMock()
+        return InqSock()
 
 
 class ZmqClientSocketTest(unittest.TestCase):
 
     def setUp(self):
         self.inq = cothread.EventQueue()
-        self.cs = DummyZmqServerSocket("ipc://frfe.ipc", self.inq)
-        self.cs.loop_run()
-
-    def test_garbage_collected(self):
-        cs = weakref.proxy(self.cs)
-        self.cs = None
-
-        def f():
-            print cs
-
-        self.assertRaises(ReferenceError, f)
+        self.ss = DummyZmqServerSocket("ipc://frfe.ipc", self.inq)
+        self.ss.loop_run()
 
     def test_send_func(self):
-        def side_effect(flags):
-            cothread.Yield()
-            return [43, '{"type": "Call", "id": 0, "endpoint": "zebra.run"}']
-        self.cs.sock.recv_multipart.side_effect = side_effect
+        self.ss.sock.Signal([43, '{"type": "Call", "id": 0, "endpoint": "zebra.run"}'])
         typ, args, kwargs = self.inq.Wait()
         self.assertEqual(typ, SType.Call)
         self.assertEqual(kwargs, OrderedDict(endpoint="zebra.run"))
         send = args[0]
-        self.assertEqual(self.cs.sock.send_multipart.call_count, 0)
-        send(SType.Return, dict(value=99))
-        self.cs.sock.send_multipart.assert_called_once_with('{"type": "Return", "id": 0, "value": 99}', flags=1)
+        self.assertEqual(self.ss.sock.send_multipart.call_count, 0)
+        send(SType.Return, 99)
+        self.ss.sock.send_multipart.assert_called_once_with([43, '{"type": "Return", "id": 0, "value": 99}'], flags=1)
 
     def test_2_send_funcs_are_same(self):
-        def side_effect(flags):
-            cothread.Yield()
-            return [43, '{"type": "Call", "id": 0, "endpoint": "zebra.run"}']
-        self.cs.sock.recv_multipart.side_effect = side_effect
+        self.ss.sock.Signal([43, '{"type": "Call", "id": 0, "endpoint": "zebra.run"}'])
+        self.ss.sock.Signal([43, '{"type": "Call", "id": 0, "endpoint": "zebra.run"}'])
         typ1, args1, kwargs1 = self.inq.Wait()
         typ2, args2, kwargs2 = self.inq.Wait()
         self.assertEqual(typ1, typ2)
@@ -67,26 +68,32 @@ class ZmqClientSocketTest(unittest.TestCase):
         self.assertEqual(kwargs1, kwargs2)
 
     def test_timestamp(self):
-        def side_effect(flags):
-            cothread.Yield()
-            return [43, '{"type": "Call", "id": 0, "endpoint": "zebra.run"}']
-        self.cs.sock.recv_multipart.side_effect = side_effect
+        self.ss.sock.Signal([43, '{"type": "Call", "id": 0, "endpoint": "zebra.run"}'])
         typ, args, kwargs = self.inq.Wait()
         send = args[0]
-        self.assertEqual(self.cs.sock.send_multipart.call_count, 0)
+        self.assertEqual(self.ss.sock.send_multipart.call_count, 0)
         class ts:
             def to_dict(self):
                 return OrderedDict(timeStamp=43.2)
-        send(SType.Value, dict(value=ts()))
-        self.cs.sock.send_multipart.assert_called_once_with('{"type": "Value", "id": 0, "value": {"timeStamp": {"secondsPastEpoch": 43, "nanoseconds": 200000000, "userTag": 0}}}', flags=1)
+        send(SType.Value, ts())
+        self.ss.sock.send_multipart.assert_called_once_with([43, '{"type": "Value", "id": 0, "value": {"timeStamp": {"secondsPastEpoch": 43, "nanoseconds": 200000000, "userTag": 0}}}'], flags=1)
 
     def test_creation(self):
-        self.cs = ServerSocket.make_socket("zmq://ipc://frfess.ipc", self.inq)
-        self.assertEqual(self.cs.name, "ipc://frfess.ipc")
-        self.assertEqual(self.cs.processq, self.inq)
+        cs = ServerSocket.make_socket("zmq://ipc://frfess.ipc", self.inq)
+        self.assertEqual(cs.name, "ipc://frfess.ipc")
+        self.assertEqual(cs.processq, self.inq)
 
     def tearDown(self):
-        self.cs = None
+        msgs = []
+
+        def log_debug(msg):
+            msgs.append(msg)
+
+        self.ss.log_debug = log_debug
+        self.ss = None
+        self.assertEqual(msgs, ['Garbage collecting loop', 'Stopping loop',
+                                'Waiting for loop to finish', 'Loop finished',
+                                'Loop garbage collected'])
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

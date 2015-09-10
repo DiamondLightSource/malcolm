@@ -6,19 +6,26 @@ import zmq
 
 from malcolm.core.socket import ISocket
 from malcolm.core.serialize import SType
+import weakref
 
 
 class CustomSerializer(json.JSONEncoder):
 
+    def update_timestamps(self, d):
+        if "timeStamp" in d:
+            timeStamp = d["timeStamp"]
+            ts = OrderedDict(secondsPastEpoch=int(timeStamp))
+            ts.update(nanoseconds=int(timeStamp % 1 / 1e-9))
+            ts.update(userTag=0)
+            d["timeStamp"] = ts
+        for d2 in d.values():
+            if hasattr(d2, "values"):
+                self.update_timestamps(d2)
+        return d
+
     def default(self, o):
         if hasattr(o, "to_dict"):
-            d = o.to_dict()
-            if "timeStamp" in d:
-                ts = OrderedDict(secondsPastEpoch=int(d["timeStamp"]))
-                ts.update(nanoseconds=int(d["timeStamp"] % 1 / 1e-9))
-                ts.update(userTag=0)
-                d["timeStamp"] = ts
-            return d
+            return self.update_timestamps(o.to_dict())
         else:
             return super(CustomSerializer, self).default(o)
 
@@ -61,6 +68,7 @@ class ZmqSocket(ISocket):
         d.update(id=_id)
         if kwargs is not None:
             d.update(kwargs)
+        serializer.update_timestamps(d)
         s = serializer.encode(d)
         return s
 
@@ -91,7 +99,8 @@ class ZmqSocket(ISocket):
         return self.sock.fd
 
     def __poll(self, event):
-        if not self.poll_list([(self, event)], self.timeout):
+        #self.cothread.Sleep(0.01)
+        if not self.poll_list([(weakref.proxy(self), event)], self.timeout):
             raise zmq.ZMQError(zmq.ETIMEDOUT, 'Timeout waiting for socket')
 
     def __retry(self, poll, action, *args, **kwargs):
@@ -106,13 +115,16 @@ class ZmqSocket(ISocket):
 
     def open(self, address):
         """Open the socket on the given address"""
-        self.context = zmq.Context()
         from cothread import coselect
+        import cothread
+        self.cothread = cothread
         self.poll_list = coselect.poll_list
         self.POLLIN = coselect.POLLIN
         self.POLLOUT = coselect.POLLOUT
+        self.context = zmq.Context()
         self.sock = self.make_zmq_sock()
 
     def close(self):
         """Close the socket"""
         self.sock.close()
+        self.context.destroy()

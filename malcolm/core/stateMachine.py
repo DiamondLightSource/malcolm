@@ -9,8 +9,9 @@ from .base import weak_method
 from .subscription import Subscription
 
 
-class HasStateMachine(HasLoops, HasListeners):
+class HasStateMachine(HasLoops, HasListeners, Serializable):
     _stateMachine_prefix = "stateMachine."
+    _endpoints = "stateMachine".split(",")
 
     def add_stateMachine(self, stateMachine):
         self.stateMachine = stateMachine

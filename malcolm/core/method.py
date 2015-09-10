@@ -71,7 +71,11 @@ class Method(Serializable):
         # If args_from then get the args from another named member functions
         if self.args_from:
             # Get method object from device using the supplied function name
-            function = getattr(device, self.args_from.__name__).function
+            method = getattr(device, self.args_from.__name__, None)
+            if method and isinstance(method, Method):
+                function = method.function
+            else:
+                function = self.args_from
         else:
             function = self.function
         # Get the args and defaults from the args_from function
@@ -116,5 +120,8 @@ class Method(Serializable):
         return self.function(self.device, *args, **kwargs)
 
     def to_dict(self):
-        valid_states = [s.name for s in self.valid_states]
+        if self.valid_states:
+            valid_states = [s.name for s in self.valid_states]
+        else:
+            valid_states = []
         return super(Method, self).to_dict(valid_states=valid_states)

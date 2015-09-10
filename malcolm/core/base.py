@@ -8,6 +8,7 @@ class Base(object):
     __metaclass__ = ABCMeta
 
     def __init__(self, name):
+        super(Base, self).__init__()
         self._name = name
         self._log = logging.getLogger(self._name)
         self.log_debug = self._log.debug

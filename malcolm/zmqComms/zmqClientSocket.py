@@ -20,9 +20,12 @@ class ZmqClientSocket(ZmqSocket, ClientSocket):
             self.request_id = {}
             self.last_id = -1
         self.last_id += 1
+        assert self.last_id not in self.request_id, \
+            "Already have a request {} in {}".format(self.last_id,
+                                                     self.request_id)
         self.request_id[self.last_id] = response
         kwargs.update(id=self.last_id)
-        self.send(self.serialize(typ, kwargs))
+        self.send([self.serialize(typ, kwargs)])
 
     def lookup_response(self, kwargs, remove_response=False):
         """Return the reponse function given the id stored in the args. If

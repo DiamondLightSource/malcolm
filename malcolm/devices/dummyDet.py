@@ -89,7 +89,7 @@ class DummyDet(PausableDevice):
 
     def do_reset(self):
         """Reset the underlying device"""
-        self.post(DEvent.ResetSta, "finished")
+        self.stateMachine.post(DEvent.ResetSta, "finished")
         return DState.Resetting, "Resetting..."
 
     def do_resetsta(self, resetsta):

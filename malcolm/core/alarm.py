@@ -17,15 +17,19 @@ class Alarm(Serializable):
 
     def __init__(self, severity, status, message):
         super(Alarm, self).__init__("Alarm")
+        if type(severity) in (str, unicode):
+            severity = AlarmSeverity.__members__[str(severity)]
         assert severity in AlarmSeverity, \
             "severity {} is not an AlarmSeverity".format(severity)
         self.severity = severity
+        if type(status) in (str, unicode):
+            status = AlarmStatus.__members__[str(status)]
         assert status in AlarmStatus, \
             "status {} is not an AlarmStatus".format(status)
         self.status = status
-        assert type(message) is str, \
+        assert type(message) in (str, unicode), \
             "message {} is not a string".format(message)
-        self.message = message
+        self.message = str(message)
 
     @classmethod
     def ok(cls):
@@ -42,3 +46,7 @@ class Alarm(Serializable):
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def to_dict(self):
+        return super(Alarm, self).to_dict(
+            severity=self.severity.name, status=self.status.name)

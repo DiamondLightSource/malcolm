@@ -1,7 +1,6 @@
-import weakref
-
 from .loop import EventLoop
 from .serialize import SType
+from .base import weak_method
 
 
 class Subscription(EventLoop):
@@ -11,7 +10,8 @@ class Subscription(EventLoop):
         if ename is not None:
             name += "." + ename
         super(Subscription, self).__init__(name, timeout)
-        self.device = weakref.proxy(device)
+        # Device has a ref to us, so we shouldn't have a strong ref to it
+        self.device_remove_listener = weak_method(device.remove_listener)
         device.add_listener(self.post, ename)
         if send:
             self.send = send
@@ -27,5 +27,5 @@ class Subscription(EventLoop):
 
     def loop_stop(self, *args, **kwargs):
         super(Subscription, self).loop_stop()
-        self.device.remove_listener(self.post)
+        self.device_remove_listener(self.post)
         self.send(SType.Return)

@@ -1,4 +1,5 @@
 import inspect
+from collections import OrderedDict
 
 from .attribute import HasAttributes
 from .stateMachine import HasStateMachine
@@ -7,10 +8,17 @@ from .loop import HasLoops
 from .serialize import Serializable
 
 
+def not_process_creatable(cls):
+    cls.not_process_creatable.append(cls)
+    return cls
+
+
+@not_process_creatable
 class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops,
              Serializable):
     _endpoints = "name,descriptor,tags,methods,stateMachine,attributes".split(
         ",")
+    not_process_creatable = []
 
     def __init__(self, name, timeout=None):
         super(Device, self).__init__(name)
@@ -31,13 +39,18 @@ class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops,
         raise AssertionError("Device not running under Process")
 
     @classmethod
-    def all_subclasses(cls):
+    def subclasses(cls):
         """Return list of subclasses non-abstract subclasses"""
-        direct = cls.__subclasses__()
-        indirect = [g for s in direct for g in s.all_subclasses()]
-        subclasses = [self] + direct + indirect
-        concrete = [c for c in subclasses if not inspect.isabstract(c)]
-        return concrete
+        subclasses = OrderedDict([(cls.__name__, cls)])
+        for s in cls.__subclasses__():
+            for g in s.subclasses():
+                if g.__name__ not in subclasses:
+                    subclasses[g.__name__] = g
+        return subclasses.values()
+
+    @classmethod
+    def baseclasses(cls):
+        return [x for x in inspect.getmro(cls) if issubclass(x, Device)]
 
     @wrap_method()
     def exit(self):
@@ -51,10 +64,10 @@ class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops,
 
     def to_dict(self):
         """Serialize this object"""
-        baseclasses = [x.__name__ for x in inspect.getmro(type(self))]
+        baseclasses = [x.__name__ for x in self.baseclasses()]
         return super(Device, self).to_dict(
             tags=baseclasses,
             descriptor=self.__doc__,
-            attributes=getattr(self, "_attributes", None),
-            methods=getattr(self, "_methods", None),
+            attributes=getattr(self, "attributes", None),
+            methods=getattr(self, "methods", None),
             stateMachine=getattr(self, "stateMachine", None))

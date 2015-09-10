@@ -1,7 +1,12 @@
 import weakref
 
+import zmq
+
 from .zmqSocket import ZmqSocket
 from malcolm.core.socket import ServerSocket
+from collections import OrderedDict
+from malcolm.core.serialize import SType
+from malcolm.core.base import weak_method
 
 
 class ZmqServerSocket(ZmqSocket, ServerSocket):
@@ -20,11 +25,18 @@ class ZmqServerSocket(ZmqSocket, ServerSocket):
         zmq_id = kwargs.pop("zmq_id")
         _id = kwargs.pop("id")
         if (zmq_id, _id) not in self._send_functions:
+            self = weakref.proxy(self)
 
-            def send(typ, kwargs):
-                kwargs.update(id=_id, zmq_id=zmq_id)
+            def send(typ, value=None, **kwargs):
+                kwargs = OrderedDict(id=_id)
+                if typ == SType.Error:
+                    kwargs.update(message=value.message)
+                else:
+                    if hasattr(value, "to_dict"):
+                        value = value.to_dict()
+                    kwargs.update(value=value)
                 msg = self.serialize(typ, kwargs)
-                self.send(msg)
+                self.send([zmq_id, msg])
 
             self._send_functions[(zmq_id, _id)] = send
         return self._send_functions[(zmq_id, _id)]

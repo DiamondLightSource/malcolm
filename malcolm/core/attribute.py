@@ -29,6 +29,7 @@ class HasAttributes(HasListeners):
         attribute.notify_listeners = functools.partial(
             weak_method(self.notify_listeners),
             prefix=self._attributes_prefix + name + ".")
+        return attribute
 
     def __getattr__(self, attr):
         """If we haven't defined a class attribute, then get its value from
@@ -95,12 +96,27 @@ class Attribute(Serializable):
     def timeStamp(self):
         return self._timeStamp
 
+    def __repr__(self):
+        return "<Attribute: {}>".format(repr(self.value))
+
     def update(self, value, alarm=None, timeStamp=None):
         changes = {}
         # Assert type
         if value != self.value:
-            assert type(value) == self.typ, \
-                "{} has type {}, wanted {}".format(value, type(value), self.typ)
+            if type(self.typ) == list:
+                assert not isinstance(value, basestring), \
+                    "Wanted list, got {}".format(repr(value))
+                out_value = []
+                for v in value:
+                    if type(v) == unicode:
+                        v = str(v)
+                    assert type(v) in self.typ, \
+                        "{} has type {}, wanted {}".format(v, type(v), self.typ)
+                    out_value.append(v)
+                value = out_value
+            else:
+                assert type(value) == self.typ, \
+                    "{} has type {}, wanted {}".format(value, type(value), self.typ)
             changes.update(value=value)
             self._value = value
         # Check alarm
@@ -122,4 +138,8 @@ class Attribute(Serializable):
             self.notify_listeners(changes)
 
     def to_dict(self):
-        return super(Attribute, self).to_dict(type=self.typ.__name__)
+        if type(self.typ) == list:
+            typ = [t.__name__ for t in self.typ]
+        else:
+            typ = self.typ.__name__
+        return super(Attribute, self).to_dict(type=typ)

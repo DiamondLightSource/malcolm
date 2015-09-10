@@ -79,7 +79,12 @@ class AttributeTest(unittest.TestCase):
         d = self.s.to_dict()
         self.assertEqual(d.keys(), ['value', 'type', 'descriptor', 'alarm', 'timeStamp'])
         self.assertEqual(d.values(), ['wow', 'str', 'The String', Alarm.ok(), 3.2])
-        
+
+    def test_lists(self):
+        a = Attribute([str], "List of strings")
+        a.update(["c", "b"])
+        self.assertEqual(a.value, ["c", "b"])
+        self.assertRaises(AssertionError, a.update, "c")
         
 if __name__ == '__main__':
     unittest.main(verbosity=2)
