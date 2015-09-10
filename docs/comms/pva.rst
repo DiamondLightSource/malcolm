@@ -3,24 +3,24 @@ pvData over pvAccess
 
 The structure of the device as specified in V4 normative types language is this::
 
-    StateMachine :=
+    Device :=
     structure
-        structure[] methods           // client side events that will trigger state transitions
-            string          name       
-            int[]           valid_states
-            string          pv           : opt // this is the pv that provides the RPC service
-            NTAttributes[]  args         : opt // value is the default value
-            string          descriptor   : opt
-        structure status
-            string      message
-            enum        state
-            time_t      timeStamp
-        NTAttributes[]  attributes
-         
-    where
-      
+        string      name                // Name of the device
+        string[]    tags                // Interfaces it supports
+        union       any                 // Any other members must be        
+            Method      method          // callable methods
+            NTAttribute attribute       // or attributes
+        string      descriptor  : opt   // Description of the device
+    
+    Method :=
+    structure
+        string          name                // Name of the method
+        bool            allowed             // Can it be run at the moment
+        NTAttributes[]  args        : opt   // value is the default value
+                                            // tags = ["required"] if required
+        string          descriptor  : opt
+        
     NTAttribute :=
-      
     structure
         string    name             
         any       value            
@@ -30,14 +30,12 @@ The structure of the device as specified in V4 normative types language is this:
         time_t    timeStamp     : opt
      
     alarm_t :=
-     
     structure
         int severity
         int status
         string message
      
     time_t :=
-     
     structure
         long secondsPastEpoch
         int  nanoseconds

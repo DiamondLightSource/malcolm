@@ -1,119 +1,73 @@
-from enum import Enum
-from stateMachine import StateMachine
-from attributes import Attributes
-from method import Method, wrap_method
+import inspect
 from collections import OrderedDict
 
-
-class DState(Enum):
-    # These are the states that our machine supports
-    Fault, Idle, Configuring, Ready, Running, Pausing, Paused, Aborting,\
-        Aborted, Resetting = range(10)
-
-    @classmethod
-    def rest(cls):
-        return [cls.Fault, cls.Idle, cls.Ready, cls.Aborted]
-
-    @classmethod
-    def pausedone(cls):
-        return [cls.Fault, cls.Aborted, cls.Paused]
-
-    @classmethod
-    def abortable(cls):
-        return [cls.Configuring, cls.Ready, cls.Running, cls.Pausing,
-                cls.Paused, cls.Resetting]
-
-    @classmethod
-    def configurable(cls):
-        return [cls.Idle, cls.Ready]
-
-    @classmethod
-    def runnable(cls):
-        return [cls.Ready, cls.Paused]
-
-    @classmethod
-    def resettable(cls):
-        return [cls.Fault, cls.Aborted]
-
-    def to_dict(self):
-        choices = [e.name for e in self.__class__]
-        d = dict(index=self.value, choices=choices)
-        return d
+from .attribute import HasAttributes
+from .stateMachine import HasStateMachine
+from .method import HasMethods, wrap_method
+from .loop import HasLoops
+from .serialize import Serializable
 
 
-class DEvent(Enum):
-    # These are the messages that we will respond to
-    Error, Reset, ResetSta, Config, ConfigSta, Run, RunSta, Abort, AbortSta, \
-        Pause, PauseSta = range(11)
+def not_process_creatable(cls):
+    cls.not_process_creatable.append(cls)
+    return cls
 
 
-class Device(StateMachine):
-    """External API wrapping a Device"""
+@not_process_creatable
+class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops,
+             Serializable):
+    _endpoints = "name,descriptor,tags,methods,stateMachine,attributes".split(
+        ",")
+    not_process_creatable = []
 
     def __init__(self, name, timeout=None):
-        # superclass init
-        super(Device, self).__init__(name, DState.Idle, DState.Fault, timeout=timeout)
+        super(Device, self).__init__(name)
+        self.timeout = timeout
 
-        # make the attributes object
-        self.attributes = Attributes()
+    def loop_run(self):
+        self.add_methods()
+        super(Device, self).loop_run()
 
-    def add_attributes(self, **attributes):
-        self.attributes.add_attributes(**attributes)
-        # add listener to attributes
-        for aname in attributes:
+    def create_device(self, cls, name, *args, **kwargs):
+        """Locally available method to create device, will be overridden if
+        running under a process"""
+        return cls(name, *args, **kwargs)
 
-            def _attribute_change(name, value):
-                self._changes.append("attributes.{}.{}".format(aname, name))
+    def get_device(self, device):
+        """If running under a process, this will allow devices to be connected to
+        from the local process or DirectoryService"""
+        raise AssertionError("Device not running under Process")
 
-            self.attributes[aname].on_trait_change(_attribute_change)
+    @classmethod
+    def subclasses(cls):
+        """Return list of subclasses non-abstract subclasses"""
+        subclasses = OrderedDict([(cls.__name__, cls)])
+        for s in cls.__subclasses__():
+            for g in s.subclasses():
+                if g.__name__ not in subclasses:
+                    subclasses[g.__name__] = g
+        return subclasses.values()
 
-    def start_event_loop(self):
-        # dict of Method wrappers to @wrap_method decorated methods
-        self.methods = Method.describe_methods(self)
-        # monitor attributes
-        super(Device, self).start_event_loop()
+    @classmethod
+    def baseclasses(cls):
+        return [x for x in inspect.getmro(cls) if issubclass(x, Device)]
 
-    def shortcuts(self):
-        # Shortcut to all the self.do_ functions
-        class do:
-            pass
-        for fname in dir(self):
-            if fname.startswith("do_"):
-                setattr(do, fname[3:], getattr(self, fname))
-
-        # Shortcut to transition function, state list and event list
-        t = self.transition
-        s = DState
-        e = DEvent
-        return (do, t, s, e)
-
-    def __getattr__(self, attr):
-        """If we haven't defined a class attribute, then get its value from 
-        the self.attributes object"""
-        if hasattr(self, "attributes"):
-            return self.attributes[attr].value
-        else:
-            raise KeyError("No attributes defined")
-
-    def __setattr__(self, attr, value):
-        """If we have an attribute, then set it, otherwise set it as a local
-        variable"""
-        try:
-            self.attributes[attr].update(value)
-        except (AttributeError, KeyError) as e:
-            return object.__setattr__(self, attr, value)
-
-    @wrap_method(only_in=DState)
+    @wrap_method()
     def exit(self):
-        """Stop the event loop and destroy the device"""
-        self.inq.close()
-        self.event_loop_proc.Wait()
+        """Stop the event loop and destoy the device"""
+        self.__del__()
+
+    @wrap_method()
+    def ping(self):
+        """Just return 'pong'. Used for heartbeat"""
+        return "pong"
 
     def to_dict(self):
-        d = OrderedDict(name=self.name)
-        d.update(classname=type(self).__name__)
-        d.update(descriptor=self.__doc__)
-        d.update(methods=self.methods)
-        d.update(status=self.status)
-        d.update(attributes=self.attributes)
-        return d
+        """Serialize this object"""
+        baseclasses = [x.__name__ for x in self.baseclasses()]
+        return super(Device, self).to_dict(
+            tags=baseclasses,
+            descriptor=self.__doc__,
+            attributes=getattr(self, "attributes", None),
+            methods=getattr(self, "methods", None),
+            stateMachine=getattr(self, "stateMachine", None))

@@ -4,10 +4,6 @@ Code documentation
 ==================
 
 malcolm
-------------------
+-------
 
-.. automodule:: malcolm.client
-.. autoclass:: malcolm.client.DeviceClient
-    :members:
-
-    .. automethod:: __init__
+.. automodule:: malcolm
