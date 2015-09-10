@@ -1,5 +1,6 @@
 try:
-    import malcolm.zmqComms
+    from malcolm import zmqComms
 except ImportError:
+    print "No zmq available"
     pass
 import malcolm.devices

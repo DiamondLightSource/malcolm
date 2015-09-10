@@ -1,4 +1,5 @@
-# import multiprocessing to avoid this bug (http://bugs.python.org/issue15881#msg170215)
+# import multiprocessing to avoid this bug
+# (http://bugs.python.org/issue15881#msg170215)
 import multiprocessing
 assert multiprocessing
 import re
@@ -6,6 +7,7 @@ import os
 from setuptools import setup, find_packages
 
 module_name = "malcolm"
+
 
 def get_version():
     """Extracts the version number from the version.py file.
@@ -22,7 +24,7 @@ def get_version():
         return version
     else:
         raise RuntimeError('Unable to find version string in {0}.'
-            .format(VERSION_FILE))
+                           .format(VERSION_FILE))
 
 setup(
     name=module_name,
@@ -42,7 +44,13 @@ setup(
         'Programming Language :: Python :: 2.7',
     ],
     license='APACHE',
-    install_requires=['cothread'],
+    install_requires=['cothread', 'pyzmq'],
+    extras_require={
+        'zmq':  ['pyzmq']
+    },
+    entry_points={'console_scripts':
+                  ["imalcolm = malcolm.iMalcolm.iMalcolmClient:main"]
+                  },
     include_package_data=True,
     test_suite='nose.collector',
     tests_require=[
