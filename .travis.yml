@@ -3,9 +3,17 @@ language: python
 python:
   - "2.7"
 
+cache:
+  directories:
+    - $HOME/.cache/pip
+    - $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION/lib/python$TRAVIS_PYTHON_VERSION/site-packages
+
 install:
+  - env
+  - ls -al $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION/lib/python$TRAVIS_PYTHON_VERSION/site-packages
   - "pip install -r requirements/test.txt"
   - "pip install -q python-coveralls"
+  - ls -al $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION/lib/python$TRAVIS_PYTHON_VERSION/site-packages
   - "python setup.py install"
   
 # command to run tests
