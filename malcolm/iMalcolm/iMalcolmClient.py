@@ -27,7 +27,7 @@ class IDeviceClient(DeviceClient):
         try:
             return super(IDeviceClient, self).do_call(endpoint, *args, **kwargs)
         except KeyboardInterrupt:
-            super(IDeviceClient, self).do_call("methods.abort")
+            super(IDeviceClient, self).do_call("abort")
         finally:
             self.remove_listener(print_call)
 
@@ -68,6 +68,7 @@ Type self.get_device("<device_name>") to get a device client
 Try:
 det = self.get_device("det")
 det.configure(exposure=0.1, nframes=10)
+det.run()
 """.format(self.ds_string, all_devices))
 
 if __name__ == "__main__":

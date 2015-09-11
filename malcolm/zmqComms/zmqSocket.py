@@ -48,15 +48,18 @@ class ZmqSocket(ISocket):
 
     def send(self, msg):
         """Send the message to the socket"""
+        self.log_debug("Sent message {}".format(msg))
         return self.__retry(self.POLLOUT, self.sock.send_multipart, msg,
                             flags=zmq.NOBLOCK)
 
     def recv(self):
         """Co-operatively block until received"""
-        return self.__retry(self.POLLIN, self.sock.recv_multipart,
-                            flags=zmq.NOBLOCK)
+        msg = self.__retry(self.POLLIN, self.sock.recv_multipart,
+                           flags=zmq.NOBLOCK)
+        self.log_debug("Got message {}".format(msg))
+        return msg
 
-    def serialize(self, typ, kwargs=None):
+    def serialize(self, typ, kwargs):
         """Serialize the arguments to a string that can be sent to the socket
         """
         zmq_id = kwargs.pop("zmq_id", None)
@@ -99,7 +102,7 @@ class ZmqSocket(ISocket):
         return self.sock.fd
 
     def __poll(self, event):
-        #self.cothread.Sleep(0.01)
+        # self.cothread.Sleep(0.01)
         if not self.poll_list([(weakref.proxy(self), event)], self.timeout):
             raise zmq.ZMQError(zmq.ETIMEDOUT, 'Timeout waiting for socket')
 

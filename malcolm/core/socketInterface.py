@@ -9,6 +9,7 @@ from .base import weak_method
 class ISocket(ILoop):
     # Name is the server string we should use to connect to it
     # Address is the address we should bind to
+
     def __init__(self, name, address, timeout=None):
         super(ISocket, self).__init__(name)
         # Store
@@ -59,7 +60,6 @@ class ISocket(ILoop):
     def loop_event(self):
         msg = weak_method(self.recv)()
         typ, kwargs = weak_method(self.deserialize)(msg)
-        self.log_debug("Got message {} {}".format(typ, kwargs))
         weak_method(self.handle_message)(typ, kwargs)
 
     def loop_run(self):
@@ -94,8 +94,17 @@ class ClientSocket(ISocket):
     def handle_message(self, typ, kwargs):
         """Call recv() on socket and deal with return"""
         remove_response = typ == SType.Return
+        cached = kwargs.copy()
         func = self.lookup_response(kwargs, remove_response)
-        func(typ, **kwargs)
+        try:
+            func(typ, **kwargs)
+        except ReferenceError:
+            # Object has gone, remove response if not already gone
+            self.log_debug("Response to {} refs object that no longer exists"
+                           .format(cached))
+            if not remove_response:
+                self.log_debug("Removing its response function")
+                self.lookup_response(cached, True)
 
 
 class ServerSocket(ISocket):

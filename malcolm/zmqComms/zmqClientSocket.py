@@ -2,6 +2,7 @@ import zmq
 
 from .zmqSocket import ZmqSocket
 from malcolm.core.socketInterface import ClientSocket
+from collections import OrderedDict
 
 
 class ZmqClientSocket(ZmqSocket, ClientSocket):
@@ -24,8 +25,15 @@ class ZmqClientSocket(ZmqSocket, ClientSocket):
             "Already have a request {} in {}".format(self.last_id,
                                                      self.request_id)
         self.request_id[self.last_id] = response
-        kwargs.update(id=self.last_id)
-        self.send([self.serialize(typ, kwargs)])
+
+        def do_request(typ, kwargs=None, _id=self.last_id):
+            if kwargs is None:
+                kwargs = OrderedDict()
+            kwargs.update(id=_id)
+            self.send([self.serialize(typ, kwargs)])
+
+        do_request(typ, kwargs)
+        return do_request
 
     def lookup_response(self, kwargs, remove_response=False):
         """Return the reponse function given the id stored in the args. If

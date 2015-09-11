@@ -33,15 +33,24 @@ class ILoop(Base):
 
     def event_loop(self, loop_event):
         while True:
+            # Try the loop event
             try:
+                # Are we stopped?
+                if self.loop_state() != LState.Running:
+                    self.log_debug("Breaking as loop state not Running")
+                    break
                 loop_event()
-            except (ReferenceError, StopIteration) as _:
+            except (ReferenceError, StopIteration) as e:
+                try:
+                    self.log_debug("Breaking from {}".format(e))
+                except ReferenceError:
+                    pass
                 break
             except:
                 self.log_exception("Exception raised processing event")
         try:
             self.loop_confirm_stopped()
-        except ReferenceError:
+        except ReferenceError as e:
             return
 
     @abc.abstractmethod
@@ -172,7 +181,8 @@ class EventLoop(ILoop):
         self.handlers[event] = weak_method(function)
 
     def loop_event(self):
-        event, args, kwargs = weak_method(self.get_next_event)(timeout=self.timeout)
+        event, args, kwargs = weak_method(
+            self.get_next_event)(timeout=self.timeout)
         self.log_debug("Got event {} {} {}".format(event, args, kwargs))
         if event in self.handlers:
             function = self.handlers[event]

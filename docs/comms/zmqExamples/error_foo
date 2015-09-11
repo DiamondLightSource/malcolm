@@ -1,0 +1,7 @@
+.. code-block:: javascript
+
+    {
+      "type": "Error", 
+      "id": 0, 
+      "message": "Can't find device foo"
+    }

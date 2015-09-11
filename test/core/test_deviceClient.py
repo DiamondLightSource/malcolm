@@ -65,11 +65,13 @@ class DeviceTest(unittest.TestCase):
     def test_methods(self):
         def side_effect(response, typ, kwargs):
             self.post = response
-            if kwargs["endpoint"] == "D":
+            if typ == SType.Get and kwargs["endpoint"] == "D":
                 run = dict(descriptor="Run")
                 response(SType.Return, value=dict(methods=dict(run=run)))
-            elif kwargs["endpoint"] == "D.methods.run":
+            elif kwargs["method"] == "run":
                 response(SType.Return, value=99)
+            else:
+                print kwargs
         self.sock.request.side_effect = side_effect
         self.d.loop_run()
         self.assertEqual(len(self.sock.mock_calls), 1)
@@ -79,7 +81,7 @@ class DeviceTest(unittest.TestCase):
         self.sock.request.reset_mock()
         self.assertEqual(self.d.run(), 99)
         self.sock.request.assert_called_once_with(
-            self.post, SType.Call, dict(endpoint="D.methods.run", args={}))
+            self.post, SType.Call, dict(endpoint="D", method="run", args={}))
 
     def test_sm(self):
         def side_effect(post, typ, kwargs):

@@ -1,7 +1,6 @@
 #!/bin/env dls-python
 from pkg_resources import require
 from collections import OrderedDict
-from malcolm.core.socket import ClientSocket
 require("mock")
 require("pyzmq")
 import unittest
@@ -11,12 +10,13 @@ import cothread
 
 import logging
 # logging.basicConfig()
-logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 from mock import MagicMock
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.zmqComms.zmqClientSocket import ZmqClientSocket
 from malcolm.core.serialize import SType
+from malcolm.core.socketInterface import ClientSocket
 
 
 class InqSock(cothread.EventQueue):
@@ -37,14 +37,15 @@ class DummyZmqClientSocket(ZmqClientSocket):
     def recv(self):
         return self.sock.recv_multipart(flags=1)
 
-    def make_zmq_sock(self):
+    def make_zmq_sock(self, address):
         return InqSock()
 
+DummyZmqClientSocket.register("dzmq://")
 
 class ZmqClientSocketTest(unittest.TestCase):
 
     def setUp(self):
-        self.cs = DummyZmqClientSocket("ipc://frfe.ipc")
+        self.cs = ClientSocket.make_socket("dzmq://ipc://frfes.ipc")
         self.cs.loop_run()
 
     def test_request(self):
@@ -74,8 +75,8 @@ class ZmqClientSocketTest(unittest.TestCase):
             SType.Return, value=OrderedDict(timeStamp=43.2))
 
     def test_creation(self):
-        cs = ClientSocket.make_socket("zmq://ipc://frfes.ipc")
-        self.assertEqual(cs.name, "ipc://frfes.ipc")
+        self.assertEqual(self.cs.name, "dzmq://ipc://frfes.ipc")
+        self.assertEqual(self.cs.address, "ipc://frfes.ipc")
 
     def tearDown(self):
         msgs = []

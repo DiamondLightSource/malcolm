@@ -7,7 +7,7 @@ import cothread
 from mock import MagicMock
 from malcolm.core.serialize import SType
 from malcolm.core.method import wrap_method
-# logging.basicConfig()
+logging.basicConfig()
 #logging.basicConfig(level=logging.DEBUG)
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -93,7 +93,7 @@ class ProcessTest(unittest.TestCase):
 
     def test_call_on_device(self):
         d = self.p.create_MockDevice("MD")
-        self.s.inq.Signal((SType.Call, dict(endpoint="MD.methods.run")))
+        self.s.inq.Signal((SType.Call, dict(endpoint="MD", method="run")))
         self.assertEqual(d.runcalled, False)
         # Yield to let socket recv
         cothread.Yield()

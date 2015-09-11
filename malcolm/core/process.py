@@ -11,7 +11,7 @@ from .base import weak_method
 from .device import Device, not_process_creatable
 from .deviceClient import DeviceClient
 from malcolm.core.socketInterface import ClientSocket, ServerSocket
-from .subscription import Subscription
+from .subscription import ServerSubscription
 from .attribute import Attribute
 
 
@@ -46,7 +46,7 @@ class Process(Device, multiprocessing.Process):
         self._client_socks = weakref.WeakValueDictionary()
         # List of spawned cothreads
         self.spawned = []
-        # send function -> Subscription
+        # send function -> ServerSubscription
         self.subscriptions = {}
         # Make a router loop
         router = EventLoop(name + ".router")
@@ -192,9 +192,12 @@ class Process(Device, multiprocessing.Process):
         else:
             send(SType.Return, ret)
 
-    def do_call(self, send, endpoint, args={}):
+    def do_call(self, send, endpoint, method, args={}):
         device, ename = self._get_device(endpoint)
-        endpoint = device.get_endpoint(ename)
+        assert ename is None, \
+            "Must Call with endpoint=<device> and method=<method>. " \
+            "Got endpoint={} and method={}".format(endpoint, method)
+        endpoint = device.get_endpoint("methods." + method)
         assert callable(endpoint), "Expected function, got {}".format(endpoint)
         if ename == "exit":
             self._device_servers.pop(device.name)
@@ -208,9 +211,10 @@ class Process(Device, multiprocessing.Process):
         send(SType.Return, endpoint)
 
     def do_subscribe(self, send, endpoint):
-        sub = Subscription(*self._get_device(endpoint), send=send)
+        sub = ServerSubscription(*self._get_device(endpoint), send=send)
         self.subscriptions[send] = sub
         self.add_loop(sub)
+        return sub
 
     def do_unsubscribe(self, send):
         self.subscriptions.pop(send).loop_stop()

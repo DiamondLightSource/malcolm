@@ -1,0 +1,12 @@
+.. code-block:: javascript
+
+    {
+      "type": "Call", 
+      "id": 0, 
+      "endpoint": "zebra1", 
+      "method": "configure", 
+      "args": {
+        "PC_BIT_CAP": 1, 
+        "PC_TSPRE": "ms"
+      }
+    }

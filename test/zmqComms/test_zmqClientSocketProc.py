@@ -1,7 +1,6 @@
 #!/bin/env dls-python
 from pkg_resources import require
 from collections import OrderedDict
-from malcolm.core.socket import ClientSocket
 require("mock")
 require("pyzmq")
 import unittest
@@ -11,24 +10,25 @@ import weakref
 import cothread
 
 import logging
-logging.basicConfig()
-#logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig()
+logging.basicConfig(level=logging.DEBUG)
 from mock import patch, MagicMock
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.zmqComms.zmqClientSocket import ZmqClientSocket
 from malcolm.zmqComms.zmqServerSocket import ZmqServerSocket
 from malcolm.core.serialize import SType
+from malcolm.core.socketInterface import ClientSocket, ServerSocket
 
 
 class ZmqClientSocketProcTest(unittest.TestCase):
 
     def setUp(self):
-        self.cs = ZmqClientSocket("ipc://frfe.ipc")
+        self.cs = ClientSocket.make_socket("zmq://ipc://tmp/frfes.ipc")
         self.cs.loop_run()
-        self.ss = ZmqServerSocket("ipc://frfe.ipc", None)
-        self.ss.open(self.ss.name)
-    
+        self.ss = ServerSocket.make_socket("zmq://ipc:///tmp/frfess.ipc", None)
+        self.ss.open(self.ss.address)
+
     def test_gc(self):
         cothread.Yield()
 

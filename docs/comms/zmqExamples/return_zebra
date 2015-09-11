@@ -1,0 +1,187 @@
+.. code-block:: javascript
+
+    {
+      "type": "Return", 
+      "id": 0, 
+      "value": {
+        "name": "zebra1", 
+        "tags": [
+          "DummyZebra", 
+          "RunnableDevice", 
+          "Device"
+        ], 
+        "methods": {
+          "abort": {
+            "name": "abort", 
+            "descriptor": "Abort configuration or abandon the current run whether it is\n        running or paused. It blocks until the device is in a rest state:\n         * Normally it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
+            "args": {
+              "timeout": {
+                "type": "float", 
+                "descriptor": "Time in seconds to wait for function"
+              }
+            }, 
+            "valid_states": [
+              "Configuring", 
+              "Ready", 
+              "Running", 
+              "Pausing", 
+              "Paused", 
+              "Resetting"
+            ]
+          }, 
+          "assert_valid": {
+            "name": "assert_valid", 
+            "descriptor": "Check parameters are valid", 
+            "args": {
+              "PC_BIT_CAP": {
+                "type": "int", 
+                "tags": [
+                  "argument:required"
+                ], 
+                "descriptor": "Which encoders to capture"
+              }, 
+              "PC_TSPRE": {
+                "type": "str", 
+                "tags": [
+                  "argument:required"
+                ], 
+                "descriptor": "What time units for capture"
+              }
+            }
+          }, 
+          "configure": {
+            "name": "configure", 
+            "descriptor": "Assert params are valid, then use them to configure a device for a run.\n        It blocks until the device is in a rest state:\n         * Normally it will return a DState.Configured Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
+            "args": {
+              "PC_BIT_CAP": {
+                "type": "int", 
+                "tags": [
+                  "argument:required"
+                ], 
+                "descriptor": "Which encoders to capture"
+              }, 
+              "PC_TSPRE": {
+                "type": "str", 
+                "tags": [
+                  "argument:required"
+                ], 
+                "descriptor": "What time units for capture"
+              }
+            }, 
+            "valid_states": [
+              "Idle", 
+              "Ready"
+            ]
+          }, 
+          "configure_run": {
+            "name": "configure_run", 
+            "descriptor": "Try and configure and run a device in one step. It blocks until the\n        device is in a rest state:\n         * Normally it will return a DState.Idle Status\n         * If the device allows many runs from a single configure then it\n           will return a DState.Ready Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
+            "args": {
+              "PC_BIT_CAP": {
+                "type": "int", 
+                "tags": [
+                  "argument:required"
+                ], 
+                "descriptor": "Which encoders to capture"
+              }, 
+              "PC_TSPRE": {
+                "type": "str", 
+                "tags": [
+                  "argument:required"
+                ], 
+                "descriptor": "What time units for capture"
+              }
+            }, 
+            "valid_states": [
+              "Fault", 
+              "Idle", 
+              "Configuring", 
+              "Ready", 
+              "Running", 
+              "Pausing", 
+              "Paused", 
+              "Aborting", 
+              "Aborted", 
+              "Resetting"
+            ]
+          }, 
+          "exit": {
+            "name": "exit", 
+            "descriptor": "Stop the event loop and destoy the device"
+          }, 
+          "ping": {
+            "name": "ping", 
+            "descriptor": "Just return 'pong'. Used for heartbeat"
+          }, 
+          "reset": {
+            "name": "reset", 
+            "descriptor": "Try and reset the device into DState.Idle. It blocks until the\n        device is in a rest state:\n         * Normally it will return a DState.Idle Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
+            "args": {
+              "timeout": {
+                "type": "float", 
+                "descriptor": "Time in seconds to wait for function"
+              }
+            }, 
+            "valid_states": [
+              "Fault", 
+              "Aborted"
+            ]
+          }, 
+          "run": {
+            "name": "run", 
+            "descriptor": "Start a configured device running. It blocks until the device is in a\n        rest state:\n         * Normally it will return a DState.Idle Status\n         * If the device allows many runs from a single configure the it\n           will return a DState.Ready Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
+            "args": {
+              "timeout": {
+                "type": "float", 
+                "descriptor": "Time in seconds to wait for function"
+              }
+            }, 
+            "valid_states": [
+              "Ready", 
+              "Paused"
+            ]
+          }
+        }, 
+        "stateMachine": {
+          "message": "Configuring...", 
+          "state": {
+            "index": 2, 
+            "choices": [
+              "Fault", 
+              "Idle", 
+              "Configuring", 
+              "Ready", 
+              "Running", 
+              "Pausing", 
+              "Paused", 
+              "Aborting", 
+              "Aborted", 
+              "Resetting"
+            ]
+          }, 
+          "timeStamp": {
+            "secondsPastEpoch": 14419090000, 
+            "nanoseconds": 200000762, 
+            "userTag": 0
+          }
+        }, 
+        "attributes": {
+          "timeout": {
+            "type": "float", 
+            "descriptor": "Time in seconds to wait for function"
+          }, 
+          "CONNECTED": {
+            "type": "int", 
+            "descriptor": "Is zebra connected"
+          }, 
+          "PC_BIT_CAP": {
+            "type": "int", 
+            "descriptor": "Which encoders to capture"
+          }, 
+          "PC_TSPRE": {
+            "type": "str", 
+            "descriptor": "What time units for capture"
+          }
+        }
+      }
+    }

@@ -55,10 +55,7 @@ The client facing socket:
 
 The device facing socket:
 
-- deserializes the `devnotify_json`_
-- if it is a `ready_json`_ then register the device as one of the currently registered
-  devices
-- if it is a `response_json`_ then route it back to the correct `ZmqDeviceClient`_
+- deserializes the `response_json`_
 
 It also makes sure that both the clients and devices produce data once every 10 seconds,
 marking them as disconnected and informing the interested parties if so.
@@ -70,8 +67,6 @@ for translating `ZmqDeviceClient`_ requests into :class:`malcolm.core.Device`
 function calls, returning the relevant status updates, return codes and error
 messages. It does this by:
 
-- sending a `ready_json`_ using a ZeroMQ DEALER socket that is connected to the
-  `ZmqMalcolmRouter`_ device facing socket
 - waiting for `request_json`_, deserializing it when it arrives
 - if it is a `get_json`_ then serializing the requested parameter and sending it back
 - if it is a `call_json`_ then calling the requested method, sending `value_json`_
@@ -82,29 +77,25 @@ request_json
 ------------
 Can be one of:
 
-- `call_json`_ to call a method of a device
-- `get_json`_ to get a parameter of a device
-
-devnotify_json
---------------
-Can be one of:
-
-- `ready_json`_ for a notifications of newly connected devices
-- `response_json`_ for device responses to client requests
+- `call_json`_ to call a method of a device endpoint
+- `get_json`_ to get the structure/value of an endpoint
+- `subscribe_json`_ to subscribe to changes in the structure/value of an endpoint
+- `unsubscribe_json`_ to request cancellation of a subscription
 
 response_json
 -------------
 Can be one of:
 
-- `value_json`_ for status updates during a function
-- `return_json`_ for return values (including None)
+- `value_json`_ for notifications of changes to a subscribed endpoint
+- `return_json`_ for return values (including None) from calls, gets and subscribes
 - `error_json`_ for raised errors
 
 call_json
 ---------
 - type = "Call"
 - id = ``<int id to appear in responses>``
-- method = ``<name of device>.<name of method>``
+- endpoint = ``<name of device>``
+- method = ``<name of method>``
 - args (optional)
 
   - ``<arg1name>`` = ``<arg1value>``
@@ -116,17 +107,14 @@ call_json
 
         **Example**: Call ``zebra.configure(PC_BIT_CAP=1, PC_TSPRE="ms")``:
 
-    .. code-block:: javascript
-    
-        {
-          "args": {
-            "PC_BIT_CAP": 1, 
-            "PC_TSPRE": "ms"
-          }, 
-          "type": "Call", 
-          "method": "zebra1.configure", 
-          "id": 0
-        }
+    .. include:: zmqExamples/call_zebra_configure
+
+
+get_json
+--------
+- type = "Get"
+- id = ``<int id to appear in responses>``
+- endpoint = ``<name of device>`` or ``<name of device>.<name of method>``
 
 .. container:: toggle
 
@@ -134,33 +122,15 @@ call_json
 
         **Example**: Get the list of all available device names:
 
-    .. code-block:: javascript
-
-        {
-          "type": "Call", 
-          "method": "malcolm.devices", 
-          "id": 0
-        }
-
-get_json
---------
-- type = "Get"
-- id = ``<int id to appear in responses>``
-- param = ``<name of device>`` or ``<name of device>.<name of method>``
+    .. include:: zmqExamples/get_DirectoryService_Device_instances
 
 .. container:: toggle
 
     .. container:: header
 
-        **Example**: Get the last status message from zebra:
+        **Example**: Get the stateMachine status from zebra:
 
-    .. code-block:: javascript
-    
-        {
-          "type": "Get", 
-          "id": 0, 
-          "param": "zebra1.status"
-        }
+    .. include:: zmqExamples/get_zebra_status
 
 .. container:: toggle
 
@@ -168,38 +138,40 @@ get_json
 
         **Example**: Get the entire "zebra1" structure:
         
-    .. code-block:: javascript
-    
-        {
-          "type": "Get", 
-          "id": 0, 
-          "param": "zebra1"
-        }
+    .. include:: zmqExamples/get_zebra
 
-ready_json
-----------
-- type = "Ready"
-- device = ``<name of device>``
+subscribe_json
+--------------
+- type = "Subscribe"
+- id = ``<int id to appear in responses>``
+- endpoint = ``<name of device>`` or ``<name of device>.<name of method>``
 
 .. container:: toggle
 
     .. container:: header
 
-        **Example**: A signal from "zebra1" saying it's ready:
+        **Example**: Subscribe to changes in zebra stateMachine status:
 
+    .. include:: zmqExamples/subscribe_zebra_status
 
-    .. code-block:: javascript
-    
-        {
-          "device": "zebra1", 
-          "type": "Ready"
-        }
+unsubscribe_json
+----------------
+- type = "Unsubscribe"
+- id = ``<int id provided to subscribe>``
+
+.. container:: toggle
+
+    .. container:: header
+
+        **Example**: Unsubscribe an existing subscription:
+
+    .. include:: zmqExamples/unsubscribe_zebra_status
     
 value_json
 ----------
 - type = "Value"
 - id = ``<int id in response to>``
-- val = ``<status update structure>``
+- val = ``<endpoint structure/value>``
 
 .. container:: toggle
 
@@ -207,35 +179,7 @@ value_json
 
         **Example**: A status update from zebra1:
 
-    .. code-block:: javascript
-    
-        {
-          "type": "Value",
-          "id": 0,
-          "val": {
-            "timeStamp": {
-              "nanoseconds": 853468894,
-              "userTag": 0,
-              "secondsPastEpoch": 1437663079
-            },
-            "state": {
-              "index": 2,
-              "choices": [
-                "Fault",
-                "Idle",
-                "Configuring",
-                "Ready",
-                "Running",
-                "Pausing",
-                "Paused",
-                "Aborting",
-                "Aborted",
-                "Resetting"
-              ]
-            },
-            "message": "Configuring..."
-          }
-        }
+    .. include:: zmqExamples/value_zebra_status
 
 return_json
 -----------
@@ -247,37 +191,19 @@ return_json
 
     .. container:: header
 
-        **Example**: Getting the last status message from "zebra1":
+        **Example**: Get the list of all available device names:
 
     .. code-block:: javascript
-    
-        {
-          "type": "Return", 
-          "id": 0, 
-          "val": {
-            "timeStamp": {
-              "nanoseconds": 853468894, 
-              "userTag": 0, 
-              "secondsPastEpoch": 1437663079
-            }, 
-            "state": {
-              "index": 1, 
-              "choices": [
-                "Fault", 
-                "Idle", 
-                "Configuring", 
-                "Ready", 
-                "Running", 
-                "Pausing", 
-                "Paused", 
-                "Aborting", 
-                "Aborted", 
-                "Resetting"
-              ]
-            }, 
-            "message": "message"
-          }
-        }
+
+    .. include:: zmqExamples/return_DirectoryService_Device_instances
+
+.. container:: toggle
+
+    .. container:: header
+
+        **Example**: Getting the last status message from "zebra1":
+
+    .. include:: zmqExamples/return_zebra_status
 
 .. container:: toggle
 
@@ -286,122 +212,10 @@ return_json
         **Example**: Getting the entire "zebra1" structure:
 
     .. code-block:: javascript
-    
-        {
-          "type": "Return", 
-          "id": 0, 
-          "val": {
-            "status": {
-              "timeStamp": {
-                "nanoseconds": 853468894, 
-                "userTag": 0, 
-                "secondsPastEpoch": 1437663079
-              }, 
-              "state": {
-                "index": 2, 
-                "choices": [
-                  "Fault", 
-                  "Idle", 
-                  "Configuring", 
-                  "Ready", 
-                  "Running", 
-                  "Pausing", 
-                  "Paused", 
-                  "Aborting", 
-                  "Aborted", 
-                  "Resetting"
-                ]
-              }, 
-              "message": "Configuring..."
-            }, 
-            "attributes": {
-              "PC_BIT_CAP": {
-                "tags": [
-                  "configure"
-                ], 
-                "timeStamp": {
-                  "nanoseconds": 118811130, 
-                  "userTag": 0, 
-                  "secondsPastEpoch": 1437663842
-                }, 
-                "alarm": {
-                  "status": 0, 
-                  "message": "No alarm", 
-                  "severity": 0
-                }, 
-                "value": 5, 
-                "descriptor": "Which encoders to capture", 
-                "type": "int"
-              }, 
-              "CONNECTED": {
-                "descriptor": "Is zebra connected", 
-                "alarm": {
-                  "status": 1, 
-                  "message": "Communication problem", 
-                  "severity": 3
-                }, 
-                "type": "int", 
-                "value": 0, 
-                "timeStamp": {
-                  "nanoseconds": 118811130, 
-                  "userTag": 0, 
-                  "secondsPastEpoch": 1437663842
-                }
-              }, 
-              "PC_TSPRE": {
-                "tags": [
-                  "configure"
-                ], 
-                "timeStamp": {
-                  "nanoseconds": 118811130, 
-                  "userTag": 0, 
-                  "secondsPastEpoch": 1437663842
-                }, 
-                "alarm": {
-                  "status": 0, 
-                  "message": "No alarm", 
-                  "severity": 0
-                }, 
-                "value": "ms", 
-                "descriptor": "What time units for capture", 
-                "type": "str"
-              }
-            }, 
-            "methods": {
-              "run": {
-                "descriptor": "Start a scan running", 
-                "args": {}, 
-                "valid_states": [
-                  "Ready", 
-                  "Paused"
-                ]
-              }, 
-              "configure": {
-                "descriptor": "Configure the device", 
-                "args": {
-                  "PC_BIT_CAP": {
-                    "descriptor": "Which encoders to capture", 
-                    "type": "int", 
-                    "value": null, 
-                    "tags": [
-                      "required"
-                    ]
-                  }, 
-                  "PC_TSPRE": {
-                    "descriptor": "What time units for capture", 
-                    "type": "str", 
-                    "value": "ms"
-                  }
-                }, 
-                "valid_states": [
-                  "Idle", 
-                  "Ready"
-                ]
-              }
-            }
-          }
-        }
 
+    .. include:: zmqExamples/return_zebra
+
+        
 error_json
 ----------
 - type = "Return"
@@ -412,12 +226,6 @@ error_json
 
     .. container:: header
 
-        **Example**: Trying to call a function on a non-existant device "foo":
+        **Example**: Trying to get endpoint on a non-existant device "foo":
 
-    .. code-block:: javascript
-    
-        {
-          "message": "No device named foo registered", 
-          "type": "Error", 
-          "id": 0
-        }
+    .. include:: zmqExamples/error_foo

@@ -55,10 +55,10 @@ class ZmqSystemTest(unittest.TestCase):
         communicate with it.
 
         """
-        self.ds = DirectoryService(["zmq://ipc://frfe.ipc"])
+        self.ds = DirectoryService(["zmq://ipc:///tmp/frfe.ipc"])
         self.ds.create_Counter("The Counter")
         self.ds.start()
-        self.lp = Process([], "Local Process", ds_string="zmq://ipc://frfe.ipc")
+        self.lp = Process([], "Local Process", ds_string="zmq://ipc:///tmp/frfe.ipc")
         self.lp.run(block=False)
         self.c = self.lp.get_device("The Counter")
 

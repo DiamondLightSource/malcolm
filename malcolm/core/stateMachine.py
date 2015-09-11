@@ -6,7 +6,7 @@ from .loop import HasLoops, EventLoop
 from .listener import HasListeners
 from .serialize import Serializable
 from .base import weak_method
-from .subscription import Subscription
+from .subscription import ServerSubscription
 
 
 class HasStateMachine(HasLoops, HasListeners, Serializable):
@@ -29,7 +29,7 @@ class HasStateMachine(HasLoops, HasListeners, Serializable):
         except TypeError:
             states = [states]
         # Construct object that will wait for us
-        sub = Subscription(self, self._stateMachine_prefix + "state",
+        sub = ServerSubscription(self, self._stateMachine_prefix + "state",
                            timeout=timeout)
         for state in states:
             sub.add_event_handler(state, sub.loop_stop)

@@ -1,15 +1,16 @@
 import functools
 
+from collections import OrderedDict
+
 from .device import Device, not_process_creatable
 from .runnableDevice import DState
-from .loop import ILoop, LState, TimerLoop
+from .loop import ILoop, LState
 from .serialize import SType
 from .base import weak_method
 from .attribute import Attribute
 from .stateMachine import StateMachine
-from .loop import EventLoop
 from .alarm import Alarm
-import time
+from .subscription import ClientSubscription
 
 
 class ValueQueue(ILoop):
@@ -38,6 +39,16 @@ class ValueQueue(ILoop):
         self.inq.close()
         self.loop_confirm_stopped()
 
+    def wait_for_return(self, timeout=None):
+        event, d = self.inq.Wait(timeout)
+        if event == SType.Return:
+            return d["value"]
+        elif event == SType.Error:
+            raise AssertionError(d["message"])
+        else:
+            raise AssertionError("Don't know what to do with {} {}"
+                                 .format(event, d))
+
 
 @not_process_creatable
 class DeviceClient(Device):
@@ -46,9 +57,6 @@ class DeviceClient(Device):
         super(DeviceClient, self).__init__(name, timeout)
         self.monitor = monitor
         self.sock = sock
-        # Every 10 seconds, do a heartbeat
-        #self.add_loop(TimerLoop(
-        #    name + ".hb", weak_method(self.do_ping), timeout=10))
         # Add connection attribute
         self.add_attributes(
             device_client_connected=Attribute(bool, "Is device reponsive?"))
@@ -105,53 +113,43 @@ class DeviceClient(Device):
                 self.do_subscribe(update, "stateMachine")
         # Update methods
         for mname, mdata in structure.get("methods", {}).items():
-            f = functools.partial(weak_method(self.do_call), "methods." + mname)
+            f = functools.partial(weak_method(self.do_call), mname)
             f.__doc__ = mdata.get("descriptor", mname)
             f.func_name = str(mname)
             setattr(self, mname, f)
-
-    def do_request(self, typ, endpoint, **kwargs):
-        vq = ValueQueue("{}({})".format(typ, endpoint))
-        vq.loop_run()
-        kwargs["endpoint"] = endpoint
-        self.sock.request(weak_method(vq.post), typ, kwargs)
-        event, d = vq.inq.Wait(self.timeout)
-        if event == SType.Return:
-            return d["value"]
-        elif event == SType.Error:
-            raise AssertionError(d["message"])
-        else:
-            raise AssertionError("Don't know what to do with {} {}"
-                                 .format(event, d))
 
     def do_subscribe(self, callback, endpoint=None):
         if endpoint is not None:
             endpoint = ".".join((self.name, endpoint))
         else:
             endpoint = self.name
-        el = EventLoop("SockSubscription.{}".format(endpoint))
+        el = ClientSubscription(self.sock, endpoint, callback)
         self.add_loop(el)
-        el.add_event_handler(SType.Value, callback)
-        # TODO: add errback
-        # el.add_event_handler(SType.Error, callback)
-        el.add_event_handler(SType.Return, el.loop_stop)
-        self.sock.request(
-            weak_method(el.post), SType.Subscribe, dict(endpoint=endpoint))
         return el
 
-    def do_call(self, endpoint, *args, **kwargs):
-        # Setup a ValueQueue that will handle the returns
-        endpoint = ".".join((self.name, endpoint))
+    def do_call(self, method, *args, **kwargs):
+        # Call a method on this device
         assert len(args) == 0, \
             "Can't take positional args to methods"
-        return self.do_request(SType.Call, endpoint, args=kwargs)
+        d = OrderedDict(endpoint=self.name)
+        d.update(method=method)
+        d.update(args=OrderedDict(sorted(kwargs.items())))
+        # Setup a ValueQueue that will handle the returns
+        vq = ValueQueue("Call({}.{})".format(self.name, method))
+        vq.loop_run()
+        self.sock.request(weak_method(vq.post), SType.Call, d)
+        return vq.wait_for_return()
 
     def do_get(self, endpoint=None):
         if endpoint is not None:
-            endpoint = ".".join(self.name, endpoint)
+            endpoint = ".".join((self.name, endpoint))
         else:
             endpoint = self.name
-        return self.do_request(SType.Get, endpoint)
+        d = OrderedDict(endpoint=endpoint)
+        vq = ValueQueue("Get({})".format(endpoint))
+        vq.loop_run()
+        self.sock.request(weak_method(vq.post), SType.Get, d)
+        return vq.wait_for_return()
 
     def do_ping(self):
         try:
