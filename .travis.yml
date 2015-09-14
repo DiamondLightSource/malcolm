@@ -7,6 +7,7 @@ cache:
   directories:
     - $HOME/.cache/pip
     - $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION/lib/python$TRAVIS_PYTHON_VERSION/site-packages
+    - $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION/bin
 
 addons:
   apt:
@@ -16,8 +17,9 @@ addons:
 install:
   - env
   - ls -al $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION/lib/python$TRAVIS_PYTHON_VERSION/site-packages
+  - ls -al $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION/bin
   - "pip install -r requirements/test.txt"
-  - "pip install -q python-coveralls"
+  - "pip install coveralls"
   - ls -al $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION/lib/python$TRAVIS_PYTHON_VERSION/site-packages
   - "python setup.py install"
   
@@ -26,3 +28,4 @@ script: nosetests
 
 after_success:
   - coveralls
+
