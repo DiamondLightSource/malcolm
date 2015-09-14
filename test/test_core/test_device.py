@@ -131,7 +131,7 @@ class DeviceTest(unittest.TestCase):
         start = time.time()
         self.d.run()
         end = time.time()
-        self.assertAlmostEqual(end - start, 0.3, delta=0.01)
+        self.assertAlmostEqual(end - start, 0.3, delta=0.02)
         # let the abort task finish
         cothread.Yield()
         self.assertLess(self.ptime, 0.05)
