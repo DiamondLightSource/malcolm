@@ -17,6 +17,9 @@ class DirectoryService(Process):
         self._connection_strings = {}
         # registered devices deviceClient instances
         self._registered_devices = OrderedDict()
+
+    def add_all_attributes(self):
+        super(DirectoryService, self).add_all_attributes()
         # Add attributes for instances of each device type
         for typ in self.device_types:
             a = Attribute([str], "All registered {} instances".format(typ), [])

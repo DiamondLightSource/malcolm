@@ -24,13 +24,6 @@ class Process(Device, multiprocessing.Process):
         server_strings is list of "zmq://tcp://172.23.122.23:5600"
         """
         super(Process, self).__init__(name, timeout)
-        # Add attributes
-        self.add_attributes(
-            server_strings=Attribute(
-                [str], "List of server strings for server socks"),
-            device_types=Attribute([str], "Available device types"),
-            local_devices=Attribute([str], "Devices we are hosting"),
-        )
         # Store ds details
         self.ds = None
         self.ds_name = ds_name
@@ -59,6 +52,18 @@ class Process(Device, multiprocessing.Process):
         self.add_loop(router)
         # populate server strings
         self.server_strings = server_strings
+        # Local devices
+        self.local_devices = []
+
+    def add_all_attributes(self):
+        super(Process, self).add_all_attributes()
+        # Add attributes
+        self.add_attributes(
+            server_strings=Attribute(
+                [str], "List of server strings for server socks"),
+            device_types=Attribute([str], "Available device types"),
+            local_devices=Attribute([str], "Devices we are hosting"),
+        )
         # populate device types
         self.device_types = []
         device_types = Device.subclasses()
@@ -68,8 +73,6 @@ class Process(Device, multiprocessing.Process):
             if d not in Device.not_process_creatable and not inspect.isabstract(d):
                 # Make a method to create an instance of it
                 self.make_create_device(d)
-        # Local devices
-        self.local_devices = []
 
     def make_create_device(self, cls):
         @functools.wraps(cls)
