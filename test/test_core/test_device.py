@@ -10,7 +10,7 @@ import cothread
 import logging
 # logging.basicConfig(level=logging.DEBUG)
 
-# logging.basicConfig()
+logging.basicConfig()
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.devices.dummyDet import DummyDet, DState, SState, DEvent
@@ -70,17 +70,21 @@ class DeviceTest(unittest.TestCase):
         self.assertEqual(self.messages, expected)
 
     def test_pausing_calls_back_correct_methods(self):
-        self.d.configure(nframes=10, exposure=0.01)
+        exposure = 0.05
+        nframes = 5
+        npause = 2
+        rdelay = 0.1
+        self.d.configure(nframes=nframes, exposure=exposure)
         self.d.add_listener(self.callback, "stateMachine")
 
         def pause():
-            cothread.Sleep(0.06)
+            cothread.Sleep((npause+0.5)*exposure)
             pstart = time.time()
             self.d.pause()
             self.ptime = time.time() - pstart
             self.pstate = self.d.stateMachine.state
             self.pframes = self.d.sim.nframes
-            cothread.Sleep(0.06)
+            cothread.Sleep(rdelay)
             rstart = time.time()
             self.d.resume()
             self.rtime = time.time() - rstart
@@ -91,24 +95,24 @@ class DeviceTest(unittest.TestCase):
         start = time.time()
         self.d.run()
         end = time.time()
-        self.assertAlmostEqual(end - start, 0.17, delta=0.02)
+        self.assertAlmostEqual(end - start, exposure*(nframes+1) + rdelay, delta=exposure/2)
         # let the pause and resumetask finish
         t.Wait()
-        self.assertLess(self.ptime, 0.01)
+        self.assertLess(self.ptime, exposure)
         self.assertEqual(self.pstate, DState.Paused)
-        self.assertEqual(self.pframes, 5)
-        self.assertLess(self.rtime, 0.01)
+        self.assertEqual(self.pframes, nframes - npause)
+        self.assertLess(self.rtime, exposure/2)
         self.assertEqual(self.rstate, DState.Running)
-        self.assertEqual(self.rframes, 5)
-        expected = [DState.Running] * 7 + \
+        self.assertEqual(self.rframes, nframes-npause)
+        expected = [DState.Running] * (npause + 2) + \
             [DState.Pausing] * 3 + [DState.Paused] + \
-            [DState.Running] * 6 + [DState.Idle]
+            [DState.Running] * (self.rframes + 1) + [DState.Idle]
         self.assertEqual(self.states, expected)
-        expected = ["Starting run"] + ["Running in progress {}% done".format(i * 100 / 10) for i in range(6)] + \
+        expected = ["Starting run"] + ["Running in progress {}% done".format(i * 100 / nframes) for i in range(npause+1)] + \
             ["Pausing started", "Waiting for detector to stop",
-                "Reconfiguring detector for 5 frames", "Pausing finished"] + ["Starting run"] + \
+                "Reconfiguring detector for {} frames".format(self.rframes), "Pausing finished"] + ["Starting run"] + \
             ["Running in progress {}% done".format(
-                i * 100 / 10) for i in range(5, 11)]
+                i * 100 / nframes) for i in range(self.rframes-1, nframes+1)]
         self.assertEqual(self.messages, expected)
         self.assertEqual(self.d.sim.nframes, 0)
 
