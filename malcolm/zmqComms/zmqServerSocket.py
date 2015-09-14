@@ -14,6 +14,11 @@ class ZmqServerSocket(ZmqSocket, ServerSocket):
     def make_zmq_sock(self, address):
         """Make the zmq sock and bind or connect to address, returning it"""
         sock = self.context.socket(zmq.ROUTER)
+        # Set router sockets to error when client is no longer connected
+        try:
+            sock.setsockopt(zmq.ROUTER_BEHAVIOR, 1)
+        except:
+            sock.setsockopt(zmq.ROUTER_MANDATORY, 1)
         sock.bind(address)
         return sock
 
@@ -36,7 +41,20 @@ class ZmqServerSocket(ZmqSocket, ServerSocket):
                         value = value.to_dict()
                     kwargs.update(value=value)
                 msg = self.serialize(typ, kwargs)
-                self.send([zmq_id, msg])
+                try:
+                    self.send([zmq_id, msg])
+                except zmq.ZMQError:
+                    # Unsubscribe all things with this zmq id
+                    sends = []
+                    for (z, i) in self._send_functions.keys():
+                        if z == zmq_id:
+                            sends.append(self._send_functions.pop((z, i)))
+                    if sends:
+                        self.log_debug("Unsubscribing {}"
+                                       .format([s.endpoint for s in sends]))
+                        for send in sends:
+                            self.processq.Signal(
+                                (SType.Unsubscribe, [send], {}))
 
             self._send_functions[(zmq_id, _id)] = send
         return self._send_functions[(zmq_id, _id)]

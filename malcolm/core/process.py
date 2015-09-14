@@ -217,7 +217,10 @@ class Process(Device, multiprocessing.Process):
         return sub
 
     def do_unsubscribe(self, send):
-        self.subscriptions.pop(send).loop_stop()
+        if send in self.subscriptions:
+            self.subscriptions.pop(send).loop_stop()
+        else:
+            self.log_error("Unknown send func {}".format(getattr(send, "endpoint", send.__name__)))
 
     def do_error(self, error, send, *args, **kwargs):
         EventLoop.error_handler(self.router, error, send, *args, **kwargs)

@@ -19,11 +19,13 @@ class HasListeners(Base):
             "Callback function {} already in callback list".format(
                 callback)
         self._listeners[callback] = prefix
+        self.log_debug("Listeners are now {}".format(self._listeners.keys()))
 
     def remove_listener(self, callback):
         """Remove listener callback function"""
         self.log_debug("Removing listener {}".format(callback))
         self._listeners.pop(callback)
+        self.log_debug("Listeners are now {}".format(self._listeners.keys()))
 
     def get_endpoint(self, ename):
         endpoint = self
@@ -36,7 +38,7 @@ class HasListeners(Base):
         return endpoint
 
     def notify_listeners(self, changes, prefix=""):
-        if not hasattr(self, "_listeners"):
+        if not hasattr(self, "_listeners") or len(self._listeners) == 0:
             return
         # Add on prefix to changes
         changes = {prefix + k: v for k, v in changes.items()}

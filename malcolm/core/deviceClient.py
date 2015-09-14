@@ -2,15 +2,15 @@ import functools
 
 from collections import OrderedDict
 
-from .device import Device, not_process_creatable
 from .runnableDevice import DState
-from .loop import ILoop, LState
-from .serialize import SType
+from .loop import ILoop, LState, HasLoops, TimerLoop
+from .serialize import SType, Serializable
 from .base import weak_method
-from .attribute import Attribute
-from .stateMachine import StateMachine
+from .attribute import Attribute, HasAttributes
+from .stateMachine import StateMachine, HasStateMachine
 from .alarm import Alarm
 from .subscription import ClientSubscription
+from .method import HasMethods
 
 
 class ValueQueue(ILoop):
@@ -50,22 +50,40 @@ class ValueQueue(ILoop):
                                  .format(event, d))
 
 
-@not_process_creatable
-class DeviceClient(Device):
+class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops,
+                   Serializable):
+    _endpoints = "name,descriptor,tags,methods,stateMachine,attributes".split(
+        ",")
 
     def __init__(self, name, sock, monitor=True, timeout=None):
-        super(DeviceClient, self).__init__(name, timeout)
+        super(DeviceClient, self).__init__(name)
+        self.timeout = timeout
         self.monitor = monitor
         self.sock = sock
-        # Add connection attribute
-        self.add_attributes(
-            device_client_connected=Attribute(bool, "Is device reponsive?"))
+        self.add_methods()
+        self.add_loop(TimerLoop("{}.uptime".format(self.name),
+                                weak_method(self._check_uptime), 1))
 
     def loop_run(self):
         super(DeviceClient, self).loop_run()
+        self._reconnect()
+
+    def _reconnect(self):
+        self._last_uptime = 0
+        self._uptime_static = 0
+        # Unsubscribe old subs
+        [sub.loop_stop()
+         for sub in self._loops if type(sub) == ClientSubscription]
         # Get the structure
         structure = self.do_get()
+        # Update properties
+        self.descriptor = structure.get("descriptor", "")
+        self.tags = structure.get("tags", [])
         # Update attributes
+        self.attributes = {}
+        # Add connection attribute
+        self.add_attributes(
+            device_client_connected=Attribute(bool, "Is device reponsive?"))
         for aname, adata in structure.get("attributes", {}).items():
             typ = adata["type"]
             if type(typ) == list:
@@ -117,6 +135,8 @@ class DeviceClient(Device):
             f.__doc__ = mdata.get("descriptor", mname)
             f.func_name = str(mname)
             setattr(self, mname, f)
+        self.device_client_connected = True
+        self.log_info("Device connected")
 
     def do_subscribe(self, callback, endpoint=None):
         if endpoint is not None:
@@ -151,10 +171,20 @@ class DeviceClient(Device):
         self.sock.request(weak_method(vq.post), SType.Get, d)
         return vq.wait_for_return()
 
-    def do_ping(self):
-        try:
-            assert self.ping() == "pong"
-        except:
+    def _check_uptime(self):
+        if self._last_uptime >= self.uptime and self._uptime_static > 5:
+            # Device inactive for 5s, must be dead
+            self.log_info("Device inactive, reconnecting")
             self.device_client_connected = False
+            self._reconnect()
+        elif self._last_uptime >= self.uptime:
+            self._uptime_static += 1
         else:
-            self.device_client_connected = True
+            self._last_uptime = self.uptime
+
+    def to_dict(self):
+        """Serialize this object"""
+        return super(DeviceClient, self).to_dict(
+            attributes=getattr(self, "attributes", None),
+            methods=getattr(self, "methods", None),
+            stateMachine=getattr(self, "stateMachine", None))

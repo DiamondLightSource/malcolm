@@ -159,10 +159,15 @@ class DeviceTest(unittest.TestCase):
 
     def test_class_attributes(self):
         self.d.nframes = 3
-        self.assertEqual(len(self.d.attributes), 7)
+        self.assertEqual(len(self.d.attributes), 8)
         items = [(k, v.value) for k, v in self.d.attributes.items()]
-        self.assertEqual(items, [('single', False), ('timeout', None), ('current_step', None), (
+        self.assertEqual(items, [('single', False), ('uptime', None), ('timeout', None), ('current_step', None), (
             'retrace_steps', None), ('total_steps', None), ('exposure', None), ('nframes', 3)])
+
+    def test_uptime(self):
+        self.assertEqual(self.d.uptime, None)
+        cothread.Sleep(1.1)
+        self.assertEqual(self.d.uptime, 1)
 
     def test_del_called_when_out_of_scope(self):
         self.d.add_listener(self.callback, "stateMachine")

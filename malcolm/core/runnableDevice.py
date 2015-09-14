@@ -61,6 +61,9 @@ class RunnableDevice(Device):
         sm = StateMachine(name + ".stateMachine", DState.Idle, DState.Fault)
         self.add_stateMachine(sm)
 
+        # Override the error handler of the stateMachine
+        sm.do_error = weak_method(self.do_error)
+
         # some shortcuts for the state table
         do, t, s, e = self.shortcuts()
 
@@ -78,12 +81,11 @@ class RunnableDevice(Device):
         t(s.abortable(), e.Abort,     do.abort,     s.Aborting)
         t(s.Aborting,    e.AbortSta,  do.abortsta,  s.Aborting, s.Aborted)
 
+    def add_all_attributes(self):
+        super(RunnableDevice, self).add_all_attributes()
         # Timeout for functions
         self.add_attributes(
             timeout=Attribute(float, "Time in seconds to wait for function"))
-
-        # Override the error handler of the stateMachine
-        sm.do_error = weak_method(self.do_error)
 
     def shortcuts(self):
         # Shortcut to all the self.do_ functions

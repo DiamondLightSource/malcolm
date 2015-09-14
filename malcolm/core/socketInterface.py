@@ -129,4 +129,5 @@ class ServerSocket(ISocket):
     def handle_message(self, typ, kwargs):
         """Call recv() on socket and deal with return"""
         send = self.make_send_function(kwargs)
+        send.endpoint = kwargs.get("endpoint", "") 
         self.processq.Signal((typ, [send], kwargs))

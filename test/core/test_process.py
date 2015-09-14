@@ -86,7 +86,7 @@ class ProcessTest(unittest.TestCase):
 
     def test_create_device(self):
         self.assertEqual(self.p.device_types, [
-                         'Device', 'RunnableDevice', 'PausableDevice', 'DummyDet', 'DeviceClient', 'Process', 'MockDevice'])
+                         'Device', 'RunnableDevice', 'PausableDevice', 'DummyDet', 'Process', 'MockDevice'])
         d = self.p.create_MockDevice("MD")
         self.assertIsInstance(d, MockDevice)
         self.assertEqual(d.name, "MD")

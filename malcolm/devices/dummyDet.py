@@ -67,15 +67,18 @@ class DummyDet(PausableDevice):
         # TODO: add single step
         super(DummyDet, self).__init__(name, timeout=timeout)
         self.single = single
+        self.sim = DummyDetSim(name + "Sim")
+        self.sim.add_listener(weak_method(self.on_status))
+        self.add_loop(self.sim)
+        self.sim_post = self.sim.post
+
+    def add_all_attributes(self):
+        super(DummyDet, self).add_all_attributes()
         # Add the attributes
         self.add_attributes(
             nframes=Attribute(int, "Number of frames"),
             exposure=Attribute(float, "Detector exposure"),
         )
-        self.sim = DummyDetSim(name + "Sim")
-        self.sim.add_listener(weak_method(self.on_status))
-        self.add_loop(self.sim)
-        self.sim_post = self.sim.post
 
     @wrap_method(only_in=DState)
     def assert_valid(self, nframes, exposure):

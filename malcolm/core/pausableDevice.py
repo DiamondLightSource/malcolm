@@ -21,6 +21,8 @@ class PausableDevice(RunnableDevice):
         t(s.Pausing,     e.PauseSta,  do.pausesta,  s.Pausing, s.Paused)
         t(s.Paused,      e.Run,       do.run,       s.Running)
 
+    def add_all_attributes(self):
+        super(PausableDevice, self).add_all_attributes()
         # Add attributes
         self.add_attributes(
             total_steps=Attribute(int, "Number of scan steps"),

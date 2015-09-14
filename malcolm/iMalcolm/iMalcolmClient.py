@@ -8,14 +8,13 @@ if __name__ == "__main__":
     import os
     sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from malcolm.core.process import Process, not_process_creatable
+from malcolm.core.process import Process
 from malcolm.core.deviceClient import DeviceClient
 import argparse
 import IPython
 import logging
 
 
-@not_process_creatable
 class IDeviceClient(DeviceClient):
 
     def do_call(self, endpoint, *args, **kwargs):

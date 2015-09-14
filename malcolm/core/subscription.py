@@ -19,6 +19,9 @@ class ServerSubscription(EventLoop):
             self.send = self.do_nothing
         self.add_event_handler(None, self.send)
 
+    def __repr__(self):
+        return "<{}>".format(self.name)
+
     def do_nothing(self, *args, **kwargs):
         pass
 

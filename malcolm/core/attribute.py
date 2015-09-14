@@ -38,8 +38,8 @@ class HasAttributes(HasListeners):
             return self.attributes[attr].value
         else:
             raise AttributeError(
-                "Object has no attribute '{}' and self.attributes not defined"
-                .format(attr))
+                "Object '{}' has no attribute '{}'"
+                .format(object.__getattribute__(self, "_name"),  attr))
 
     def __setattr__(self, attr, value):
         """If we have an attribute, then set it, otherwise set it as a local

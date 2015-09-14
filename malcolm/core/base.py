@@ -13,7 +13,7 @@ class Base(object):
         self._log = logging.getLogger(self._name)
         self.log_debug = self._log.debug
         self.log_warning = self._log.warning
-        self.log_info = self._log.warning
+        self.log_info = self._log.info
         self.log_error = self._log.error
         self.log_exception = self._log.exception
 

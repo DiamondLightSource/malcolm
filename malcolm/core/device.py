@@ -1,11 +1,12 @@
 import inspect
 from collections import OrderedDict
 
-from .attribute import HasAttributes
+from .attribute import HasAttributes, Attribute
 from .stateMachine import HasStateMachine
 from .method import HasMethods, wrap_method
-from .loop import HasLoops
+from .loop import HasLoops, TimerLoop
 from .serialize import Serializable
+from .base import weak_method
 
 
 def not_process_creatable(cls):
@@ -23,10 +24,22 @@ class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops,
     def __init__(self, name, timeout=None):
         super(Device, self).__init__(name)
         self.timeout = timeout
-
-    def loop_run(self):
+        self.add_all_attributes()
         self.add_methods()
-        super(Device, self).loop_run()
+        self.add_loop(TimerLoop("{}.uptime".format(self.name),
+                                weak_method(self._inc_uptime), 1))
+
+    def _inc_uptime(self):
+        if self.uptime is None:
+            self.uptime = 1
+        else:
+            self.uptime += 1
+
+    def add_all_attributes(self):
+        """Add all attributes to a device. Make sure you super() call this in
+        subclasses"""
+        self.add_attributes(
+            uptime=Attribute(int, "Seconds since device was created"))
 
     def create_device(self, cls, name, *args, **kwargs):
         """Locally available method to create device, will be overridden if
@@ -56,11 +69,6 @@ class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops,
     def exit(self):
         """Stop the event loop and destoy the device"""
         self.__del__()
-
-    @wrap_method()
-    def ping(self):
-        """Just return 'pong'. Used for heartbeat"""
-        return "pong"
 
     def to_dict(self):
         """Serialize this object"""
