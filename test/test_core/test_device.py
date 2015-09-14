@@ -45,7 +45,7 @@ class DeviceTest(unittest.TestCase):
         ret = self.d.configure(nframes=10, exposure=0.01)
         end = time.time()
         self.d.remove_listener(self.callback)
-        self.assertLess(end - start, 0.005)
+        self.assertLess(end - start, 0.008)
         expected = [DState.Configuring, DState.Ready]
         self.assertEqual(self.states, expected)
         expected = ["Configuring started", "Configuring finished"]
