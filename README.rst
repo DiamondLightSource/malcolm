@@ -40,8 +40,8 @@ APACHE License. (see `LICENSE`_)
     :target: https://travis-ci.org/dls-controls/malcolm
     :alt: Build Status
 
-.. |coverage| image:: https://coveralls.io/repos/dls-controls/malcolm/badge.svg?branch=develop
-    :target: https://coveralls.io/r/dls-controls/malcolm?branch=develop
+.. |coverage| image:: https://coveralls.io/repos/dls-controls/malcolm/badge.svg?branch=master&service=github
+    :target: https://coveralls.io/github/dls-controls/malcolm?branch=master
     :alt: Test coverage
 
 .. |pypi-version| image:: https://img.shields.io/pypi/v/malcolm.svg
