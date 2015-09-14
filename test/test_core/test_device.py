@@ -123,7 +123,7 @@ class DeviceTest(unittest.TestCase):
         self.d.add_listener(self.callback, "stateMachine")
 
         def abort():
-            cothread.Sleep(0.26)
+            cothread.Sleep(0.27)
             pstart = time.time()
             self.pret = self.d.abort()
             self.ptime = time.time() - pstart
