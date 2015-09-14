@@ -11,7 +11,7 @@ import time
 import cothread
 import logging
 from mock import MagicMock, call
-#logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 
 # logging.basicConfig()
 # Module import
@@ -25,8 +25,6 @@ class DeviceTest(unittest.TestCase):
     def setUp(self):
         self.sock = MagicMock()
         self.d = DeviceClient("D", self.sock, timeout=1)
-
-    def test_setup(self):
         self.assertEqual(self.sock.mock_calls, [])
 
     def test_run_calls_right_things(self):
@@ -103,27 +101,19 @@ class DeviceTest(unittest.TestCase):
         self.assertEqual(self.d.stateMachine.message, "foo")
         self.assertEqual(self.d.stateMachine.timeStamp, 43.2)
 
-    def test_gc(self):
-        def side_effect(post, typ, kwargs):
-            if kwargs["endpoint"] == "D":
-                sm = dict(
-                    state=DState.Running.to_dict(), message="foo", timeStamp=43.2)
-                run = dict(descriptor="Run")
-                bit = dict(type="int", descriptor="Desc", value=3,
-                           alarm=Alarm.ok().to_dict(), timeStamp=43.2)
-                post(SType.Return, value=dict(
-                    attributes=dict(bit=bit), stateMachine=sm, methods=dict(run=run)))
-        self.sock.request.side_effect = side_effect
-        self.d.loop_run()
-        self.assertEqual(len(self.sock.mock_calls), 3)
+    def tearDown(self):
         msgs = []
 
         def log_debug(msg):
             msgs.append(msg)
+
         self.d.log_debug = log_debug
         self.d = None
-        self.assertEqual(msgs, ['Garbage collecting loop', 'Stopping loop', 'Waiting for loop to finish', 
-                                'Confirming loop stopped', 'Loop garbage collected'])
+        self.assertEqual(msgs, ['Garbage collecting loop',
+                                'Stopping loop',
+                                'Waiting for loop to finish',
+                                'Confirming loop stopped',
+                                'Loop garbage collected'])
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
