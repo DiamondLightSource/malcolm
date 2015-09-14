@@ -146,7 +146,7 @@ class DeviceTest(unittest.TestCase):
         expected = [0] + [0.05 * i for i in range(6)] + [0.26, 0.26, 0.3]
         self.assertEqual(len(expected), len(self.timeStamps))
         for e, a in zip(expected, self.timeStamps):
-            self.assertAlmostEqual(e, a - start, delta=0.005)
+            self.assertAlmostEqual(e, a - start, delta=0.008)
 
     def test_attribute_settings_and_locals(self):
         self.assertEqual(self.d.nframes, None)
