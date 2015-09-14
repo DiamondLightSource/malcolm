@@ -18,7 +18,7 @@ install:
   - ls -al $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION/lib/python$TRAVIS_PYTHON_VERSION/site-packages
   - ls -al $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION/bin
   - "pip install -r requirements/test.txt"
-  - "pip install coveralls --force-reinstall"
+  - "pip install coveralls --upgrade"
   - ls -al $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION/lib/python$TRAVIS_PYTHON_VERSION/site-packages
   - "python setup.py install"
   
