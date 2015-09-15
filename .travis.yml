@@ -6,8 +6,7 @@ python:
 cache:
   directories:
     - $HOME/.cache/pip
-    - $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION/lib/python$TRAVIS_PYTHON_VERSION/site-packages/numpy
-    - $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION/lib/python$TRAVIS_PYTHON_VERSION/site-packages/zmq    
+    - $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION/lib/python$TRAVIS_PYTHON_VERSION/site-packages
 
 addons:
   apt:
@@ -17,10 +16,11 @@ addons:
 install:
   - env
   - ls -al $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION/lib/python$TRAVIS_PYTHON_VERSION/site-packages
-  - "pip install -r requirements/test.txt"
-  - "pip install coveralls"
+  - pip uninstall coveralls
+  - pip install -r requirements/test.txt
+  - pip install coveralls
   - ls -al $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION/lib/python$TRAVIS_PYTHON_VERSION/site-packages
-  - "python setup.py install"
+  - python setup.py install
   
 # command to run tests
 script: nosetests
