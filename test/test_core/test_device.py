@@ -70,7 +70,7 @@ class DeviceTest(unittest.TestCase):
         self.assertEqual(self.messages, expected)
 
     def test_pausing_calls_back_correct_methods(self):
-        exposure = 0.05
+        exposure = 0.1
         nframes = 5
         npause = 2
         rdelay = 0.1
@@ -95,6 +95,7 @@ class DeviceTest(unittest.TestCase):
         start = time.time()
         self.d.run()
         end = time.time()
+        print end - start
         self.assertAlmostEqual(end - start, exposure*(nframes+1) + rdelay, delta=exposure/2)
         # let the pause and resumetask finish
         t.Wait()
