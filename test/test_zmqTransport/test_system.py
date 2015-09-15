@@ -50,7 +50,8 @@ class Counter(Device):
     def exit(self):
         pass
 
-class ZmqSystemTest(unittest.TestCase):
+#class ZmqSystemTest(unittest.TestCase):
+class ZmqSystemTest(object):
 
     def setUp(self):
         """
