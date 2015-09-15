@@ -4,7 +4,6 @@ import functools
 import weakref
 
 from .base import Base
-from .serialize import Serializable
 from .attribute import Attribute
 
 
@@ -41,7 +40,7 @@ def wrap_method(only_in=None, args_from=None, **attributes):
     return decorator
 
 
-class Method(Serializable):
+class Method(Base):
     """Class representing a callable method"""
     _endpoints = "name,descriptor,args,valid_states".split(",")
 

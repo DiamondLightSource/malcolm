@@ -2,15 +2,18 @@ from abc import ABCMeta
 import logging
 import weakref
 import functools
+from collections import OrderedDict
 
 
 class Base(object):
     __metaclass__ = ABCMeta
+    _endpoints = ""
 
     def __init__(self, name):
         super(Base, self).__init__()
         self._name = name
-        self._log = logging.getLogger(self._name)
+        lname = "{}({})".format(type(self).__name__, self._name)
+        self._log = logging.getLogger(lname)
         self.log_debug = self._log.debug
         self.log_warning = self._log.warning
         self.log_info = self._log.info
@@ -20,6 +23,17 @@ class Base(object):
     @property
     def name(self):
         return self._name
+
+    def to_dict(self, **overrides):
+        d = OrderedDict()
+        for endpoint in self._endpoints:
+            if endpoint in overrides:
+                val = overrides[endpoint]
+            else:
+                val = getattr(self, endpoint)
+            if val not in ([], {}, (), None):
+                d[endpoint] = val
+        return d
 
 
 def weak_method(method):

@@ -3,9 +3,8 @@ import time
 import functools
 
 from .alarm import Alarm
-from .serialize import Serializable
 from .listener import HasListeners
-from .base import weak_method
+from .base import weak_method, Base
 
 
 class HasAttributes(HasListeners):
@@ -50,7 +49,7 @@ class HasAttributes(HasListeners):
             return object.__setattr__(self, attr, value)
 
 
-class Attribute(Serializable):
+class Attribute(Base):
     """Class representing an attribute"""
     _endpoints = "value,type,tags,descriptor,alarm,timeStamp".split(",")
 

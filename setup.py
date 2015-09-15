@@ -54,9 +54,9 @@ setup(
     include_package_data=True,
     test_suite='nose.collector',
     tests_require=[
-        'coverage>=3.7.1',
-        'flake8',
-        'mock>=1.0.1',
+ #       'coverage>=3.7.1',
+ #       'flake8',
+ #       'mock>=1.0.1',
         'nose>=1.3.0',
     ],
     zip_safe=False,

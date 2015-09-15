@@ -1,5 +1,5 @@
 try:
-    from malcolm import zmqComms
+    from malcolm import zmqTransport
 except ImportError:
     print "No zmq available"
     pass

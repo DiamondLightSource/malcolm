@@ -15,9 +15,8 @@ import logging
 from mock import patch, MagicMock
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from malcolm.zmqComms.zmqServerSocket import ZmqServerSocket
-from malcolm.core.socketInterface import ServerSocket
-from malcolm.core.serialize import SType
+from malcolm.zmqTransport.zmqServerSocket import ZmqServerSocket
+from malcolm.core.transport import ServerSocket, SType
 
 
 class InqSock(cothread.EventQueue):

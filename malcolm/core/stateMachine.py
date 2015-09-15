@@ -4,12 +4,11 @@ import weakref
 
 from .loop import HasLoops, EventLoop
 from .listener import HasListeners
-from .serialize import Serializable
 from .base import weak_method
 from .subscription import ServerSubscription
 
 
-class HasStateMachine(HasLoops, HasListeners, Serializable):
+class HasStateMachine(HasLoops, HasListeners):
     _stateMachine_prefix = "stateMachine."
     _endpoints = "stateMachine".split(",")
 
@@ -39,7 +38,7 @@ class HasStateMachine(HasLoops, HasListeners, Serializable):
         sub.loop_wait()
 
 
-class StateMachine(EventLoop, Serializable):
+class StateMachine(EventLoop):
     """Create a state machine object that will listen for events on its
     input queue, and call the respective transition function
 

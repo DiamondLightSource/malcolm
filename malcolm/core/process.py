@@ -5,14 +5,13 @@ import functools
 import inspect
 
 from .loop import EventLoop, TimerLoop, LState
-from .serialize import SType
 from .method import Method, wrap_method
-from .base import weak_method
 from .device import Device, not_process_creatable
 from .deviceClient import DeviceClient
-from malcolm.core.socketInterface import ClientSocket, ServerSocket
+from .transport import ClientSocket, ServerSocket, SType
 from .subscription import ServerSubscription
 from .attribute import Attribute
+from .base import weak_method
 
 
 @not_process_creatable
@@ -168,8 +167,8 @@ class Process(Device, multiprocessing.Process):
     def exit(self):
         """Stops the event loops and waits until they're done."""
         # Can't do super, as we've decorated it
-        Device.exit.function(self)
-        for ct in self.spawned:
+        self.__del__()
+        for i, ct in enumerate(self.spawned):
             ct.Wait()
         self.quitsig.Signal()
 
@@ -202,7 +201,10 @@ class Process(Device, multiprocessing.Process):
             "Got endpoint={} and method={}".format(endpoint, method)
         endpoint = device.get_endpoint("methods." + method)
         assert callable(endpoint), "Expected function, got {}".format(endpoint)
-        if ename == "exit":
+        if method == "exit" and device.name == self.name:
+            send(SType.Return, None)
+            return self.exit()
+        elif method == "exit":
             self._device_servers.pop(device.name)
             self.update_devices()
         ct = self.cothread.Spawn(self.do_func, send, endpoint, args)

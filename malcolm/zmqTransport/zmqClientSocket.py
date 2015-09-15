@@ -1,8 +1,10 @@
+from collections import OrderedDict
+import weakref
+
 import zmq
 
+from malcolm.core.transport import ClientSocket
 from .zmqSocket import ZmqSocket
-from malcolm.core.socketInterface import ClientSocket
-from collections import OrderedDict
 
 
 class ZmqClientSocket(ZmqSocket, ClientSocket):
@@ -25,6 +27,8 @@ class ZmqClientSocket(ZmqSocket, ClientSocket):
             "Already have a request {} in {}".format(self.last_id,
                                                      self.request_id)
         self.request_id[self.last_id] = response
+
+        self = weakref.proxy(self)
 
         def do_request(typ, kwargs=None, _id=self.last_id):
             if kwargs is None:

@@ -1,12 +1,10 @@
 import weakref
+from collections import OrderedDict
 
 import zmq
 
+from malcolm.core.transport import ServerSocket, SType
 from .zmqSocket import ZmqSocket
-from malcolm.core.socketInterface import ServerSocket
-from collections import OrderedDict
-from malcolm.core.serialize import SType
-from malcolm.core.base import weak_method
 
 
 class ZmqServerSocket(ZmqSocket, ServerSocket):

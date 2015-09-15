@@ -1,9 +1,5 @@
 #!/bin/env dls-python
 from pkg_resources import require
-from malcolm.zmqComms.zmqServerSocket import ZmqServerSocket
-from malcolm.core.loop import LState
-from malcolm.core.method import wrap_method
-from malcolm.core.directoryService import DirectoryService
 
 require("mock")
 require("pyzmq")
@@ -18,24 +14,28 @@ import cothread
 
 import logging
 logging.basicConfig()
-#level=logging.DEBUG)
+# level=logging.DEBUG)
 # format="%(asctime)s;%(levelname)s;%(message)s")
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.core.runnableDevice import RunnableDevice, DState
 from malcolm.core.attribute import Attribute
-from malcolm.zmqComms.zmqClientSocket import ZmqClientSocket
-from malcolm.core.serialize import SType
+from malcolm.zmqTransport.zmqClientSocket import ZmqClientSocket
 from malcolm.core.deviceClient import DeviceClient
 from collections import OrderedDict
 import difflib
-from malcolm.core.process import Process
+from malcolm.zmqTransport.zmqServerSocket import ZmqServerSocket
+from malcolm.core.loop import LState
+from malcolm.core.transport import SType
+from malcolm.core.method import wrap_method
+from malcolm.core.directoryService import DirectoryService
 
 
 class DummyClientSocket(ZmqClientSocket):
 
     def make_zmq_sock(self, address):
         return MagicMock()
+
 
 class DummyServerSocket(ZmqServerSocket):
 
@@ -47,12 +47,14 @@ class DummyZebra(RunnableDevice):
 
     def __init__(self, name):
         super(DummyZebra, self).__init__(name)
+
+    def add_all_attributes(self):
+        RunnableDevice.add_all_attributes(self)
         self.add_attributes(
             PC_BIT_CAP=Attribute(int, "Which encoders to capture"),
             PC_TSPRE=Attribute(str, "What time units for capture"),
             CONNECTED=Attribute(int, "Is zebra connected"),
         )
-        self.add_methods()
 
     @wrap_method()
     def assert_valid(self, PC_BIT_CAP, PC_TSPRE):
@@ -149,30 +151,35 @@ class ZmqDocsTest(unittest.TestCase):
         send = self.ss.make_send_function(dict(zmq_id=1, id=0))
         sub = self.ds.do_subscribe(send, "zebra1.stateMachine")
         sub.inq = MagicMock()
-        self.zebra.stateMachine.update(state=DState.Configuring, message="Configuring...", timeStamp=14419090000.2)
+        self.zebra.stateMachine.update(
+            state=DState.Configuring, message="Configuring...", timeStamp=14419090000.2)
         send(*sub.inq.Signal.call_args[0][0][1])
         call_args = self.ss.sock.send_multipart.call_args
         self.assertDocExample("value_zebra_status", call_args[0][0][1])
 
     def test_return_zebra_status(self):
         send = self.ss.make_send_function(dict(zmq_id=1, id=0))
-        self.zebra.stateMachine.update(state=DState.Configuring, message="Configuring...", timeStamp=14419090000.2)        
+        self.zebra.stateMachine.update(
+            state=DState.Configuring, message="Configuring...", timeStamp=14419090000.2)
         self.ds.do_get(send, "zebra1.stateMachine")
         call_args = self.ss.sock.send_multipart.call_args
-        self.assertDocExample("return_zebra_status", call_args[0][0][1])        
+        self.assertDocExample("return_zebra_status", call_args[0][0][1])
 
     def test_return_zebra(self):
         send = self.ss.make_send_function(dict(zmq_id=1, id=0))
-        self.zebra.stateMachine.update(state=DState.Configuring, message="Configuring...", timeStamp=14419090000.2)        
+        self.zebra.stateMachine.update(
+            state=DState.Configuring, message="Configuring...", timeStamp=14419090000.2)
         self.ds.do_get(send, "zebra1")
         call_args = self.ss.sock.send_multipart.call_args
         self.assertDocExample("return_zebra", call_args[0][0][1])
 
     def test_return_DirectoryService_Device_instances(self):
         send = self.ss.make_send_function(dict(zmq_id=1, id=0))
-        self.ds.do_get(send, "DirectoryService.attributes.Device_instances.value")
+        self.ds.do_get(
+            send, "DirectoryService.attributes.Device_instances.value")
         call_args = self.ss.sock.send_multipart.call_args
-        self.assertDocExample("return_DirectoryService_Device_instances", call_args[0][0][1])
+        self.assertDocExample(
+            "return_DirectoryService_Device_instances", call_args[0][0][1])
 
     # Mock out EventLoop so we don't log error
     @patch("malcolm.core.process.EventLoop")

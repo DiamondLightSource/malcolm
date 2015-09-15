@@ -1,9 +1,14 @@
 import abc
 import socket
 
+from enum import Enum
+
 from .loop import ILoop
-from .serialize import SType
 from .base import weak_method
+
+
+class SType(Enum):
+    Call, Get, Subscribe, Unsubscribe, Error, Value, Return = range(7)
 
 
 class ISocket(ILoop):
@@ -63,8 +68,8 @@ class ISocket(ILoop):
         weak_method(self.handle_message)(typ, kwargs)
 
     def loop_run(self):
-        super(ISocket, self).loop_run()
         self.open(self.address)
+        super(ISocket, self).loop_run()
 
     def loop_stop(self):
         super(ISocket, self).loop_stop()
@@ -129,5 +134,5 @@ class ServerSocket(ISocket):
     def handle_message(self, typ, kwargs):
         """Call recv() on socket and deal with return"""
         send = self.make_send_function(kwargs)
-        send.endpoint = kwargs.get("endpoint", "") 
+        send.endpoint = kwargs.get("endpoint", "")
         self.processq.Signal((typ, [send], kwargs))

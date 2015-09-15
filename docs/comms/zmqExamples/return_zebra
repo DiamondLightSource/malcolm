@@ -109,10 +109,6 @@
             "name": "exit", 
             "descriptor": "Stop the event loop and destoy the device"
           }, 
-          "ping": {
-            "name": "ping", 
-            "descriptor": "Just return 'pong'. Used for heartbeat"
-          }, 
           "reset": {
             "name": "reset", 
             "descriptor": "Try and reset the device into DState.Idle. It blocks until the\n        device is in a rest state:\n         * Normally it will return a DState.Idle Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
@@ -166,6 +162,10 @@
           }
         }, 
         "attributes": {
+          "uptime": {
+            "type": "int", 
+            "descriptor": "Seconds since device was created"
+          }, 
           "timeout": {
             "type": "float", 
             "descriptor": "Time in seconds to wait for function"

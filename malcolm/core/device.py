@@ -5,8 +5,7 @@ from .attribute import HasAttributes, Attribute
 from .stateMachine import HasStateMachine
 from .method import HasMethods, wrap_method
 from .loop import HasLoops, TimerLoop
-from .serialize import Serializable
-from .base import weak_method
+from .base import weak_method, Base
 
 
 def not_process_creatable(cls):
@@ -15,8 +14,7 @@ def not_process_creatable(cls):
 
 
 @not_process_creatable
-class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops,
-             Serializable):
+class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops):
     _endpoints = "name,descriptor,tags,methods,stateMachine,attributes".split(
         ",")
     not_process_creatable = []

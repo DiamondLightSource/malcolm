@@ -1,24 +1,27 @@
 #!/bin/env dls-python
 from pkg_resources import require
-from malcolm.core.device import Device
-from malcolm.core.method import wrap_method
-from malcolm.core.loop import TimerLoop
-from malcolm.core.process import Process
-from malcolm.core.directoryService import DirectoryService
 require("mock")
 require("pyzmq")
+require("cothread")
 import unittest
 import sys
 import os
 import json
 import zmq
 import time
+import sys
 
 import logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig()
+#logging.basicConfig(level=logging.DEBUG)
 # format="%(asctime)s;%(levelname)s;%(message)s")
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
+from malcolm.core.device import Device
+from malcolm.core.method import wrap_method
+from malcolm.core.loop import TimerLoop
+from malcolm.core.process import Process
+from malcolm.core.directoryService import DirectoryService
 
 
 class Counter(Device):
@@ -55,10 +58,13 @@ class ZmqSystemTest(unittest.TestCase):
         communicate with it.
 
         """
-        self.ds = DirectoryService(["zmq://ipc:///tmp/frfe.ipc"])
+        for x in sys.modules.keys():
+            if x.startswith("cothread"):
+                del sys.modules[x]
+        self.ds = DirectoryService(["zmq://ipc:///tmp/sock.ipc"])
         self.ds.create_Counter("The Counter")
         self.ds.start()
-        self.lp = Process([], "Local Process", ds_string="zmq://ipc:///tmp/frfe.ipc")
+        self.lp = Process([], "Local Process", ds_string="zmq://ipc:///tmp/sock.ipc")
         self.lp.run(block=False)
         self.c = self.lp.get_device("The Counter")
 
@@ -81,15 +87,12 @@ class ZmqSystemTest(unittest.TestCase):
         self.assertAlmostEqual(self.c.get_count(), start + 60, delta=3)
 
     def tearDown(self):
-        """
-        Sends a kill message to the pp and waits for the process to terminate.
-
-        """
-        # Send a stop message to the prong process and wait until it joins
-        print self.lp.ds.ping()
+        self.c = None
         self.lp.ds.exit()
         self.lp.exit()
+        self.lp = None
         self.ds.join()
+        self.ds = None
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

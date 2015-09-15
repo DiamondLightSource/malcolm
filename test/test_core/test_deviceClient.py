@@ -11,13 +11,13 @@ import time
 import cothread
 import logging
 from mock import MagicMock, call
-# logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 
 # logging.basicConfig()
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.core.deviceClient import DeviceClient
-from malcolm.core.serialize import SType
+from malcolm.core.transport import SType
 
 
 class DeviceTest(unittest.TestCase):

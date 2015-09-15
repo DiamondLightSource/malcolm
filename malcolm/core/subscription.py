@@ -1,6 +1,6 @@
 from .loop import EventLoop
-from .serialize import SType
 from .base import weak_method
+from .transport import SType
 
 
 class ServerSubscription(EventLoop):

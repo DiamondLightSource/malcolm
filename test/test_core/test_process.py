@@ -5,15 +5,14 @@ import os
 import logging
 import cothread
 from mock import MagicMock
-from malcolm.core.serialize import SType
-from malcolm.core.method import wrap_method
 logging.basicConfig()
 #logging.basicConfig(level=logging.DEBUG)
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.core.process import Process
-from malcolm.core.socketInterface import ServerSocket
+from malcolm.core.transport import ServerSocket, SType
 from malcolm.core.device import Device
+from malcolm.core.method import wrap_method
 
 
 class MockSocket(ServerSocket):
@@ -40,7 +39,8 @@ class MockSocket(ServerSocket):
         """Open the socket on the given address"""
         self.out = []
         self.send = None
-        self.inq = self.cothread.EventQueue()
+        import cothread
+        self.inq = cothread.EventQueue()
 
     def close(self):
         """Close the socket"""

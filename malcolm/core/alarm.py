@@ -1,6 +1,6 @@
 from enum import Enum
 
-from .serialize import Serializable
+from .base import Base
 
 
 class AlarmSeverity(Enum):
@@ -12,7 +12,7 @@ class AlarmStatus(Enum):
         undefinedStatus, clientStatus = range(8)
 
 
-class Alarm(Serializable):
+class Alarm(Base):
     _endpoints = "severity,status,message".split(",")
 
     def __init__(self, severity, status, message):

@@ -4,8 +4,8 @@ from collections import OrderedDict
 
 from .runnableDevice import DState
 from .loop import ILoop, LState, HasLoops, TimerLoop
-from .serialize import SType, Serializable
 from .base import weak_method
+from .transport import SType
 from .attribute import Attribute, HasAttributes
 from .stateMachine import StateMachine, HasStateMachine
 from .alarm import Alarm
@@ -50,13 +50,13 @@ class ValueQueue(ILoop):
                                  .format(event, d))
 
 
-class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops,
-                   Serializable):
+class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
     _endpoints = "name,descriptor,tags,methods,stateMachine,attributes".split(
         ",")
 
     def __init__(self, name, sock, monitor=True, timeout=None):
-        super(DeviceClient, self).__init__(name)
+        super(DeviceClient, self).__init__(name + "Client")
+        self.devicename = name
         self.timeout = timeout
         self.monitor = monitor
         self.sock = sock
@@ -140,9 +140,9 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops,
 
     def do_subscribe(self, callback, endpoint=None):
         if endpoint is not None:
-            endpoint = ".".join((self.name, endpoint))
+            endpoint = ".".join((self.devicename, endpoint))
         else:
-            endpoint = self.name
+            endpoint = self.devicename
         el = ClientSubscription(self.sock, endpoint, callback)
         self.add_loop(el)
         return el
@@ -151,7 +151,7 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops,
         # Call a method on this device
         assert len(args) == 0, \
             "Can't take positional args to methods"
-        d = OrderedDict(endpoint=self.name)
+        d = OrderedDict(endpoint=self.devicename)
         d.update(method=method)
         d.update(args=OrderedDict(sorted(kwargs.items())))
         # Setup a ValueQueue that will handle the returns
@@ -162,9 +162,9 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops,
 
     def do_get(self, endpoint=None):
         if endpoint is not None:
-            endpoint = ".".join((self.name, endpoint))
+            endpoint = ".".join((self.devicename, endpoint))
         else:
-            endpoint = self.name
+            endpoint = self.devicename
         d = OrderedDict(endpoint=endpoint)
         vq = ValueQueue("Get({})".format(endpoint))
         vq.loop_run()

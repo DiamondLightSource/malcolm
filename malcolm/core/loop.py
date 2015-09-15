@@ -46,7 +46,7 @@ class ILoop(Base):
                 except ReferenceError:
                     pass
                 break
-            except:
+            except Exception, e:
                 self.log_exception("Exception raised processing event")
         try:
             self.loop_confirm_stopped()
@@ -59,11 +59,11 @@ class ILoop(Base):
         self._loop_state = LState.Stopping
         self.log_debug("Stopping loop")
 
-    def loop_wait(self):
+    def loop_wait(self, timeout=None):
         """Wait for a loop to finish"""
         self.log_debug("Waiting for loop to finish")
         if self.loop_state() != LState.Stopped:
-            self.event_loop_proc.Wait()
+            self.event_loop_proc.Wait(timeout=timeout)
         self.log_debug("Loop finished")
 
     def loop_state(self):
@@ -97,7 +97,7 @@ class ILoop(Base):
                 self.log_exception("Unexpected error during loop_stop")
         if self.loop_state() == LState.Stopping:
             try:
-                self.loop_wait()
+                self.loop_wait(timeout=1)
             except ReferenceError:
                 self.log_debug("Garbage collecting caught ref error in wait")
             except:
@@ -122,6 +122,8 @@ class HasLoops(ILoop):
     def remove_loop(self, loop):
         assert loop.loop_state() == LState.Stopped, \
             "Must stop a loop before remove"
+        assert loop in self._loops, \
+            "{} is not in {}".format(loop.name, [x.name for x in self._loops])
         self._loops.remove(loop)
 
     def loop_run(self):
@@ -138,15 +140,17 @@ class HasLoops(ILoop):
         for loop in loops:
             loop.loop_stop()
 
-    def loop_wait(self):
+    def loop_wait(self, timeout=None):
         """Wait for a loop to finish"""
         # Do in reverse so sockets (first) can send anything the other loops
         # produce
         self.log_debug("Waiting for loop to finish")
         loops = reversed(getattr(self, "_loops", []))
         for loop in loops:
-            loop.loop_wait()
-            self.remove_loop(loop)
+            loop.loop_wait(timeout=timeout)
+            # It might remove itself, if it doesn't then remove it
+            if loop in self._loops:
+                self.remove_loop(loop)
         loops = None
         self.loop_confirm_stopped()
 
