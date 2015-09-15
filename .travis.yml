@@ -16,6 +16,7 @@ addons:
 install:
   - env
   - ls -al $HOME/virtualenv/python$TRAVIS_PYTHON_VERSION/lib/python$TRAVIS_PYTHON_VERSION/site-packages
+  - pip install coveralls  
   - pip uninstall coveralls
   - pip install -r requirements/test.txt
   - pip install coveralls
