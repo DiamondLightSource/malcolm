@@ -140,21 +140,17 @@
         }, 
         "stateMachine": {
           "message": "Configuring...", 
-          "state": {
-            "index": 2, 
-            "choices": [
-              "Fault", 
-              "Idle", 
-              "Configuring", 
-              "Ready", 
-              "Running", 
-              "Pausing", 
-              "Paused", 
-              "Aborting", 
-              "Aborted", 
-              "Resetting"
-            ]
-          }, 
+          "state": "Configuring", 
+          "states": [
+            "Idle", 
+            "Fault", 
+            "Resetting", 
+            "Configuring", 
+            "Ready", 
+            "Running", 
+            "Aborting", 
+            "Aborted"
+          ], 
           "timeStamp": {
             "secondsPastEpoch": 14419090000, 
             "nanoseconds": 200000762, 
@@ -171,8 +167,19 @@
             "descriptor": "Time in seconds to wait for function"
           }, 
           "CONNECTED": {
+            "value": 0, 
             "type": "int", 
-            "descriptor": "Is zebra connected"
+            "descriptor": "Is zebra connected", 
+            "alarm": {
+              "severity": "invalidAlarm", 
+              "status": "undefinedStatus", 
+              "message": "Disconnected"
+            }, 
+            "timeStamp": {
+              "secondsPastEpoch": 14419091000, 
+              "nanoseconds": 200000762, 
+              "userTag": 0
+            }
           }, 
           "PC_BIT_CAP": {
             "type": "int", 

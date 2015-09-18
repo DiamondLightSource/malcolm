@@ -29,7 +29,7 @@ class HasStateMachine(HasLoops, HasListeners):
             states = [states]
         # Construct object that will wait for us
         sub = ServerSubscription(self, self._stateMachine_prefix + "state",
-                           timeout=timeout)
+                                 timeout=timeout)
         for state in states:
             sub.add_event_handler(state, sub.loop_stop)
         # Add the waiter to our list of loops, and listen for state
@@ -44,15 +44,17 @@ class StateMachine(EventLoop):
 
     :param name: A human readable name for this state machine
     """
-    _endpoints = "message,state,timeStamp".split(",")
+    _endpoints = "message,state,states,timeStamp".split(",")
 
     def __init__(self, name, initial_state, error_state=None, timeout=None):
         super(StateMachine, self).__init__(name, timeout)
         # store initial, error and current states
         self.initial_state = initial_state
-        self.states = list(initial_state.__class__)
+        self.states = [initial_state]
         if error_state is None:
             error_state = initial_state
+        elif error_state not in self.states:
+            self.states.append(error_state)
         self.error_state = error_state
         self.state = initial_state
         self.message = ""
@@ -136,17 +138,23 @@ class StateMachine(EventLoop):
         :param to_states: The state enum or list of enums that may be
             returned by the transition_func
         """
+        # Turn the to_states into a list of states
+        to_state_list = []
+        for to_state in to_states:
+            try:
+                to_state_list += list(to_state)
+            except TypeError:
+                to_state_list.append(to_state)
+        # Add them to the list of all states
+        for state in to_state_list:
+            if state not in self.states:
+                self.states.append(state)
+        # Turn the from_states into a list of states
         try:
             from_state_list = list(from_state)
         except TypeError:
             from_state_list = [from_state]
         for from_state in from_state_list:
-            to_state_list = []
-            for to_state in to_states:
-                try:
-                    to_state_list += list(to_state)
-                except TypeError:
-                    to_state_list.append(to_state)
             if (from_state, event) in self.handlers:
                 self.log_warning("overwriting state transitions for from_state"
                                  " {}, event {}".format(from_state, event))

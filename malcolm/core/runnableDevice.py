@@ -40,9 +40,7 @@ class DState(Enum):
         return [cls.Fault, cls.Aborted]
 
     def to_dict(self):
-        choices = [e.name for e in self.__class__]
-        d = dict(index=self.value, choices=choices)
-        return d
+        return self.name
 
 
 class DEvent(Enum):

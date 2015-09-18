@@ -85,8 +85,9 @@ class ProcessTest(unittest.TestCase):
                                 'Confirming loop stopped', 'Loop garbage collected'])
 
     def test_create_device(self):
-        self.assertEqual(self.p.device_types, [
-                         'Device', 'RunnableDevice', 'PausableDevice', 'DummyDet', 'Process', 'MockDevice'])
+        expected = ['Device', 'RunnableDevice', 'PausableDevice', 'Process', 'DirectoryService', 'MockDevice']
+        for d in expected:
+            self.assertIn(d, self.p.device_types)
         d = self.p.create_MockDevice("MD")
         self.assertIsInstance(d, MockDevice)
         self.assertEqual(d.name, "MD")

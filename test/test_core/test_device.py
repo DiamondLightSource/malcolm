@@ -8,9 +8,9 @@ import os
 import time
 import cothread
 import logging
-# logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 
-logging.basicConfig()
+#logging.basicConfig()
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.devices.dummyDet import DummyDet, DState, SState, DEvent

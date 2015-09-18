@@ -27,7 +27,7 @@ class ZmqSystemTest(unittest.TestCase):
 
         """
         test_counter = os.path.join(
-            os.path.dirname(__file__), "..", "counter_server.py")
+            os.path.dirname(__file__), "..", "util", "counter_server.py")
         self.ds = subprocess.Popen([sys.executable, test_counter])
         self.lp = Process(
             [], "Local Process", ds_string="zmq://ipc:///tmp/sock.ipc")

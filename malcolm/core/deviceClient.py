@@ -114,17 +114,17 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
         # Update statemachine
         if "stateMachine" in structure:
             sdata = structure["stateMachine"]
-            choices = sdata["state"]["choices"]
             keys = [s.name for s in DState]
-            assert choices == keys, \
-                "DState mismatch: {} != {}".format(choices, keys)
-            initial = list(DState)[sdata["state"]["index"]]
+            for state in sdata["states"]:
+                assert state in keys, \
+                    "DState mismatch: {} not in {}".format(state, keys)
+            initial = DState.__members__[sdata["state"]]
             sm = StateMachine(self.name + ".stateMachine", initial)
             self.add_stateMachine(sm)
 
             def update(value):
                 d = value
-                state = list(DState)[d["state"]["index"]]
+                state = DState.__members__[d["state"]]
                 sm.update(state, d["message"], d.get("timeStamp", None))
             update(sdata)
             if self.monitor:

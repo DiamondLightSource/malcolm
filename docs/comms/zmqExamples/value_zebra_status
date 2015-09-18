@@ -5,21 +5,17 @@
       "id": 0, 
       "value": {
         "message": "Configuring...", 
-        "state": {
-          "index": 2, 
-          "choices": [
-            "Fault", 
-            "Idle", 
-            "Configuring", 
-            "Ready", 
-            "Running", 
-            "Pausing", 
-            "Paused", 
-            "Aborting", 
-            "Aborted", 
-            "Resetting"
-          ]
-        }, 
+        "state": "Configuring", 
+        "states": [
+          "Idle", 
+          "Fault", 
+          "Resetting", 
+          "Configuring", 
+          "Ready", 
+          "Running", 
+          "Aborting", 
+          "Aborted"
+        ], 
         "timeStamp": {
           "secondsPastEpoch": 14419090000, 
           "nanoseconds": 200000762, 

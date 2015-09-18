@@ -86,7 +86,7 @@ class DeviceTest(unittest.TestCase):
             if kwargs["endpoint"] == "D":
                 self.post = post
                 sm = dict(
-                    state=DState.Running.to_dict(), message="foo", timeStamp=43.2)
+                    state="Running", states=[d.name for d in DState], message="foo", timeStamp=43.2)
                 post(SType.Return, value=dict(stateMachine=sm))
             elif kwargs["endpoint"] == "D.stateMachine":
                 self.spost = post

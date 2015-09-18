@@ -23,7 +23,7 @@ class ZmqSocket(ISocket):
         # self.sock.send_multipart(msg)
         weak_method(self.__retry)(self.poll_out_flags, self.sock.send_multipart, msg,
                                   flags=zmq.NOBLOCK)
-        self.log_debug("Sent message {}".format(msg))
+        # self.log_debug("Sent message {}".format(msg))
 
     def recv(self):
         """Co-operatively block until received"""
@@ -36,7 +36,7 @@ class ZmqSocket(ISocket):
             else:
                 raise
         else:
-            self.log_debug("Got message {}".format(msg))
+            # self.log_debug("Got message {}".format(msg))
             return msg
 
     def serialize(self, typ, kwargs):

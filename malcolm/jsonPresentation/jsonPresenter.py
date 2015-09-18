@@ -23,12 +23,16 @@ class JsonPresenter(Presenter):
 
     def serialize_hook(self, o):
         if hasattr(o, "to_dict"):
-            return self.serialize_timestamps(o.to_dict())
+            d = o.to_dict()
+            if hasattr(d, "values"):
+                d = self.serialize_timestamps(d)
+            return d
         else:
             return o
 
     def serialize(self, o):
-        s = json.dumps(self.serialize_timestamps(o), default=self.serialize_hook)
+        s = json.dumps(
+            self.serialize_timestamps(o), default=self.serialize_hook)
         return s
 
     def deserialize_hook(self, pairs):

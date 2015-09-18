@@ -6,10 +6,16 @@ from .base import Base
 class AlarmSeverity(Enum):
     noAlarm, minorAlarm, majorAlarm, invalidAlarm, undefinedAlarm = range(5)
 
+    def to_dict(self):
+        return self.name
+
 
 class AlarmStatus(Enum):
     noStatus, deviceStatus, driverStatus, recordStatus, dbStatus, confStatus, \
         undefinedStatus, clientStatus = range(8)
+
+    def to_dict(self):
+        return self.name
 
 
 class Alarm(Base):
@@ -47,6 +53,3 @@ class Alarm(Base):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def to_dict(self):
-        return super(Alarm, self).to_dict(
-            severity=self.severity.name, status=self.status.name)

@@ -42,7 +42,10 @@ class HasListeners(Base):
             return
         # Add on prefix to changes
         changes = {prefix + k: v for k, v in changes.items()}
-        self.log_debug("Notifying listeners of {}".format(changes))
+        not_uptime = [x for x in changes if not
+                      x.startswith("attributes.uptime")]
+        if not_uptime:
+            self.log_debug("Notifying listeners of {}".format(changes))
         for callback, prefix in self._listeners.items():
             filt_changes = {}
             for cname, cvalue in changes.items():
@@ -55,8 +58,8 @@ class HasListeners(Base):
                     filt_changes["."] = filt_changes.pop("")
                 cname = getattr(callback, "__name__", "callback")
                 value = self.get_endpoint(prefix)
-                self.log_debug("Calling {}({}, {})"
-                               .format(cname, value, filt_changes))
+                # self.log_debug("Calling {}({}, {})"
+                #                .format(cname, value, filt_changes))
                 try:
                     callback(value, filt_changes)
                 except:

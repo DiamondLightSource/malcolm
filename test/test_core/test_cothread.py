@@ -50,8 +50,7 @@ class T(object):
         try:
             raise Exception
         except Exception as e:
-            print 't %s caught' % name
-
+            pass
         cothread.Yield()
 
 
