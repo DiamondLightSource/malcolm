@@ -1,4 +1,4 @@
--e git+git://github.com/thomascobb/cothread.git
+-e git+git://github.com/thomascobb/cothread.git#egg=cothread
 cothread==2.14b1
 pyzmq==13.1.0
 enum34>=1.0
