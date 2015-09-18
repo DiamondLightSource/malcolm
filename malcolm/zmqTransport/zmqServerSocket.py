@@ -17,6 +17,8 @@ class ZmqServerSocket(ZmqSocket, ServerSocket):
             sock.setsockopt(zmq.ROUTER_BEHAVIOR, 1)
         except:
             sock.setsockopt(zmq.ROUTER_MANDATORY, 1)
+        # LINGER for 1s after close() to make sure messages are sent
+        sock.setsockopt(zmq.LINGER, 1000)
         sock.bind(address)
         return sock
 
@@ -41,7 +43,9 @@ class ZmqServerSocket(ZmqSocket, ServerSocket):
                 msg = self.serialize(typ, kwargs)
                 try:
                     self.send([zmq_id, msg])
-                except zmq.ZMQError:
+                except zmq.ZMQError as error:
+                    if error.errno not in (zmq.ENOTSUP, zmq.EHOSTUNREACH):
+                        raise
                     # Unsubscribe all things with this zmq id
                     sends = []
                     for (z, i) in self._send_functions.keys():

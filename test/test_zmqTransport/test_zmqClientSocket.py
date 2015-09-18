@@ -41,6 +41,7 @@ class DummyZmqClientSocket(ZmqClientSocket):
 
 DummyZmqClientSocket.register("dzmq://")
 
+
 class ZmqClientSocketTest(unittest.TestCase):
 
     def setUp(self):

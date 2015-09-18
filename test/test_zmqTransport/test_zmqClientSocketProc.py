@@ -2,21 +2,19 @@
 from pkg_resources import require
 from collections import OrderedDict
 require("mock")
-require("pyzmq")
+# print  require("pyzmq")
+# require("cothread")
 import unittest
 import sys
 import os
-import weakref
 import cothread
 
 import logging
-#logging.basicConfig()
-logging.basicConfig(level=logging.DEBUG)
-from mock import patch, MagicMock
+# logging.basicConfig()
+#logging.basicConfig(level=logging.DEBUG)
+from mock import MagicMock
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from malcolm.zmqTransport.zmqClientSocket import ZmqClientSocket
-from malcolm.zmqTransport.zmqServerSocket import ZmqServerSocket
 from malcolm.core.transport import ClientSocket, ServerSocket, SType
 
 
@@ -25,7 +23,8 @@ class ZmqClientSocketProcTest(unittest.TestCase):
     def setUp(self):
         self.cs = ClientSocket.make_socket("zmq://ipc:///tmp/sock.ipc")
         self.cs.loop_run()
-        self.ss = ServerSocket.make_socket("zmq://ipc:///tmp/sock.ipc", None, timeout=1)
+        self.ss = ServerSocket.make_socket(
+            "zmq://ipc:///tmp/sock.ipc", None, timeout=1)
         self.ss.open(self.ss.address)
 
     def test_gc(self):
@@ -38,7 +37,8 @@ class ZmqClientSocketProcTest(unittest.TestCase):
         kwargs.update(endpoint="zebra1.run")
         self.cs.request(response, typ, kwargs)
         ss_msg = self.ss.recv()
-        self.assertEqual(ss_msg[1], '{"type": "Call", "id": 0, "endpoint": "zebra1.run"}')
+        self.assertEqual(
+            ss_msg[1], '{"type": "Call", "id": 0, "endpoint": "zebra1.run"}')
         self.assertEqual(response.call_count, 0)
 
     def test_response(self):
@@ -50,15 +50,16 @@ class ZmqClientSocketProcTest(unittest.TestCase):
         response.assert_called_once_with(SType.Return, value=32)
 
     def tearDown(self):
-        self.ss.close()
-        print 1
-        self.ss = None
-        print 2
-        msgs = []
-
         def log_debug(msg):
             msgs.append(msg)
 
+        msgs = []
+        self.ss.log_debug = log_debug
+        self.ss.close()
+        self.ss = None
+        self.assertEqual(msgs, ['Garbage collecting loop',
+                                'Loop garbage collected'])
+        msgs = []
         self.cs.log_debug = log_debug
         self.cs = None
         self.assertEqual(msgs, ['Garbage collecting loop', 'Stopping loop',

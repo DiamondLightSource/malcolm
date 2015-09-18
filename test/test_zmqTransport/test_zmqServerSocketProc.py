@@ -7,28 +7,25 @@ require("cothread")
 import unittest
 import sys
 import os
-import weakref
 import cothread
 
 import logging
 # logging.basicConfig()
-#logging.basicConfig(level=logging.DEBUG)
-from mock import patch, MagicMock
+# logging.basicConfig(level=logging.DEBUG)
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from malcolm.zmqTransport.zmqClientSocket import ZmqClientSocket
-from malcolm.zmqTransport.zmqServerSocket import ZmqServerSocket
 from malcolm.core.transport import ServerSocket, ClientSocket, SType
-from malcolm.core.loop import LState
 
 
 class ZmqServerSocketProcTest(unittest.TestCase):
 
     def setUp(self):
         self.inq = cothread.EventQueue()
-        self.ss = ServerSocket.make_socket("zmq://ipc:///tmp/sock.ipc", self.inq)
+        self.ss = ServerSocket.make_socket(
+            "zmq://ipc:///tmp/sock.ipc", self.inq)
         self.ss.loop_run()
-        self.cs = ClientSocket.make_socket("zmq://ipc:///tmp/sock.ipc", timeout=1)
+        self.cs = ClientSocket.make_socket(
+            "zmq://ipc:///tmp/sock.ipc", timeout=1)
         self.cs.open(self.cs.address)
 
     def test_gc(self):
@@ -45,13 +42,16 @@ class ZmqServerSocketProcTest(unittest.TestCase):
         self.assertEqual(cs_msg[0], '{"type": "Return", "id": 0, "value": 99}')
 
     def tearDown(self):
-        self.cs.close()
-        self.cs = None
-        msgs = []
-
         def log_debug(msg):
             msgs.append(msg)
 
+        msgs = []
+        self.cs.log_debug = log_debug
+        self.cs.close()
+        self.cs = None
+        self.assertEqual(msgs, ['Garbage collecting loop',
+                                'Loop garbage collected'])
+        msgs = []
         self.ss.log_debug = log_debug
         self.ss = None
         self.assertEqual(msgs, ['Garbage collecting loop', 'Stopping loop',

@@ -12,6 +12,8 @@ class ZmqClientSocket(ZmqSocket, ClientSocket):
     def make_zmq_sock(self, address):
         """Make the zmq sock and bind or connect to address, returning it"""
         sock = self.context.socket(zmq.DEALER)
+        # LINGER for 1s after close() to make sure messages are sent
+        sock.setsockopt(zmq.LINGER, 1000)
         sock.connect(address)
         return sock
 

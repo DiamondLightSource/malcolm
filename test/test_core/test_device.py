@@ -95,7 +95,6 @@ class DeviceTest(unittest.TestCase):
         start = time.time()
         self.d.run()
         end = time.time()
-        print end - start
         self.assertAlmostEqual(end - start, exposure*(nframes+1) + rdelay, delta=exposure/2)
         # let the pause and resumetask finish
         t.Wait()

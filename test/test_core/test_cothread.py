@@ -8,13 +8,15 @@ import weakref
 import os
 import cothread
 import logging
-#logging.basicConfig(level=logging.DEBUG)
+import gc
+# logging.basicConfig(level=logging.DEBUG)
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.core.base import weak_method
 
 
 class Loop(object):
+
     def __init__(self, outs):
         self.outs = outs
         self.i = 0
@@ -42,6 +44,17 @@ class Loop(object):
         self.proc.Wait()
 
 
+class T(object):
+
+    def t1(self, name):
+        try:
+            raise Exception
+        except Exception as e:
+            print 't %s caught' % name
+
+        cothread.Yield()
+
+
 class LoopTest(unittest.TestCase):
 
     def test_loop_del_called_when_out_of_scope(self):
@@ -53,6 +66,12 @@ class LoopTest(unittest.TestCase):
         cothread.Sleep(0.1)
         self.assertEqual(self.outs, [0, 1, 2, 3, 4, 5, 6, 7, 8])
 
-        
+    def test_exception_referrers(self):
+        fg = T()
+        bg = T()
+        cothread.Spawn(bg.t1, 'background')
+        fg.t1('foreground')
+        self.assertEqual(sys.getrefcount(fg), 2)
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

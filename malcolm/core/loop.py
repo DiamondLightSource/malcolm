@@ -28,6 +28,7 @@ class ILoop(Base):
             event_loop = weak_method(self.event_loop)
             loop_event = weak_method(self.loop_event)
             self.event_loop_proc = cothread.Spawn(event_loop, loop_event)
+                                                # stack_size=1000000)
         else:
             self.event_loop_proc = cothread.Pulse()
 
@@ -42,7 +43,7 @@ class ILoop(Base):
                 loop_event()
             except (ReferenceError, StopIteration) as e:
                 try:
-                    self.log_debug("Breaking from {}".format(e))
+                    self.log_debug("Breaking from {}".format(type(e)))
                 except ReferenceError:
                     pass
                 break
@@ -97,11 +98,11 @@ class ILoop(Base):
                 self.log_exception("Unexpected error during loop_stop")
         if self.loop_state() == LState.Stopping:
             try:
-                self.loop_wait(timeout=1)
+                self.loop_wait()
             except ReferenceError:
                 self.log_debug("Garbage collecting caught ref error in wait")
             except:
-                self.log_exception("Unexpected error during loop_stop")
+                self.log_exception("Unexpected error during loop_wait")
         self.log_debug("Loop garbage collected")
 
 

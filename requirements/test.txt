@@ -1,4 +1,5 @@
-cothread==2.13.1
+-e git+git://github.com/thomascobb/cothread.git
+cothread==2.14b1
 pyzmq==13.1.0
 enum34>=1.0
 flake8>=2.2.0

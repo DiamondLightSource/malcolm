@@ -1,6 +1,6 @@
 import abc
-import json
 from collections import OrderedDict
+import time
 
 import zmq
 
@@ -20,17 +20,21 @@ class ZmqSocket(ISocket):
 
     def send(self, msg):
         """Send the message to the socket"""
+        # self.sock.send_multipart(msg)
+        weak_method(self.__retry)(self.poll_out_flags, self.sock.send_multipart, msg,
+                                  flags=zmq.NOBLOCK)
         self.log_debug("Sent message {}".format(msg))
-        return weak_method(self.__retry)(self.POLLOUT, self.sock.send_multipart, msg,
-                            flags=zmq.NOBLOCK)
 
     def recv(self):
         """Co-operatively block until received"""
         try:
-            msg = weak_method(self.__retry)(self.POLLIN, self.sock.recv_multipart,
+            msg = weak_method(self.__retry)(self.poll_in_flags, self.sock.recv_multipart,
                                             flags=zmq.NOBLOCK)
-        except zmq.ZMQError:
-            raise StopIteration
+        except zmq.ZMQError as error:
+            if error.errno == zmq.ENOTSUP:
+                raise StopIteration
+            else:
+                raise
         else:
             self.log_debug("Got message {}".format(msg))
             return msg
@@ -38,7 +42,7 @@ class ZmqSocket(ISocket):
     def serialize(self, typ, kwargs):
         """Serialize the arguments to a string that can be sent to the socket
         """
-        zmq_id = kwargs.pop("zmq_id", None)
+        kwargs.pop("zmq_id", None)
         _id = kwargs.pop("id")
         assert type(_id) == int, "Need an integer ID, got {}".format(_id)
         assert typ in SType, \
@@ -77,6 +81,7 @@ class ZmqSocket(ISocket):
         return self.sock.fd
 
     def __retry(self, poll, action, *args, **kwargs):
+        start = time.time()
         while True:
             try:
                 ret = action(*args, **kwargs)
@@ -84,8 +89,12 @@ class ZmqSocket(ISocket):
             except zmq.ZMQError as error:
                 if error.errno != zmq.EAGAIN:
                     raise
-            if not self.poll_list([(self, poll)], self.timeout):
-                raise zmq.ZMQError(zmq.ETIMEDOUT, 'Timeout waiting for socket')            
+            if self.timeout and time.time() - start > self.timeout:
+                raise zmq.ZMQError(zmq.ETIMEDOUT, 'Timeout waiting for socket')
+            # Unfortunately, doing a close() on the socket doesn't always
+            # break out of this poll(), so timeout and rely on the socket
+            # call to catch the fact it's been closed
+            self.poll_list([(self, poll)], 1)
 
     def open(self, address):
         """Open the socket on the given address"""
@@ -93,12 +102,14 @@ class ZmqSocket(ISocket):
         import cothread
         self.cothread = cothread
         self.poll_list = coselect.poll_list
-        self.POLLIN = coselect.POLLIN
-        self.POLLOUT = coselect.POLLOUT
+        # Extras that we should listen to apart from our dir
+        poll_extra_flags = coselect.POLLHUP | coselect.POLLERR
+        self.poll_in_flags = coselect.POLLIN | poll_extra_flags
+        self.poll_out_flags = coselect.POLLOUT | poll_extra_flags
         self.context = zmq.Context()
         self.sock = self.make_zmq_sock(address)
 
     def close(self):
         """Close the socket"""
         self.sock.close()
-        self.context.destroy()
+        self.context.term()
