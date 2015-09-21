@@ -89,6 +89,10 @@ class ILoop(Base):
 
     def __del__(self):
         self.log_debug("Garbage collecting loop")
+        if LState is None:
+            # When run under nosetests, LState is sometimes garbage collected
+            # before us, so just return here
+            return
         if self.loop_state() == LState.Running:
             try:
                 self.loop_stop()

@@ -188,7 +188,7 @@ class RunnableDevice(Device):
         self.stateMachine.post(DEvent.Reset)
         self.wait_until(DState.rest(), timeout=timeout)
 
-    @wrap_method(only_in=DState.configurable(), args_from=assert_valid)
+    @wrap_method(only_in=DState.configurable(), arguments_from=assert_valid)
     def configure(self, timeout=None, **params):
         """Assert params are valid, then use them to configure a device for a run.
         It blocks until the device is in a rest state:
@@ -215,7 +215,7 @@ class RunnableDevice(Device):
         self.stateMachine.post(DEvent.Run)
         self.wait_until(DState.rest(), timeout=timeout)
 
-    @wrap_method(only_in=DState, args_from=assert_valid)
+    @wrap_method(only_in=DState, arguments_from=assert_valid)
     def configure_run(self, timeout=None, **params):
         """Try and configure and run a device in one step. It blocks until the
         device is in a rest state:

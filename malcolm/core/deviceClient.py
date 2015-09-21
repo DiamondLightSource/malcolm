@@ -153,7 +153,7 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
             "Can't take positional args to methods"
         d = OrderedDict(endpoint=self.devicename)
         d.update(method=method)
-        d.update(args=OrderedDict(sorted(kwargs.items())))
+        d.update(arguments=OrderedDict(sorted(kwargs.items())))
         # Setup a ValueQueue that will handle the returns
         vq = ValueQueue("Call({}.{})".format(self.name, method))
         vq.loop_run()

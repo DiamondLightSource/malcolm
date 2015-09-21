@@ -53,12 +53,12 @@ class MethodTest(unittest.TestCase):
         method = self.c.methods["f"]
         self.assertEqual(method, self.c.f)
         self.assertEqual(method.descriptor, "Return total time")
-        nframes = method.args["nframes"]
+        nframes = method.arguments["nframes"]
         self.assertEqual(nframes.descriptor, "Number of frames")
         self.assertEqual(nframes.typ, int)
         self.assertEqual(nframes.value, None)
         self.assertEqual(nframes.tags, ("argument:required",))
-        exposure = method.args["exposure"]
+        exposure = method.arguments["exposure"]
         self.assertEqual(exposure.descriptor, "Detector exposure")
         self.assertEqual(exposure.typ, float)
         self.assertEqual(exposure.value, 0.1)
@@ -69,12 +69,12 @@ class MethodTest(unittest.TestCase):
         method = self.c.methods["g"]
         self.assertEqual(method, self.c.g)
         self.assertEqual(method.descriptor, "Proxy thing")
-        nframes = method.args["nframes"]
+        nframes = method.arguments["nframes"]
         self.assertEqual(nframes.descriptor, "Number of frames")
         self.assertEqual(nframes.typ, int)
         self.assertEqual(nframes.value, None)
         self.assertEqual(nframes.tags, ("argument:required",))
-        exposure = method.args["exposure"]
+        exposure = method.arguments["exposure"]
         self.assertEqual(exposure.descriptor, "Detector exposure")
         self.assertEqual(exposure.typ, float)
         self.assertEqual(exposure.value, 0.1)
@@ -84,9 +84,9 @@ class MethodTest(unittest.TestCase):
     def test_to_dict(self):
         d = self.c.f.to_dict()
         self.assertEqual(
-            d.keys(), ['name', 'descriptor', 'args', 'valid_states'])
-        self.assertEqual(d.values(), ['f', 'Return total time', {'exposure': self.c.f.args[
-                         "exposure"], 'nframes': self.c.f.args["nframes"]}, ['State1']])
+            d.keys(), ['name', 'descriptor', 'arguments', 'valid_states'])
+        self.assertEqual(d.values(), ['f', 'Return total time', {'exposure': self.c.f.arguments[
+                         "exposure"], 'nframes': self.c.f.arguments["nframes"]}, ['State1']])
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

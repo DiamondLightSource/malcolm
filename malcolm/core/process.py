@@ -80,7 +80,7 @@ class Process(Device, multiprocessing.Process):
         # Set the name and create a Method wrapper for it
         f.__name__ = "create_{}".format(cls.__name__)
         class_attributes = getattr(cls, "class_attributes", {})
-        method = Method(f, args_from=cls.__init__)
+        method = Method(f, arguments_from=cls.__init__)
         self.add_method(method, name=Attribute(str, "Device name"),
                         timeout=Attribute(str, "Timeout for any process"),
                         **class_attributes)
@@ -194,7 +194,7 @@ class Process(Device, multiprocessing.Process):
         else:
             send(SType.Return, ret)
 
-    def do_call(self, send, endpoint, method, args={}):
+    def do_call(self, send, endpoint, method, arguments={}):
         device, ename = self._get_device(endpoint)
         assert ename is None, \
             "Must Call with endpoint=<device> and method=<method>. " \
@@ -207,7 +207,7 @@ class Process(Device, multiprocessing.Process):
         elif method == "exit":
             self._device_servers.pop(device.name)
             self.update_devices()
-        ct = self.cothread.Spawn(self.do_func, send, endpoint, args)
+        ct = self.cothread.Spawn(self.do_func, send, endpoint, arguments)
         self.spawned.append(ct)
 
     def do_get(self, send, endpoint):

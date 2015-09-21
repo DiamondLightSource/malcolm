@@ -79,7 +79,7 @@ class DeviceTest(unittest.TestCase):
         self.sock.request.reset_mock()
         self.assertEqual(self.d.run(), 99)
         self.sock.request.assert_called_once_with(
-            self.post, SType.Call, dict(endpoint="D", method="run", args={}))
+            self.post, SType.Call, dict(endpoint="D", method="run", arguments={}))
 
     def test_sm(self):
         def side_effect(post, typ, kwargs):

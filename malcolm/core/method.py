@@ -33,18 +33,18 @@ class HasMethods(Base):
         self.methods[method.name] = method
 
 
-def wrap_method(only_in=None, args_from=None, **attributes):
+def wrap_method(only_in=None, arguments_from=None, **attributes):
     """Provide a wrapper function that checks types"""
     def decorator(function):
-        return Method(function, only_in, args_from, **attributes)
+        return Method(function, only_in, arguments_from, **attributes)
     return decorator
 
 
 class Method(Base):
     """Class representing a callable method"""
-    _endpoints = "name,descriptor,args,valid_states".split(",")
+    _endpoints = "name,descriptor,arguments,valid_states".split(",")
 
-    def __init__(self, function, valid_states=None, args_from=None,
+    def __init__(self, function, valid_states=None, arguments_from=None,
                  **attributes):
         assert inspect.isfunction(function), \
             "Expected function, got {}".format(function)
@@ -59,7 +59,7 @@ class Method(Base):
                 self.valid_states = list(valid_states)
             except TypeError:
                 self.valid_states = [valid_states]
-        self.args_from = args_from
+        self.arguments_from = arguments_from
         functools.update_wrapper(self, function)
         self.device = None
         self.attributes = attributes
@@ -67,17 +67,17 @@ class Method(Base):
     def describe(self, device, attributes):
         self.attributes.update(attributes)
         self.device = weakref.proxy(device)
-        # If args_from then get the args from another named member functions
-        if self.args_from:
+        # If arguments_from then get the arguments from another named member functions
+        if self.arguments_from:
             # Get method object from device using the supplied function name
-            method = getattr(device, self.args_from.__name__, None)
+            method = getattr(device, self.arguments_from.__name__, None)
             if method and isinstance(method, Method):
                 function = method.function
             else:
-                function = self.args_from
+                function = self.arguments_from
         else:
             function = self.function
-        # Get the args and defaults from the args_from function
+        # Get the arguments and defaults from the arguments_from function
         args, varargs, keywords, defaults = inspect.getargspec(function)
         # Pop self off
         if args and args[0] == "self":
@@ -87,7 +87,7 @@ class Method(Base):
         assert keywords is None, \
             "Not allowed to use **{} in {}".format(keywords, function)
         # Make the structure
-        self.args = {}
+        self.arguments = {}
         if defaults is None:
             defaults = []
         for i, arg in enumerate(args):
@@ -101,7 +101,7 @@ class Method(Base):
                 tags = []
                 value = defaults[defaulti]
             attribute = self.attributes[arg]
-            self.args[arg] = Attribute(typ=attribute.typ,
+            self.arguments[arg] = Attribute(typ=attribute.typ,
                                        descriptor=attribute.descriptor,
                                        name=arg,
                                        value=value,
@@ -115,7 +115,7 @@ class Method(Base):
         if sm and self.valid_states is not None:
             assert sm.state in self.valid_states, \
                 "Command not allowed in {} state".format(sm.state)
-        # TODO: validate args and kwargs from attributes
+        # TODO: validate arguments and kwargs from attributes
         return self.function(self.device, *args, **kwargs)
 
     def to_dict(self):

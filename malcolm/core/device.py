@@ -70,9 +70,11 @@ class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops):
 
     def to_dict(self):
         """Serialize this object"""
-        baseclasses = [x.__name__ for x in self.baseclasses()]
+        tags = []
+        for x in self.baseclasses():
+            tags.append("instance:{}".format(x.__name__))
         return super(Device, self).to_dict(
-            tags=baseclasses,
+            tags=tags,
             descriptor=self.__doc__,
             attributes=getattr(self, "attributes", None),
             methods=getattr(self, "methods", None),

@@ -1,4 +1,7 @@
 # Module import
+from pkg_resources import require
+require("cothread==2.14b1")
+require("pyzmq")
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))

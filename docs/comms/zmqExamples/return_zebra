@@ -6,15 +6,15 @@
       "value": {
         "name": "zebra1", 
         "tags": [
-          "DummyZebra", 
-          "RunnableDevice", 
-          "Device"
+          "instance:DummyZebra", 
+          "instance:RunnableDevice", 
+          "instance:Device"
         ], 
         "methods": {
           "abort": {
             "name": "abort", 
             "descriptor": "Abort configuration or abandon the current run whether it is\n        running or paused. It blocks until the device is in a rest state:\n         * Normally it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
-            "args": {
+            "arguments": {
               "timeout": {
                 "type": "float", 
                 "descriptor": "Time in seconds to wait for function"
@@ -32,7 +32,7 @@
           "assert_valid": {
             "name": "assert_valid", 
             "descriptor": "Check parameters are valid", 
-            "args": {
+            "arguments": {
               "PC_BIT_CAP": {
                 "type": "int", 
                 "tags": [
@@ -52,7 +52,7 @@
           "configure": {
             "name": "configure", 
             "descriptor": "Assert params are valid, then use them to configure a device for a run.\n        It blocks until the device is in a rest state:\n         * Normally it will return a DState.Configured Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
-            "args": {
+            "arguments": {
               "PC_BIT_CAP": {
                 "type": "int", 
                 "tags": [
@@ -76,7 +76,7 @@
           "configure_run": {
             "name": "configure_run", 
             "descriptor": "Try and configure and run a device in one step. It blocks until the\n        device is in a rest state:\n         * Normally it will return a DState.Idle Status\n         * If the device allows many runs from a single configure then it\n           will return a DState.Ready Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
-            "args": {
+            "arguments": {
               "PC_BIT_CAP": {
                 "type": "int", 
                 "tags": [
@@ -112,7 +112,7 @@
           "reset": {
             "name": "reset", 
             "descriptor": "Try and reset the device into DState.Idle. It blocks until the\n        device is in a rest state:\n         * Normally it will return a DState.Idle Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
-            "args": {
+            "arguments": {
               "timeout": {
                 "type": "float", 
                 "descriptor": "Time in seconds to wait for function"
@@ -126,7 +126,7 @@
           "run": {
             "name": "run", 
             "descriptor": "Start a configured device running. It blocks until the device is in a\n        rest state:\n         * Normally it will return a DState.Idle Status\n         * If the device allows many runs from a single configure the it\n           will return a DState.Ready Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
-            "args": {
+            "arguments": {
               "timeout": {
                 "type": "float", 
                 "descriptor": "Time in seconds to wait for function"
