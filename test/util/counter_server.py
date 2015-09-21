@@ -1,7 +1,7 @@
 # Module import
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.core.directoryService import DirectoryService
 from malcolm.core.loop import TimerLoop
 from malcolm.core import Device, wrap_method
