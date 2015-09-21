@@ -12,6 +12,7 @@ from .transport import ClientSocket, ServerSocket, SType
 from .subscription import ServerSubscription
 from .attribute import Attribute
 from .base import weak_method
+from .vtype import VStringArray, VString, VDouble
 
 
 @not_process_creatable
@@ -59,9 +60,9 @@ class Process(Device, multiprocessing.Process):
         # Add attributes
         self.add_attributes(
             server_strings=Attribute(
-                [str], "List of server strings for server socks"),
-            device_types=Attribute([str], "Available device types"),
-            local_devices=Attribute([str], "Devices we are hosting"),
+                VStringArray, "List of server strings for server socks"),
+            device_types=Attribute(VStringArray, "Available device types"),
+            local_devices=Attribute(VStringArray, "Devices we are hosting"),
         )
         # populate device types
         self.device_types = []
@@ -81,8 +82,8 @@ class Process(Device, multiprocessing.Process):
         f.__name__ = "create_{}".format(cls.__name__)
         class_attributes = getattr(cls, "class_attributes", {})
         method = Method(f, arguments_from=cls.__init__)
-        self.add_method(method, name=Attribute(str, "Device name"),
-                        timeout=Attribute(str, "Timeout for any process"),
+        self.add_method(method, name=Attribute(VString, "Device name"),
+                        timeout=Attribute(VDouble, "Timeout for any process"),
                         **class_attributes)
         setattr(self, f.__name__, method)
 

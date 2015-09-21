@@ -6,6 +6,7 @@ from .stateMachine import HasStateMachine
 from .method import HasMethods, wrap_method
 from .loop import HasLoops, TimerLoop
 from .base import weak_method
+from .vtype import VInt
 
 
 def not_process_creatable(cls):
@@ -37,7 +38,7 @@ class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops):
         """Add all attributes to a device. Make sure you super() call this in
         subclasses"""
         self.add_attributes(
-            uptime=Attribute(int, "Seconds since device was created"))
+            uptime=Attribute(VInt, "Seconds since device was created"))
 
     def create_device(self, cls, name, *args, **kwargs):
         """Locally available method to create device, will be overridden if
@@ -51,7 +52,7 @@ class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops):
 
     @classmethod
     def subclasses(cls):
-        """Return list of subclasses non-abstract subclasses"""
+        """Return list of subclasses"""
         subclasses = OrderedDict([(cls.__name__, cls)])
         for s in cls.__subclasses__():
             for g in s.subclasses():

@@ -1,6 +1,8 @@
 import json
 from collections import OrderedDict
 
+import numpy
+
 from malcolm.core.presentation import Presenter
 
 
@@ -27,8 +29,10 @@ class JsonPresenter(Presenter):
             if hasattr(d, "values"):
                 d = self.serialize_timestamps(d)
             return d
+        elif isinstance(o, numpy.number):
+            return o.tolist()
         else:
-            return o
+            return json.JSONEncoder(self, obj)
 
     def serialize(self, o):
         s = json.dumps(

@@ -30,7 +30,7 @@ from malcolm.core.loop import LState
 from malcolm.core.transport import SType
 from malcolm.core.method import wrap_method
 from malcolm.core.directoryService import DirectoryService
-
+from malcolm.core.vtype import VString, VInt
 
 class DummyClientSocket(ZmqClientSocket):
 
@@ -52,9 +52,9 @@ class DummyZebra(RunnableDevice):
     def add_all_attributes(self):
         RunnableDevice.add_all_attributes(self)
         self.add_attributes(
-            PC_BIT_CAP=Attribute(int, "Which encoders to capture"),
-            PC_TSPRE=Attribute(str, "What time units for capture"),
-            CONNECTED=Attribute(int, "Is zebra connected"),
+            PC_BIT_CAP=Attribute(VInt, "Which encoders to capture"),
+            PC_TSPRE=Attribute(VString, "What time units for capture"),
+            CONNECTED=Attribute(VInt, "Is zebra connected"),
         )
 
     @wrap_method()

@@ -1,6 +1,5 @@
 #!/bin/env dls-python
 from pkg_resources import require
-import malcolm
 require("mock")
 require("cothread")
 import unittest
@@ -15,6 +14,7 @@ from mock import patch, MagicMock
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.core.method import wrap_method, HasMethods
 from malcolm.core.attribute import Attribute
+from malcolm.core.vtype import VFloat, VInt
 
 
 class TState(Enum):
@@ -25,8 +25,8 @@ class Container(HasMethods):
 
     def __init__(self):
         self.add_methods(
-            nframes=Attribute(int, "Number of frames"),
-            exposure=Attribute(float, "Detector exposure")
+            nframes=Attribute(VInt, "Number of frames"),
+            exposure=Attribute(VFloat, "Detector exposure")
         )
         self.state = TState.State1
 
@@ -55,12 +55,12 @@ class MethodTest(unittest.TestCase):
         self.assertEqual(method.descriptor, "Return total time")
         nframes = method.arguments["nframes"]
         self.assertEqual(nframes.descriptor, "Number of frames")
-        self.assertEqual(nframes.typ, int)
+        self.assertEqual(type(nframes.typ), VInt)
         self.assertEqual(nframes.value, None)
         self.assertEqual(nframes.tags, ("argument:required",))
         exposure = method.arguments["exposure"]
         self.assertEqual(exposure.descriptor, "Detector exposure")
-        self.assertEqual(exposure.typ, float)
+        self.assertEqual(type(exposure.typ), VFloat)
         self.assertEqual(exposure.value, 0.1)
         self.assertEqual(exposure.tags, ())
         self.assertEqual(method.valid_states, [TState.State1])
@@ -71,12 +71,12 @@ class MethodTest(unittest.TestCase):
         self.assertEqual(method.descriptor, "Proxy thing")
         nframes = method.arguments["nframes"]
         self.assertEqual(nframes.descriptor, "Number of frames")
-        self.assertEqual(nframes.typ, int)
+        self.assertEqual(type(nframes.typ), VInt)
         self.assertEqual(nframes.value, None)
         self.assertEqual(nframes.tags, ("argument:required",))
         exposure = method.arguments["exposure"]
         self.assertEqual(exposure.descriptor, "Detector exposure")
-        self.assertEqual(exposure.typ, float)
+        self.assertEqual(type(exposure.typ), VFloat)
         self.assertEqual(exposure.value, 0.1)
         self.assertEqual(exposure.tags, ())
         self.assertEqual(method.valid_states, [TState.State2])

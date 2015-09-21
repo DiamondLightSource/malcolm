@@ -2,6 +2,7 @@
 from pkg_resources import require
 from malcolm.core.alarm import Alarm
 from malcolm.core.runnableDevice import DState
+from malcolm.core.vtype import VInt
 require("mock")
 require("cothread")
 import unittest
@@ -41,7 +42,7 @@ class DeviceTest(unittest.TestCase):
         def side_effect(post, typ, kwargs):
             if kwargs["endpoint"] == "D":
                 self.post = post
-                bit = dict(type="int", descriptor="Desc", value=3,
+                bit = dict(type=dict(name="VInt", version=2), descriptor="Desc", value=3,
                            alarm=Alarm.ok().to_dict(), timeStamp=43.2)
                 post(SType.Return, value=dict(attributes=dict(bit=bit)))
             elif kwargs["endpoint"] == "D.attributes.bit":
@@ -54,7 +55,7 @@ class DeviceTest(unittest.TestCase):
         self.assertEqual(self.sock.request.call_args_list[1], call(
             self.spost, SType.Subscribe, dict(endpoint="D.attributes.bit")))
         self.assertEqual(self.d.bit, 3)
-        self.assertEqual(self.d.attributes["bit"].typ, int)
+        self.assertEqual(type(self.d.attributes["bit"].typ), VInt)
         self.assertEqual(self.d.attributes["bit"].descriptor, "Desc")
         self.assertEqual(self.d.attributes["bit"].value, 3)
         self.assertEqual(self.d.attributes["bit"].alarm, Alarm.ok())

@@ -9,14 +9,15 @@ import logging
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.core.attribute import Attribute, HasAttributes
 from malcolm.core.alarm import Alarm, AlarmSeverity, AlarmStatus
+from malcolm.core.vtype import VString, VInt, VStringArray
 
 
 class Container(HasAttributes):
 
     def __init__(self, name):
         super(Container, self).__init__(name)
-        self.add_attributes(s=Attribute(str, "The String"),
-                            i=Attribute(int, "The Int"))
+        self.add_attributes(s=Attribute(VString, "The String"),
+                            i=Attribute(VInt, "The Int"))
 
 
 class AttributeTest(unittest.TestCase):
@@ -24,10 +25,11 @@ class AttributeTest(unittest.TestCase):
     def setUp(self):
         self.c = Container("The Container")
         self.s = self.c.attributes["s"]
+        self.i = self.c.attributes["i"]
 
     def test_init(self):
         self.assertEqual(self.s.value, None)
-        self.assertEqual(self.s.typ, str)
+        self.assertEqual(self.s.typ, VString())
 
     def test_set(self):
         self.s.update("32")
@@ -39,7 +41,7 @@ class AttributeTest(unittest.TestCase):
         self.assertEqual(self.s.value, "94")
 
     def test_wrong_type(self):
-        self.assertRaises(AssertionError, self.s.update, 32)
+        self.assertRaises(AssertionError, self.i.update, 32.5)
 
     def test_monitors(self):
         self.changes = []
@@ -74,14 +76,14 @@ class AttributeTest(unittest.TestCase):
     def test_to_dict(self):
         d = self.s.to_dict()
         self.assertEqual(d.keys(), ['type', 'descriptor'])
-        self.assertEqual(d.values(), ['str', 'The String'])
+        self.assertEqual(d.values(), [VString(), 'The String'])
         self.s.update("wow", timeStamp=3.2)
         d = self.s.to_dict()
         self.assertEqual(d.keys(), ['value', 'type', 'descriptor', 'alarm', 'timeStamp'])
-        self.assertEqual(d.values(), ['wow', 'str', 'The String', Alarm.ok(), 3.2])
+        self.assertEqual(d.values(), ['wow', VString(), 'The String', Alarm.ok(), 3.2])
 
     def test_lists(self):
-        a = Attribute([str], "List of strings")
+        a = Attribute(VStringArray, "List of strings")
         a.update(["c", "b"])
         self.assertEqual(a.value, ["c", "b"])
         self.assertRaises(AssertionError, a.update, "c")

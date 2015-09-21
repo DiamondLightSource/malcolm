@@ -11,6 +11,8 @@ from .stateMachine import StateMachine, HasStateMachine
 from .alarm import Alarm
 from .subscription import ClientSubscription
 from .method import HasMethods
+from .vtype import VBool, VType
+from malcolm.core.vtype import VEnum
 
 
 class ValueQueue(ILoop):
@@ -83,13 +85,12 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
         self.attributes = {}
         # Add connection attribute
         self.add_attributes(
-            device_client_connected=Attribute(bool, "Is device reponsive?"))
+            device_client_connected=Attribute(VBool, "Is device reponsive?"))
         for aname, adata in structure.get("attributes", {}).items():
-            typ = adata["type"]
-            if type(typ) == list:
-                typ = [eval(t) for t in typ]
-            else:
-                typ = eval(typ)
+            typ = adata["type"]["name"]
+            typ = VType.subclasses()[typ]
+            if typ == VEnum:
+                typ = typ(adata["type"]["labels"])
             attr = self.add_attribute(
                 aname, Attribute(typ, adata["descriptor"],
                                  tags=adata.get("tags", None)))
@@ -97,11 +98,6 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
             def update(value, attr=attr):
                 d = value
                 value = d.get("value", None)
-                if value is None:
-                    if type(d["type"]) == list:
-                        value = []
-                    else:
-                        value = eval(d["type"])()
                 alarm = d.get("alarm", None)
                 if alarm is None:
                     alarm = Alarm.ok()

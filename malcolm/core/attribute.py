@@ -5,6 +5,7 @@ import functools
 from .alarm import Alarm
 from .listener import HasListeners
 from .base import weak_method, Base
+from malcolm.core.vtype import VType
 
 
 class HasAttributes(HasListeners):
@@ -56,8 +57,13 @@ class Attribute(Base):
     def __init__(self, typ, descriptor, value=None, alarm=None,
                  timeStamp=None, name=None, tags=None):
         super(Attribute, self).__init__(name)
-        # TODO: add validation here
-        self._typ = typ
+        if isinstance(typ, VType):
+            self._typ = typ
+        elif typ in VType.subclasses().values():
+            self._typ = typ()
+        else:
+            raise AssertionError("Expected subclass or instance of {}, got {}"
+                                 .format(VType.subclasses().keys(), typ))
         self._descriptor = descriptor
         if tags:
             self._tags = tuple(tags)
@@ -101,23 +107,11 @@ class Attribute(Base):
     def update(self, value, alarm=None, timeStamp=None):
         changes = {}
         # Assert type
-        if value != self.value:
-            if type(self.typ) == list:
-                assert not isinstance(value, basestring), \
-                    "Wanted list, got {}".format(repr(value))
-                out_value = []
-                for v in value:
-                    if type(v) == unicode:
-                        v = str(v)
-                    assert type(v) in self.typ, \
-                        "{} has type {}, wanted {}".format(v, type(v), self.typ)
-                    out_value.append(v)
-                value = out_value
-            else:
-                assert type(value) == self.typ, \
-                    "{} has type {}, wanted {}".format(value, type(value), self.typ)
-            changes.update(value=value)
-            self._value = value
+        if value is not None:
+            value = self.typ.validate(value)
+            if value != self.value:
+                changes.update(value=value)
+                self._value = value
         # Check alarm
         assert alarm is None or isinstance(alarm, Alarm), \
             "Expected alarm = Alarm or None, got {}".format(alarm)
@@ -137,8 +131,4 @@ class Attribute(Base):
             self.notify_listeners(changes)
 
     def to_dict(self):
-        if type(self.typ) == list:
-            typ = [t.__name__ for t in self.typ]
-        else:
-            typ = self.typ.__name__
-        return super(Attribute, self).to_dict(type=typ)
+        return super(Attribute, self).to_dict(type=self.typ)

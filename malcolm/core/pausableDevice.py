@@ -3,6 +3,7 @@ import abc
 from .method import wrap_method
 from .attribute import Attribute
 from .runnableDevice import RunnableDevice, DState, DEvent
+from .vtype import VInt
 
 
 class PausableDevice(RunnableDevice):
@@ -25,9 +26,9 @@ class PausableDevice(RunnableDevice):
         super(PausableDevice, self).add_all_attributes()
         # Add attributes
         self.add_attributes(
-            total_steps=Attribute(int, "Number of scan steps"),
-            current_step=Attribute(int, "Current scan step"),
-            retrace_steps=Attribute(int, "Number of steps to retrace by"),
+            total_steps=Attribute(VInt, "Number of scan steps"),
+            current_step=Attribute(VInt, "Current scan step"),
+            retrace_steps=Attribute(VInt, "Number of steps to retrace by"),
         )
 
     @abc.abstractmethod

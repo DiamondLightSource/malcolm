@@ -5,6 +5,7 @@ from .method import wrap_method
 from .attribute import Attribute
 from .deviceClient import DeviceClient
 from .device import not_process_creatable
+from .vtype import VString, VStringArray
 
 
 @not_process_creatable
@@ -22,11 +23,11 @@ class DirectoryService(Process):
         super(DirectoryService, self).add_all_attributes()
         # Add attributes for instances of each device type
         for typ in self.device_types:
-            a = Attribute([str], "All registered {} instances".format(typ), [])
+            a = Attribute(VStringArray, "All registered {} instances".format(typ), [])
             self.add_attribute(typ + "_instances", a)
 
     @wrap_method(
-        device=Attribute(str, "Device name")
+        device=Attribute(VString, "Device name")
     )
     def connection_string(self, device):
         """Return the server strings for a particular device"""
@@ -38,8 +39,8 @@ class DirectoryService(Process):
             self._connection_strings.keys(), self._device_servers.keys()))
 
     @wrap_method(
-        device=Attribute(str, "Device name"),
-        server_strings=Attribute([str], "Server strings for connection"),
+        device=Attribute(VString, "Device name"),
+        server_strings=Attribute(VStringArray, "Server strings for connection"),
     )
     def register_device(self, device, server_strings):
         # Store connection strings

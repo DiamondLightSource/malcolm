@@ -7,6 +7,7 @@ from .base import weak_method
 from .device import Device
 from .stateMachine import StateMachine
 from .attribute import Attribute
+from .vtype import VFloat
 
 
 class DState(Enum):
@@ -83,7 +84,7 @@ class RunnableDevice(Device):
         super(RunnableDevice, self).add_all_attributes()
         # Timeout for functions
         self.add_attributes(
-            timeout=Attribute(float, "Time in seconds to wait for function"))
+            timeout=Attribute(VFloat, "Time in seconds to wait for function"))
 
     def shortcuts(self):
         # Shortcut to all the self.do_ functions
