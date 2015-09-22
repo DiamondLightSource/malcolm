@@ -26,9 +26,9 @@ class PausableDevice(RunnableDevice):
         super(PausableDevice, self).add_all_attributes()
         # Add attributes
         self.add_attributes(
-            total_steps=Attribute(VInt, "Number of scan steps"),
-            current_step=Attribute(VInt, "Current scan step"),
-            retrace_steps=Attribute(VInt, "Number of steps to retrace by"),
+            totalSteps=Attribute(VInt, "Number of scan steps"),
+            currentStep=Attribute(VInt, "Current scan step"),
+            retraceSteps=Attribute(VInt, "Number of steps to retrace by"),
         )
 
     @abc.abstractmethod
@@ -58,7 +58,7 @@ class PausableDevice(RunnableDevice):
         self.wait_until(DState.pausedone(), timeout=timeout)
 
     @wrap_method(only_in=DState.Paused)
-    def retrace(self, retrace_steps, timeout=None):
+    def retrace(self, retraceSteps, timeout=None):
         """Retrace a number of steps in the current scan. It blocks until the
         device is in pause done state:
          * Normally it will return a DState.Paused Status
@@ -66,7 +66,7 @@ class PausableDevice(RunnableDevice):
          * If something goes wrong it will return a DState.Fault Status
         """
         timeout = timeout or self.timeout
-        self.stateMachine.post(DEvent.Pause, retrace_steps)
+        self.stateMachine.post(DEvent.Pause, retraceSteps)
         self.wait_until(DState.pausedone(), timeout=timeout)
 
     @wrap_method(only_in=DState.Paused)

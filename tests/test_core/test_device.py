@@ -165,8 +165,8 @@ class DeviceTest(unittest.TestCase):
         self.d.nframes = 3
         self.assertEqual(len(self.d.attributes), 8)
         items = [(k, v.value) for k, v in self.d.attributes.items()]
-        self.assertEqual(items, [('single', False), ('uptime', None), ('timeout', None), ('current_step', None), (
-            'retrace_steps', None), ('total_steps', None), ('exposure', None), ('nframes', 3)])
+        self.assertEqual(items, [('single', False), ('uptime', None), ('timeout', None), ('currentStep', None), (
+            'retraceSteps', None), ('totalSteps', None), ('exposure', None), ('nframes', 3)])
 
     def test_uptime(self):
         self.assertEqual(self.d.uptime, None)

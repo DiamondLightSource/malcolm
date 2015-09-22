@@ -9,7 +9,7 @@ import os
 import sys
 
 import logging
-# logging.basicConfig()
+#logging.basicConfig()
 # logging.basicConfig(level=logging.DEBUG)
 # format="%(asctime)s;%(levelname)s;%(message)s")
 # Module import
@@ -32,26 +32,26 @@ class ZmqSystemTest(unittest.TestCase):
         self.lp = Process(
             [], "Local Process", ds_string="zmq://ipc:///tmp/sock.ipc")
         self.lp.run(block=False)
-        self.lp.ds.create_Counter(name="The Counter")
+        self.lp.ds.createCounter(name="The Counter")
         self.c = self.lp.get_device("The Counter")
 
     def test_simple_function(self):
         import cothread
         cothread.Sleep(0.2)
-        start = self.c.get_count()
+        start = self.c.getCount()
         self.assertEqual(self.c.hello(), "world")
         # Hello world takes about 10 ticks
-        self.assertAlmostEqual(self.c.get_count(), start + 10, delta=3)
+        self.assertAlmostEqual(self.c.getCount(), start + 10, delta=3)
         # Do a long running call
-        s = cothread.Spawn(self.c.long_hello)
+        s = cothread.Spawn(self.c.longHello)
         # Check it returns immediately
-        self.assertAlmostEqual(self.c.get_count(), start + 10, delta=3)
+        self.assertAlmostEqual(self.c.getCount(), start + 10, delta=3)
         self.assertEqual(self.c.hello(), "world")
         # Hello world takes 10 ticks
-        self.assertAlmostEqual(self.c.get_count(), start + 20, delta=3)
+        self.assertAlmostEqual(self.c.getCount(), start + 20, delta=3)
         self.assertEqual(s.Wait(), "long world")
         # Long hello takes about 50 ticks from send
-        self.assertAlmostEqual(self.c.get_count(), start + 60, delta=5)
+        self.assertAlmostEqual(self.c.getCount(), start + 60, delta=5)
         s.Wait()
 
     def tearDown(self):

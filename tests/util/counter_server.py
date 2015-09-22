@@ -4,6 +4,8 @@ require("cothread==2.14b1")
 require("pyzmq")
 import sys
 import os
+import logging
+logging.basicConfig()
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.core.directoryService import DirectoryService
 from malcolm.core.loop import TimerLoop
@@ -21,7 +23,7 @@ class Counter(Device):
         self.counter += 1
 
     @wrap_method()
-    def get_count(self):
+    def getCount(self):
         return self.counter
 
     @wrap_method()
@@ -30,7 +32,7 @@ class Counter(Device):
         return "world"
 
     @wrap_method()
-    def long_hello(self):
+    def longHello(self):
         self.cothread.Sleep(0.5)
         return "long world"
 

@@ -84,7 +84,7 @@ class MethodTest(unittest.TestCase):
     def test_to_dict(self):
         d = self.c.f.to_dict()
         self.assertEqual(
-            d.keys(), ['name', 'descriptor', 'arguments', 'valid_states'])
+            d.keys(), ['name', 'descriptor', 'arguments', 'validStates'])
         self.assertEqual(d.values(), ['f', 'Return total time', {'exposure': self.c.f.arguments[
                          "exposure"], 'nframes': self.c.f.arguments["nframes"]}, ['State1']])
 

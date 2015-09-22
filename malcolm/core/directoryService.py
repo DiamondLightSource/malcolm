@@ -22,31 +22,33 @@ class DirectoryService(Process):
     def add_all_attributes(self):
         super(DirectoryService, self).add_all_attributes()
         # Add attributes for instances of each device type
-        for typ in self.device_types:
-            a = Attribute(VStringArray, "All registered {} instances".format(typ), [])
-            self.add_attribute(typ + "_instances", a)
+        for typ in self.deviceTypes:
+            a = Attribute(
+                VStringArray, "All registered {} instances".format(typ), [])
+            self.add_attribute("instances" + typ, a)
 
     @wrap_method(
         device=Attribute(VString, "Device name")
     )
-    def connection_string(self, device):
+    def connectionString(self, device):
         """Return the server strings for a particular device"""
         if device in self._device_servers:
-            return self.server_strings
+            return self.serverStrings
         elif device in self._connection_strings:
             return self._connection_strings[device]
-        raise AssertionError("{} not in {} or {}".format(device, 
-            self._connection_strings.keys(), self._device_servers.keys()))
+        raise AssertionError("{} not in {} or {}"
+                             .format(device, self._connection_strings.keys(), self._device_servers.keys()))
 
     @wrap_method(
         device=Attribute(VString, "Device name"),
-        server_strings=Attribute(VStringArray, "Server strings for connection"),
+        serverStrings=Attribute(
+            VStringArray, "Server strings for connection"),
     )
-    def register_device(self, device, server_strings):
+    def register(self, device, serverStrings):
         # Store connection strings
-        self._connection_strings[device] = server_strings
+        self._connection_strings[device] = serverStrings
         # Store a deviceClient
-        dc = DeviceClient(device, self.get_client_sock(server_strings),
+        dc = DeviceClient(device, self.get_client_sock(serverStrings),
                           monitor=False, timeout=1)
         self.add_loop(dc)
         self._registered_devices[device] = dc
@@ -57,7 +59,7 @@ class DirectoryService(Process):
     def update_devices(self, connected=None, changes=None):
         super(DirectoryService, self).update_devices()
         instances = OrderedDict()
-        for typ in self.device_types:
+        for typ in self.deviceTypes:
             instances[typ] = []
         # Store device name in each of its subclass lists
         for device in self._registered_devices.values():
@@ -73,4 +75,4 @@ class DirectoryService(Process):
                 instances[subclass.__name__].append(device.name)
         # Push these to attributes
         for typ, devices in instances.items():
-            self.attributes[typ + "_instances"].update(sorted(devices))
+            self.attributes["instances" + typ].update(sorted(devices))

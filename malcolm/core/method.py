@@ -42,7 +42,7 @@ def wrap_method(only_in=None, arguments_from=None, **attributes):
 
 class Method(Base):
     """Class representing a callable method"""
-    _endpoints = "name,descriptor,arguments,valid_states".split(",")
+    _endpoints = "name,descriptor,arguments,validStates".split(",")
 
     def __init__(self, function, valid_states=None, arguments_from=None,
                  **attributes):
@@ -123,4 +123,4 @@ class Method(Base):
             valid_states = [s.name for s in self.valid_states]
         else:
             valid_states = []
-        return super(Method, self).to_dict(valid_states=valid_states)
+        return super(Method, self).to_dict(validStates=valid_states)

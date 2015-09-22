@@ -18,10 +18,10 @@ from .vtype import VStringArray, VString, VDouble
 @not_process_creatable
 class Process(Device, multiprocessing.Process):
 
-    def __init__(self, server_strings, name, ds_name="DirectoryService",
+    def __init__(self, serverStrings, name, ds_name="DirectoryService",
                  ds_string=None, timeout=None):
         """name is process name
-        server_strings is list of "zmq://tcp://172.23.122.23:5600"
+        serverStrings is list of "zmq://tcp://172.23.122.23:5600"
         """
         super(Process, self).__init__(name, timeout)
         # Store ds details
@@ -51,25 +51,25 @@ class Process(Device, multiprocessing.Process):
         self.router = router
         self.add_loop(router)
         # populate server strings
-        self.server_strings = server_strings
+        self.serverStrings = serverStrings
         # Local devices
-        self.local_devices = []
+        self.localDevices = []
 
     def add_all_attributes(self):
         super(Process, self).add_all_attributes()
         # Add attributes
         self.add_attributes(
-            server_strings=Attribute(
+            serverStrings=Attribute(
                 VStringArray, "List of server strings for server socks"),
-            device_types=Attribute(VStringArray, "Available device types"),
-            local_devices=Attribute(VStringArray, "Devices we are hosting"),
+            deviceTypes=Attribute(VStringArray, "Available device types"),
+            localDevices=Attribute(VStringArray, "Devices we are hosting"),
         )
         # populate device types
-        self.device_types = []
-        device_types = Device.subclasses()
-        for d in device_types:
-            # Add it to the device_types attribute
-            self.device_types.append(d.__name__)
+        self.deviceTypes = []
+        deviceTypes = Device.subclasses()
+        for d in deviceTypes:
+            # Add it to the deviceTypes attribute
+            self.deviceTypes.append(d.__name__)
             if d not in Device.not_process_creatable and not inspect.isabstract(d):
                 # Make a method to create an instance of it
                 self.make_create_device(d)
@@ -79,7 +79,7 @@ class Process(Device, multiprocessing.Process):
         def f(process, name, **kwargs):
             return process.create_device(cls, name, **kwargs)
         # Set the name and create a Method wrapper for it
-        f.__name__ = "create_{}".format(cls.__name__)
+        f.__name__ = "create{}".format(cls.__name__)
         class_attributes = getattr(cls, "class_attributes", {})
         method = Method(f, arguments_from=cls.__init__)
         self.add_method(method, name=Attribute(VString, "Device name"),
@@ -97,14 +97,14 @@ class Process(Device, multiprocessing.Process):
         return device
 
     def register_devices(self):
-        for device in self.local_devices:
+        for device in self.localDevices:
             if device not in self.ds.Device_instances:
-                self.ds.register_device(device, self.server_strings)
+                self.ds.register_device(device, self.serverStrings)
 
     def update_devices(self):
-        self.local_devices = sorted(self._device_servers)
+        self.localDevices = sorted(self._device_servers)
 
-    def get_device(self, device, server_strings=None):
+    def get_device(self, device, serverStrings=None):
         """Create a weak reference to a new DeviceClient object (or existing)
         """
         assert self.loop_state() == LState.Running, \
@@ -114,20 +114,20 @@ class Process(Device, multiprocessing.Process):
         elif device in self._device_servers:
             return self._device_servers[device]
         # Calculate server strings if not given
-        if server_strings is None:
+        if serverStrings is None:
             assert self.ds is not None, "Can't lookup server string for {} "\
                 "as no DirectoryService present".format(device)
-            server_strings = self.ds.connection_string(device=device)
-        dc = self.DeviceClient(device, self.get_client_sock(server_strings))
+            serverStrings = self.ds.connectionString(device=device)
+        dc = self.DeviceClient(device, self.get_client_sock(serverStrings))
         # Don't add loop, we want it to go when no-one needs it
         dc.loop_run()
         self._device_clients[device] = dc
         return dc
 
-    def get_client_sock(self, server_strings):
+    def get_client_sock(self, serverStrings):
         # If we already have a client sock, return that
         # TODO: handle localhost conversion here?
-        for string in server_strings:
+        for string in serverStrings:
             if string in self._client_socks:
                 return self._client_socks[string]
         cs = ClientSocket.make_socket(string)
@@ -146,14 +146,14 @@ class Process(Device, multiprocessing.Process):
             assert "cothread" not in sys.modules, \
                 "Cothread has already been imported, this will not work!"
         self.loop_run()
-        server_strings = []
-        for string in self.server_strings:
+        serverStrings = []
+        for string in self.serverStrings:
             ss = ServerSocket.make_socket(string, self.router.inq)
             assert ss is not None, "Can't make socket for {}".format(string)
             self._server_socks[string] = ss
             self.add_loop(ss)
-            server_strings.append(ss.name)
-        self.server_strings = server_strings
+            serverStrings.append(ss.name)
+        self.serverStrings = serverStrings
         # Create a client to directory service
         if self.ds_string is not None:
             self.ds = self.get_device(self.ds_name, [self.ds_string])

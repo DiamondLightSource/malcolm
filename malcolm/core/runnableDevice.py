@@ -159,12 +159,14 @@ class RunnableDevice(Device):
         """
 
     @abc.abstractmethod
-    def assert_valid(self, arg1, arg2="arg2default"):
+    def validate(self, arg1, arg2="arg2default"):
         """Check whether a set of configuration parameters is valid or not. Each
         parameter name must match one of the names in self.attributes. This set
         of parameters should be checked in isolation, no device state should be
         taken into account. It is allowed from any DState and raises an error
-        if the set of configuration parameters is invalid.
+        if the set of configuration parameters is invalid. It should return
+        some metrics on the set of parameters, e.g.
+        {"estimatedTime": 1.5}
         """
 
     @wrap_method(only_in=DState.abortable())
@@ -189,7 +191,7 @@ class RunnableDevice(Device):
         self.stateMachine.post(DEvent.Reset)
         self.wait_until(DState.rest(), timeout=timeout)
 
-    @wrap_method(only_in=DState.configurable(), arguments_from=assert_valid)
+    @wrap_method(only_in=DState.configurable(), arguments_from=validate)
     def configure(self, timeout=None, **params):
         """Assert params are valid, then use them to configure a device for a run.
         It blocks until the device is in a rest state:
@@ -198,7 +200,7 @@ class RunnableDevice(Device):
          * If something goes wrong it will return a DState.Fault Status
         """
         timeout = timeout or self.timeout
-        self.assert_valid(**params)
+        self.validate(**params)
         self.stateMachine.post(DEvent.Config, **params)
         self.wait_until(DState.rest(), timeout=timeout)
 
@@ -216,28 +218,3 @@ class RunnableDevice(Device):
         self.stateMachine.post(DEvent.Run)
         self.wait_until(DState.rest(), timeout=timeout)
 
-    @wrap_method(only_in=DState, arguments_from=assert_valid)
-    def configure_run(self, timeout=None, **params):
-        """Try and configure and run a device in one step. It blocks until the
-        device is in a rest state:
-         * Normally it will return a DState.Idle Status
-         * If the device allows many runs from a single configure then it
-           will return a DState.Ready Status
-         * If the user aborts then it will return a DState.Aborted Status
-         * If something goes wrong it will return a DState.Fault Status
-        """
-        timeout = timeout or self.timeout
-        # If we can't configure from our current state
-        if self.state not in DState.configurable():
-            # If we are abortable then abort
-            if self.state in DState.abortable():
-                self.abort(timeout=timeout)
-            # Now try a reset to bring us back to idle
-            if self.state in DState.resettable():
-                self.reset(timeout=timeout)
-        # Now if we are configurable then do so
-        if self.state in DState.configurable():
-            self.configure(timeout=timeout, **params)
-            # And now if we are ready then do a run
-            if self.state == DState.Ready:
-                self.run(timeout=timeout)

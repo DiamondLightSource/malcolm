@@ -52,13 +52,13 @@ class DummyZebra(RunnableDevice):
     def add_all_attributes(self):
         RunnableDevice.add_all_attributes(self)
         self.add_attributes(
-            PC_BIT_CAP=Attribute(VInt, "Which encoders to capture"),
-            PC_TSPRE=Attribute(VString, "What time units for capture"),
-            CONNECTED=Attribute(VInt, "Is zebra connected"),
+            pcBitCap=Attribute(VInt, "Which encoders to capture"),
+            pcTsPre=Attribute(VString, "What time units for capture"),
+            connected=Attribute(VInt, "Is zebra connected"),
         )
 
     @wrap_method()
-    def assert_valid(self, PC_BIT_CAP, PC_TSPRE):
+    def validate(self, pcBitCap, pcTsPre):
         "Check parameters are valid"
 
     def do_abort(self):
@@ -115,7 +115,7 @@ class ZmqDocsTest(unittest.TestCase):
 
     @patch("malcolm.core.deviceClient.ValueQueue")
     def test_call_zebra_configure(self, mock_vq):
-        self.zebraClient.do_call("configure", PC_BIT_CAP=1, PC_TSPRE="ms")
+        self.zebraClient.do_call("configure", pcBitCap=1, pcTsPre="ms")
         call_args = self.cs.sock.send_multipart.call_args
         self.assertDocExample("call_zebra_configure", call_args[0][0][0])
 
@@ -170,7 +170,7 @@ class ZmqDocsTest(unittest.TestCase):
         send = self.ss.make_send_function(dict(zmq_id=1, id=0))
         self.zebra.stateMachine.update(
             state=DState.Configuring, message="Configuring...", timeStamp=14419090000.2)
-        self.zebra.attributes["CONNECTED"].update(0, Alarm(AlarmSeverity.invalidAlarm, AlarmStatus.UDF, "Disconnected"), timeStamp=14419091000.2)
+        self.zebra.attributes["connected"].update(0, Alarm(AlarmSeverity.invalidAlarm, AlarmStatus.UDF, "Disconnected"), timeStamp=14419091000.2)
         self.ds.do_get(send, "zebra1")
         call_args = self.ss.sock.send_multipart.call_args
         self.assertDocExample("return_zebra", call_args[0][0][1])
@@ -178,7 +178,7 @@ class ZmqDocsTest(unittest.TestCase):
     def test_return_DirectoryService_Device_instances(self):
         send = self.ss.make_send_function(dict(zmq_id=1, id=0))
         self.ds.do_get(
-            send, "DirectoryService.attributes.Device_instances.value")
+            send, "DirectoryService.attributes.instancesDevice.value")
         call_args = self.ss.sock.send_multipart.call_args
         self.assertDocExample(
             "return_DirectoryService_Device_instances", call_args[0][0][1])

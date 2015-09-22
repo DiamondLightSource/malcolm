@@ -1,5 +1,6 @@
 import json
 from collections import OrderedDict
+import re
 
 import numpy
 
@@ -10,8 +11,15 @@ class JsonPresenter(Presenter):
 
     def __init__(self):
         super(JsonPresenter, self).__init__("JsonPresenter")
+        self.camel_re = re.compile("[a-z]([a-z0-9]*)([A-Z]+[a-z0-9]*)*$")
 
-    def serialize_timestamps(self, d):
+    def normalize(self, d):
+        # Check camelcase in keys
+        for key in d.keys():
+            match = self.camel_re.match(key)
+            if not match:
+                self.log_warning("Key {} isn't camelCase".format(key))
+            #    print match.group()
         if "timeStamp" in d:
             timeStamp = d["timeStamp"]
             ts = OrderedDict(secondsPastEpoch=int(timeStamp))
@@ -20,14 +28,14 @@ class JsonPresenter(Presenter):
             d["timeStamp"] = ts
         for d2 in d.values():
             if hasattr(d2, "values"):
-                self.serialize_timestamps(d2)
+                self.normalize(d2)
         return d
 
     def serialize_hook(self, o):
         if hasattr(o, "to_dict"):
             d = o.to_dict()
             if hasattr(d, "values"):
-                d = self.serialize_timestamps(d)
+                d = self.normalize(d)
             return d
         elif isinstance(o, numpy.number):
             return o.tolist()
@@ -36,7 +44,7 @@ class JsonPresenter(Presenter):
 
     def serialize(self, o):
         s = json.dumps(
-            self.serialize_timestamps(o), default=self.serialize_hook)
+            self.normalize(o), default=self.serialize_hook)
         return s
 
     def deserialize_hook(self, pairs):

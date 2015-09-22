@@ -82,7 +82,7 @@ class DummyDet(PausableDevice):
         )
 
     @wrap_method(only_in=DState)
-    def assert_valid(self, nframes, exposure):
+    def validate(self, nframes, exposure):
         """Check whether the configuration parameters are valid or not. This set
         of parameters are checked in isolation, no device state is taken into
         account. It raises an error if the set of configuration parameters is

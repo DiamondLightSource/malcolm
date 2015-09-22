@@ -6,7 +6,7 @@
       "endpoint": "zebra1", 
       "method": "configure", 
       "arguments": {
-        "PC_BIT_CAP": 1, 
-        "PC_TSPRE": "ms"
+        "pcBitCap": 1, 
+        "pcTsPre": "ms"
       }
     }

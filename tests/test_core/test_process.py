@@ -87,13 +87,13 @@ class ProcessTest(unittest.TestCase):
     def test_create_device(self):
         expected = ['Device', 'RunnableDevice', 'PausableDevice', 'Process', 'DirectoryService', 'MockDevice']
         for d in expected:
-            self.assertIn(d, self.p.device_types)
-        d = self.p.create_MockDevice("MD")
+            self.assertIn(d, self.p.deviceTypes)
+        d = self.p.createMockDevice("MD")
         self.assertIsInstance(d, MockDevice)
         self.assertEqual(d.name, "MD")
 
     def test_call_on_device(self):
-        d = self.p.create_MockDevice("MD")
+        d = self.p.createMockDevice("MD")
         self.s.inq.Signal((SType.Call, dict(endpoint="MD", method="run")))
         self.assertEqual(d.runcalled, False)
         # Yield to let socket recv
@@ -107,7 +107,7 @@ class ProcessTest(unittest.TestCase):
         self.s.send.assert_called_once_with(SType.Return, 32)
 
     def test_get_on_device(self):
-        d = self.p.create_MockDevice("MD")
+        d = self.p.createMockDevice("MD")
         self.s.inq.Signal((SType.Get, dict(endpoint="MD.methods")))
         # Yield to let socket recv
         cothread.Yield()
@@ -117,7 +117,7 @@ class ProcessTest(unittest.TestCase):
         self.s.send.assert_called_once_with(SType.Return, d.methods)
 
     def test_subscribe_on_device(self):
-        d = self.p.create_MockDevice("MD")
+        d = self.p.createMockDevice("MD")
         self.s.inq.Signal((SType.Subscribe, dict(endpoint="MD.methods.run")))
         # Yield to let socket recv
         cothread.Yield()
