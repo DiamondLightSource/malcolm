@@ -192,7 +192,7 @@ class EventLoop(ILoop):
     def loop_event(self):
         event, args, kwargs = weak_method(
             self.get_next_event)(timeout=self.timeout)
-        self.log_debug("Got event {} {} {}".format(event, args, kwargs))
+        # self.log_debug("Got event {} {} {}".format(event, args, kwargs))
         if event in self.handlers:
             function = self.handlers[event]
         elif None in self.handlers:
@@ -201,8 +201,8 @@ class EventLoop(ILoop):
             self.log_info(
                 "No handler functions for event {}".format(event))
             return
-        fname = getattr(function, "__name__", str(function))
-        self.log_debug("Running function {}".format(fname))
+        # fname = getattr(function, "__name__", str(function))
+        # self.log_debug("Running function {}".format(fname))
         try:
             function(*args, **kwargs)
         except ReferenceError:

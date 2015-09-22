@@ -117,6 +117,7 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
             initial = DState.__members__[sdata["state"]]
             sm = StateMachine(self.name + ".stateMachine", initial)
             self.add_stateMachine(sm)
+            sm.states = [DState.__members__[s] for s in sdata["states"]]
 
             def update(value):
                 d = value

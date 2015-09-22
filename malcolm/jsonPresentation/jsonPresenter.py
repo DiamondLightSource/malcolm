@@ -39,8 +39,10 @@ class JsonPresenter(Presenter):
             return d
         elif isinstance(o, numpy.number):
             return o.tolist()
+        elif isinstance(o, numpy.bool_):
+            return bool(o)
         else:
-            return o
+            raise AssertionError("Can't encode {}".format(repr(o)))
 
     def serialize(self, o):
         s = json.dumps(
