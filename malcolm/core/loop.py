@@ -237,17 +237,23 @@ class EventLoop(ILoop):
 
 class TimerLoop(ILoop):
 
-    def __init__(self, name, callback, timeout):
+    def __init__(self, name, callback, timeout, retrigger=True):
         super(TimerLoop, self).__init__(name)
         self.timeout = timeout
         self.callback = callback
+        self.retrigger = retrigger
+
+    def on_trigger(self):
+        if not self.retrigger:
+            self.loop_stop()
+        self.callback()
 
     def loop_run(self):
         """Start the event loop running"""
         super(TimerLoop, self).loop_run()
         self.timer = self.cothread.Timer(self.timeout,
                                          self.callback,
-                                         retrigger=True)
+                                         retrigger=self.retrigger)
 
     def loop_stop(self):
         """Signal the event loop to stop running and wait for it to finish"""

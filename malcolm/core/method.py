@@ -67,7 +67,8 @@ class Method(Base):
     def describe(self, device, attributes):
         self.attributes.update(attributes)
         self.device = weakref.proxy(device)
-        # If arguments_from then get the arguments from another named member functions
+        # If arguments_from then get the arguments from another named member
+        # functions
         if self.arguments_from:
             # Get method object from device using the supplied function name
             method = getattr(device, self.arguments_from.__name__, None)
@@ -102,10 +103,10 @@ class Method(Base):
                 value = defaults[defaulti]
             attribute = self.attributes[arg]
             self.arguments[arg] = Attribute(typ=attribute.typ,
-                                       descriptor=attribute.descriptor,
-                                       name=arg,
-                                       value=value,
-                                       tags=tags)
+                                            descriptor=attribute.descriptor,
+                                            name=arg,
+                                            value=value,
+                                            tags=tags)
             # attribute.tags.append(self.function.__name__)
 
     def __call__(self, *args, **kwargs):
@@ -115,8 +116,24 @@ class Method(Base):
         if sm and self.valid_states is not None:
             assert sm.state in self.valid_states, \
                 "Command not allowed in {} state".format(sm.state)
-        # TODO: validate arguments and kwargs from attributes
-        return self.function(self.device, *args, **kwargs)
+        # Add in args
+        for aname, aval in zip(self.arguments.keys(), args):
+            kwargs[aname] = aval
+        # Check arg presence and values
+        missing = []
+        for arg, attr in self.arguments.items():
+            if arg not in kwargs:
+                if "argument:required" not in attr.tags:
+                    kwargs[arg] = attr.value
+                else:
+                    missing.append(arg)
+        assert len(missing) == 0, \
+            "Arguments not supplied: {}".format(missing)
+        # Now report extras
+        extras = [x for x in sorted(kwargs) if x not in self.arguments]
+        assert len(extras) == 0, \
+            "Unknown arguments supplied: {}".format(extras)
+        return self.function(self.device, **kwargs)
 
     def to_dict(self):
         if self.valid_states:

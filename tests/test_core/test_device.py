@@ -120,7 +120,7 @@ class DeviceTest(unittest.TestCase):
         self.assertRaises(AssertionError, self.d.run)
 
     def test_configure_with_wrong_params_raises(self):
-        self.assertRaises(TypeError, self.d.configure)
+        self.assertRaises(AssertionError, self.d.configure)
 
     def test_aborting_works(self):
         self.d.configure(nframes=10, exposure=0.05)
@@ -163,15 +163,19 @@ class DeviceTest(unittest.TestCase):
 
     def test_class_attributes(self):
         self.d.nframes = 3
-        self.assertEqual(len(self.d.attributes), 8)
+        self.assertEqual(len(self.d.attributes), 9)
         items = [(k, v.value) for k, v in self.d.attributes.items()]
         self.assertEqual(items, [('single', False), ('uptime', None), ('timeout', None), ('currentStep', None), (
-            'retraceSteps', None), ('totalSteps', None), ('exposure', None), ('nframes', 3)])
+            'retraceSteps', None), ('totalSteps', None), ('configureSleep', None), ('exposure', None), ('nframes', 3)])
 
     def test_uptime(self):
         self.assertEqual(self.d.uptime, None)
         cothread.Sleep(1.1)
         self.assertEqual(self.d.uptime, 1)
+
+    def test_error_message(self):
+        self.assertRaisesRegexp(AssertionError, "Arguments not supplied: \['exposure'\]", self.d.configure, nframes=10)
+        self.assertRaisesRegexp(AssertionError, "Unknown arguments supplied: \['foo'\]", self.d.configure, nframes=10, exposure=0.1, foo="bar")        
 
     def test_del_called_when_out_of_scope(self):
         self.d.add_listener(self.callback, "stateMachine")

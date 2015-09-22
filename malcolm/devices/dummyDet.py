@@ -4,17 +4,19 @@ from malcolm.core import wrap_method, DState, DEvent, PausableDevice, \
 from malcolm.core.base import weak_method
 from malcolm.core.stateMachine import StateMachine
 from malcolm.core.listener import HasListeners
+from malcolm.core.loop import TimerLoop, HasLoops
 
 
 class SState(Enum):
-    Idle, Ready, Acquiring = range(3)
+    Idle, Configuring, Ready, Acquiring = range(4)
 
 
 class SEvent(Enum):
     Config, Start, Done, Abort, Status = range(5)
 
 
-class DummyDetSim(StateMachine, HasListeners):
+class DummyDetSim(StateMachine, HasListeners, HasLoops):
+
     def __init__(self, name):
         super(DummyDetSim, self).__init__(name, SState.Idle)
 
@@ -23,15 +25,25 @@ class DummyDetSim(StateMachine, HasListeners):
         e = SEvent
         t = self.transition
         # State table
-        t([s.Idle, s.Ready], e.Config, self.do_config, s.Ready)
+        t([s.Idle, s.Ready], e.Config, self.do_config, s.Configuring, s.Ready)
+        t(s.Configuring, e.Done, None, s.Ready)
         t(s.Ready, e.Start, self.do_start, s.Acquiring)
         t(s.Acquiring, e.Status, self.do_status, s.Acquiring, s.Idle)
         t(s.Acquiring, e.Abort, self.do_abort, s.Acquiring)
 
-    def do_config(self, nframes, exposure):
+    def config_done(self):
+        self.post(self.post(SEvent.Done))
+
+    def do_config(self, nframes, exposure, configureSleep):
         self.nframes = nframes
         self.exposure = exposure
-        return SState.Ready, "Ready"
+        if configureSleep > 0:
+            self.add_loop(TimerLoop(
+                "ConfigTimer", self.config_done, timeout=configureSleep, 
+                retrigger=False))
+            return SState.Configuring, "Configuring"
+        else:
+            return SState.Ready, "Ready"
 
     def do_abort(self):
         self.need_abort = True
@@ -79,10 +91,11 @@ class DummyDet(PausableDevice):
         self.add_attributes(
             nframes=Attribute(VInt, "Number of frames"),
             exposure=Attribute(VDouble, "Detector exposure"),
+            configureSleep=Attribute(VDouble, "Time to sleep to simulate configure"),
         )
 
     @wrap_method(only_in=DState)
-    def validate(self, nframes, exposure):
+    def validate(self, nframes, exposure, configureSleep=0.0):
         """Check whether the configuration parameters are valid or not. This set
         of parameters are checked in isolation, no device state is taken into
         account. It raises an error if the set of configuration parameters is
@@ -125,11 +138,13 @@ class DummyDet(PausableDevice):
         else:
             print "Unhandled", status
 
-    def do_config(self, nframes, exposure):
+    def do_config(self, nframes, exposure, configureSleep):
         """Check config params and send them to sim state machine"""
         self.nframes = nframes
         self.exposure = exposure
-        self.sim_post(SEvent.Config, self.nframes, self.exposure)
+        self.configureSleep = configureSleep
+        self.sim_post(
+            SEvent.Config, self.nframes, self.exposure, self.configureSleep)
         return DState.Configuring, "Configuring started"
 
     def do_configsta(self, configsta):
@@ -173,7 +188,8 @@ class DummyDet(PausableDevice):
             message = "Waiting for detector to stop"
         elif pausesta == "finished":
             # detector done, reconfigure it
-            self.sim_post(SEvent.Config, self.frames_to_do, self.exposure)
+            self.sim_post(SEvent.Config, self.frames_to_do, self.exposure, 
+                          self.configureSleep)
             message = "Reconfiguring detector for {} frames".format(
                 self.frames_to_do)
         elif pausesta == "configured":
