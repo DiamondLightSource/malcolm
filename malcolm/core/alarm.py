@@ -11,8 +11,9 @@ class AlarmSeverity(Enum):
 
 
 class AlarmStatus(Enum):
-    noStatus, deviceStatus, driverStatus, recordStatus, dbStatus, confStatus, \
-        undefinedStatus, clientStatus = range(8)
+    noStatus, Read, Write, HiHi, High, LoLo, Low, State, Cos, Comm, Timeout, \
+        HwLimit, Calc, Scan, Link, Soft, BadSub, UDF, Disable, Simm, \
+        ReadAccess, WriteAccess = range(22)
 
     def to_dict(self):
         return self.name
@@ -52,4 +53,3 @@ class Alarm(Base):
 
     def __ne__(self, other):
         return not self.__eq__(other)
-

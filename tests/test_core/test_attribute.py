@@ -60,7 +60,7 @@ class AttributeTest(unittest.TestCase):
         self.assertEqual(items[1][0], "attributes.i.value")
         self.assertEqual(items[1][1], 32)
         major_alarm = Alarm(AlarmSeverity.majorAlarm,
-                            AlarmStatus.deviceStatus,
+                            AlarmStatus.Read,
                             "In error")
         self.s.update("bing", major_alarm)
         self.assertEqual(len(self.changes), 1)

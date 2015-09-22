@@ -170,7 +170,7 @@ class ZmqDocsTest(unittest.TestCase):
         send = self.ss.make_send_function(dict(zmq_id=1, id=0))
         self.zebra.stateMachine.update(
             state=DState.Configuring, message="Configuring...", timeStamp=14419090000.2)
-        self.zebra.attributes["CONNECTED"].update(0, Alarm(AlarmSeverity.invalidAlarm, AlarmStatus.undefinedStatus, "Disconnected"), timeStamp=14419091000.2)
+        self.zebra.attributes["CONNECTED"].update(0, Alarm(AlarmSeverity.invalidAlarm, AlarmStatus.UDF, "Disconnected"), timeStamp=14419091000.2)
         self.ds.do_get(send, "zebra1")
         call_args = self.ss.sock.send_multipart.call_args
         self.assertDocExample("return_zebra", call_args[0][0][1])

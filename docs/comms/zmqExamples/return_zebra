@@ -208,7 +208,7 @@
             "descriptor": "Is zebra connected", 
             "alarm": {
               "severity": "invalidAlarm", 
-              "status": "undefinedStatus", 
+              "status": "UDF", 
               "message": "Disconnected"
             }, 
             "timeStamp": {
