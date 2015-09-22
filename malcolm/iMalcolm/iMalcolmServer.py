@@ -23,7 +23,7 @@ class IMalcolmServer(DirectoryService):
         # assuming loglevel is bound to the string value obtained from the
         # command line argument. Convert to upper case to allow the user to
         # specify --log=DEBUG or --log=debug
-        numeric_level = getattr(logging, arguments.log.upper(), None)
+        numeric_level = getattr(logging, args.log.upper(), None)
         if not isinstance(numeric_level, int):
             raise ValueError('Invalid log level: %s' % args.log)
         logging.basicConfig(level=numeric_level)
@@ -46,10 +46,10 @@ class IMalcolmServer(DirectoryService):
         IPython.embed(header="""iMalcolmServer running on {}.
 These are the local devices:
 {}
-""".format(self.server_strings, self.local_devices))
+""".format(self.serverStrings, self.localDevices))
 
 if __name__ == "__main__":
     # Test
     ims = IMalcolmServer()
-    ims.create_DummyDet("det")
+    ims.createDummyDet(name="det")
     ims.interact()

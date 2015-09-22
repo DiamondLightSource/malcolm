@@ -40,7 +40,7 @@ class JsonPresenter(Presenter):
         elif isinstance(o, numpy.number):
             return o.tolist()
         else:
-            return json.JSONEncoder(self, obj)
+            return o
 
     def serialize(self, o):
         s = json.dumps(
