@@ -131,7 +131,7 @@ class Method(Base):
         sm = getattr(self.device, "stateMachine", None)
         if sm and self.valid_states is not None:
             assert sm.state in self.valid_states, \
-                "Command not allowed in {} state".format(sm.state)
+                "Method {} not allowed in {} state".format(self.function.__name__, sm.state)
         # Add in args
         for aname, aval in zip(self.arguments.keys(), args):
             kwargs[aname] = aval

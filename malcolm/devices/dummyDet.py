@@ -32,7 +32,7 @@ class DummyDetSim(StateMachine, HasListeners, HasLoops):
         t(s.Acquiring, e.Abort, self.do_abort, s.Acquiring)
 
     def config_done(self):
-        self.post(self.post(SEvent.Done))
+        self.post(SEvent.Done)
 
     def do_config(self, nframes, exposure, configureSleep):
         self.nframes = nframes
@@ -176,7 +176,7 @@ class DummyDet(PausableDevice):
                 "Cannot retrace {} steps as we are only on step {}".format(
                     steps, self.nframes - self.frames_to_do)
             self.frames_to_do += steps
-            self.post(DEvent.PauseSta, "finished")
+            self.stateMachine.post(DEvent.PauseSta, "finished")
             message = "Retracing started"
         return DState.Pausing, message
 
@@ -204,7 +204,7 @@ class DummyDet(PausableDevice):
         if self.sim.state == SState.Acquiring:
             self.sim_post(SEvent.Abort)
         else:
-            self.post(DEvent.AbortSta, "finished")
+            self.stateMachine.post(DEvent.AbortSta, "finished")
         return DState.Aborting, "Aborting"
 
     def do_abortsta(self, abortsta):
