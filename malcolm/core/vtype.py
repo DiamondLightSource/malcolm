@@ -102,6 +102,8 @@ class VString(VType):
 class VEnum(VType):
 
     def __init__(self, labels):
+        if type(labels) == str:
+            labels = labels.split(",")
         self.labels = tuple(labels)
 
     def validate(self, value):

@@ -15,7 +15,7 @@ presenter = JsonPresenter()
 class ZmqSocket(ISocket):
 
     @abc.abstractmethod
-    def make_zmq_sock(self):
+    def make_zmq_sock(self, address):
         """Make the zmq sock and bind or connect to address, returning it"""
 
     def send(self, msg):

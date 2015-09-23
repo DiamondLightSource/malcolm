@@ -64,6 +64,25 @@ class Method(Base):
         self.device = None
         self.attributes = attributes
 
+    def _get_args_defaults(self, function, check_var=True):
+        # Get the arguments and defaults from the arguments_from function
+        args, varargs, keywords, defaults = inspect.getargspec(function)
+        # Pop self off
+        if args and args[0] == "self":
+            args.pop(0)
+        if check_var:
+            assert varargs is None, \
+                "Not allowed to use *{} in {}".format(varargs, function)
+            assert keywords is None, \
+                "Not allowed to use **{} in {}".format(keywords, function)
+        default_d = {}
+        if defaults is None:
+            defaults = []
+        default_off = len(args) - len(defaults)
+        for i, default in enumerate(defaults):
+            default_d[args[i + default_off]] = default
+        return args, default_d
+
     def describe(self, device, attributes):
         self.attributes.update(attributes)
         self.device = weakref.proxy(device)
@@ -76,38 +95,35 @@ class Method(Base):
                 function = method.function
             else:
                 function = self.arguments_from
+            args, defaults = self._get_args_defaults(function)
+            extra_args, extra_defaults = self._get_args_defaults(self.function, check_var=False)
+            for arg in extra_args:
+                assert arg not in args, \
+                    "Duplicate argument {} in {}".format(arg, self.function.__name__)
+                args.append(arg)
+                if arg in extra_defaults:
+                    defaults[arg] = extra_defaults[arg]
         else:
             function = self.function
-        # Get the arguments and defaults from the arguments_from function
-        args, varargs, keywords, defaults = inspect.getargspec(function)
-        # Pop self off
-        if args and args[0] == "self":
-            args.pop(0)
-        assert varargs is None, \
-            "Not allowed to use *{} in {}".format(varargs, function)
-        assert keywords is None, \
-            "Not allowed to use **{} in {}".format(keywords, function)
+            args, defaults = self._get_args_defaults(function)
         # Make the structure
         self.arguments = {}
-        if defaults is None:
-            defaults = []
-        for i, arg in enumerate(args):
-            defaulti = i - len(args) + len(defaults)
-            if defaulti < 0:
+        for arg in args:
+            if arg in defaults:
+                # default
+                tags = []
+                value = defaults[arg]
+            else:
                 # required
                 tags = ["argument:required"]
                 value = None
-            else:
-                # default
-                tags = []
-                value = defaults[defaulti]
             attribute = self.attributes[arg]
             self.arguments[arg] = Attribute(typ=attribute.typ,
                                             descriptor=attribute.descriptor,
                                             name=arg,
                                             value=value,
                                             tags=tags)
-            # attribute.tags.append(self.function.__name__)
+            attribute.tags.append("method:{}".format(self.function.__name__))
 
     def __call__(self, *args, **kwargs):
         assert self.device, \

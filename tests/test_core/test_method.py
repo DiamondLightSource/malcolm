@@ -57,12 +57,12 @@ class MethodTest(unittest.TestCase):
         self.assertEqual(nframes.descriptor, "Number of frames")
         self.assertEqual(type(nframes.typ), VInt)
         self.assertEqual(nframes.value, None)
-        self.assertEqual(nframes.tags, ("argument:required",))
+        self.assertEqual(nframes.tags, ["argument:required"])
         exposure = method.arguments["exposure"]
         self.assertEqual(exposure.descriptor, "Detector exposure")
         self.assertEqual(type(exposure.typ), VFloat)
         self.assertEqual(exposure.value, 0.1)
-        self.assertEqual(exposure.tags, ())
+        self.assertEqual(exposure.tags, [])
         self.assertEqual(method.valid_states, [TState.State1])
 
     def test_attribute_override_description(self):
@@ -73,12 +73,12 @@ class MethodTest(unittest.TestCase):
         self.assertEqual(nframes.descriptor, "Number of frames")
         self.assertEqual(type(nframes.typ), VInt)
         self.assertEqual(nframes.value, None)
-        self.assertEqual(nframes.tags, ("argument:required",))
+        self.assertEqual(nframes.tags, ["argument:required"])
         exposure = method.arguments["exposure"]
         self.assertEqual(exposure.descriptor, "Detector exposure")
         self.assertEqual(type(exposure.typ), VFloat)
         self.assertEqual(exposure.value, 0.1)
-        self.assertEqual(exposure.tags, ())
+        self.assertEqual(exposure.tags, [])
         self.assertEqual(method.valid_states, [TState.State2])
 
     def test_to_dict(self):

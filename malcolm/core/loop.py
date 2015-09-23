@@ -11,10 +11,12 @@ class LState(Enum):
 
 
 class ILoop(Base):
-    # Will be written in by HasLoops
-    loop_remove_from_parent = None
     # If this is a function then spawn event loop
     loop_event = None
+
+    # Will be written in by HasLoops
+    def loop_remove_from_parent(self, loop):
+        pass
 
     def loop_run(self):
         """Start the event loop running"""
@@ -28,7 +30,7 @@ class ILoop(Base):
             event_loop = weak_method(self.event_loop)
             loop_event = weak_method(self.loop_event)
             self.event_loop_proc = cothread.Spawn(event_loop, loop_event)
-                                                # stack_size=1000000)
+            # stack_size=1000000)
         else:
             self.event_loop_proc = cothread.Pulse()
 
@@ -78,12 +80,10 @@ class ILoop(Base):
         """Wait for a loop to finish"""
         self.log_debug("Confirming loop stopped")
         self._loop_state = LState.Stopped
-        if self.loop_remove_from_parent:
-            self.log_debug("Removing loop from parent")
-            try:
-                self.loop_remove_from_parent(self)
-            except ReferenceError:
-                self.log_debug("Parent has already been garbage collected")
+        try:
+            self.loop_remove_from_parent(self)
+        except ReferenceError:
+            self.log_debug("Parent has already been garbage collected")
         if hasattr(self.event_loop_proc, "Signal"):
             self.event_loop_proc.Signal()
 

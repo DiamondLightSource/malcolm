@@ -66,9 +66,9 @@ class Attribute(Base):
                                  .format(VType.subclasses().keys(), typ))
         self._descriptor = descriptor
         if tags:
-            self._tags = tuple(tags)
+            self._tags = list(tags)
         else:
-            self._tags = ()
+            self._tags = []
         self._value = value
         self._alarm = alarm
         self._timeStamp = timeStamp

@@ -1,7 +1,7 @@
 malcolm
 =======
 
-|build-status| |coverage| |pypi-version| |readthedocs|
+|build-status| |coverage| |health| |pypi-version| |readthedocs|
 
 Malcolm is a middlelayer service that allows high level configure/run control
 of control system components generally involved in continous scans.
@@ -51,6 +51,10 @@ APACHE License. (see `LICENSE`_)
 .. |readthedocs| image:: https://readthedocs.org/projects/malcolm/badge/?version=latest
     :target: https://readthedocs.org/projects/malcolm/?badge=latest
     :alt: Documentation Status
+
+.. |health| image:: https://landscape.io/github/dls-controls/malcolm/master/landscape.svg?style=flat
+   :target: https://landscape.io/github/dls-controls/malcolm/master
+   :alt: Code Health
 
 .. _CHANGELOG: https://github.com/dls-controls/malcolm/blob/master/CHANGELOG.rst
 .. _CONTRIBUTING: https://github.com/dls-controls/malcolm/blob/master/CONTRIBUTING.rst

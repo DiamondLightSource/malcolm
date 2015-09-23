@@ -29,10 +29,10 @@ class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops):
                                 weak_method(self._inc_uptime), 1))
 
     def _inc_uptime(self):
-        if self.uptime is None:
-            self.uptime = 1
-        else:
-            self.uptime += 1
+        # pylint gets confused if we don't do the longhand...
+        if self.attributes["uptime"].value is None:
+            self.uptime = 0
+        self.uptime += 1
 
     def add_all_attributes(self):
         """Add all attributes to a device. Make sure you super() call this in

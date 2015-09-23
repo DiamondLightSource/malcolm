@@ -55,6 +55,13 @@
                   "argument:required"
                 ], 
                 "descriptor": "Which encoders to capture"
+              }, 
+              "timeout": {
+                "type": {
+                  "name": "VFloat", 
+                  "version": "2"
+                }, 
+                "descriptor": "Time in seconds to wait for function"
               }
             }, 
             "validStates": [
@@ -159,6 +166,12 @@
               "name": "VFloat", 
               "version": "2"
             }, 
+            "tags": [
+              "method:abort", 
+              "method:configure", 
+              "method:reset", 
+              "method:run"
+            ], 
             "descriptor": "Time in seconds to wait for function"
           }, 
           "connected": {
@@ -184,6 +197,10 @@
               "name": "VInt", 
               "version": "2"
             }, 
+            "tags": [
+              "method:configure", 
+              "method:validate"
+            ], 
             "descriptor": "Which encoders to capture"
           }, 
           "pcTsPre": {
@@ -191,6 +208,10 @@
               "name": "VString", 
               "version": "2"
             }, 
+            "tags": [
+              "method:configure", 
+              "method:validate"
+            ], 
             "descriptor": "What time units for capture"
           }
         }

@@ -76,8 +76,8 @@ class Process(Device, multiprocessing.Process):
 
     def make_create_device(self, cls):
         @functools.wraps(cls)
-        def f(process, name, **kwargs):
-            return process.create_device(cls, name, **kwargs)
+        def f(self, **kwargs):
+            return self.create_device(cls, **kwargs)
         # Set the name and create a Method wrapper for it
         f.__name__ = "create{}".format(cls.__name__)
         class_attributes = getattr(cls, "class_attributes", {})
@@ -169,7 +169,7 @@ class Process(Device, multiprocessing.Process):
         """Stops the event loops and waits until they're done."""
         # Can't do super, as we've decorated it
         self.__del__()
-        for i, ct in enumerate(self.spawned):
+        for ct in self.spawned:
             ct.Wait()
         self.quitsig.Signal()
 
@@ -186,7 +186,9 @@ class Process(Device, multiprocessing.Process):
             raise AssertionError("Can't find device {}".format(devicename))
         return device, ename
 
-    def do_func(self, send, f, args):
+    def do_func(self, send, f, args=None):
+        if args is None:
+            args = {}
         try:
             ret = f(**args)
         except Exception as e:
@@ -195,7 +197,7 @@ class Process(Device, multiprocessing.Process):
         else:
             send(SType.Return, ret)
 
-    def do_call(self, send, endpoint, method, arguments={}):
+    def do_call(self, send, endpoint, method, arguments=None):
         device, ename = self._get_device(endpoint)
         assert ename is None, \
             "Must Call with endpoint=<device> and method=<method>. " \
