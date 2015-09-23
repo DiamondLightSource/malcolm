@@ -25,7 +25,8 @@ class HasAttributes(HasListeners):
         assert name not in self.attributes, \
             "Name {} already exists as attribute".format(name)
         self.attributes[name] = attribute
-        attribute._name = name
+        # Set attribute name, this is the only place we should do this
+        attribute._name = name  # noqa
         attribute.notify_listeners = functools.partial(
             weak_method(self.notify_listeners),
             prefix=self._attributes_prefix + name + ".")

@@ -74,8 +74,9 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
         self._last_uptime = 0
         self._uptime_static = 0
         # Unsubscribe old subs
-        [sub.loop_stop()
-         for sub in self._loops if type(sub) == ClientSubscription]
+        for sub in self._loops:
+            if type(sub) == ClientSubscription:
+                sub.loop_stop()
         # Get the structure
         structure = self.do_get()
         # Update properties

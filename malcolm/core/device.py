@@ -48,7 +48,9 @@ class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops):
     def get_device(self, device):
         """If running under a process, this will allow devices to be connected to
         from the local process or DirectoryService"""
-        raise AssertionError("Device not running under Process")
+        raise AssertionError(
+            "{}: Cannot get device {} as not running under Process"
+            .format(self.name, device))
 
     @classmethod
     def subclasses(cls):
