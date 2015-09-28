@@ -81,7 +81,6 @@ class ZmqSocket(ISocket):
         return self.sock.fd
 
     def __retry(self, poll, action, *args, **kwargs):
-        start = time.time()
         while True:
             try:
                 ret = action(*args, **kwargs)
@@ -89,13 +88,10 @@ class ZmqSocket(ISocket):
             except zmq.ZMQError as error:
                 if error.errno != zmq.EAGAIN:
                     raise
-            if self.timeout and time.time() - start > self.timeout:
+            # Wait for either data available on the socket or a socket shutdown
+            if not self.poll_list([(self, poll)], self.timeout):
                 raise zmq.ZMQError(zmq.ETIMEDOUT, 'Timeout waiting for socket')
-            # Unfortunately, doing a close() on the socket doesn't always
-            # break out of this poll(), so timeout and rely on the socket
-            # call to catch the fact it's been closed
-            self.poll_list([(self, poll)], 1)
-
+            
     def open(self, address):
         """Open the socket on the given address"""
         from cothread import coselect
@@ -103,13 +99,11 @@ class ZmqSocket(ISocket):
         self.cothread = cothread
         self.poll_list = coselect.poll_list
         # Extras that we should listen to apart from our dir
-        poll_extra_flags = coselect.POLLHUP | coselect.POLLERR
-        self.poll_in_flags = coselect.POLLIN | poll_extra_flags
-        self.poll_out_flags = coselect.POLLOUT | poll_extra_flags
+        self.poll_in_flags = coselect.POLLIN
+        self.poll_out_flags = coselect.POLLOUT
         self.context = zmq.Context()
         self.sock = self.make_zmq_sock(address)
 
     def close(self):
         """Close the socket"""
-        self.sock.close()
-        self.context.term()
+        self.context.destroy()
