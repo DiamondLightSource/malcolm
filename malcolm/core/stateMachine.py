@@ -89,9 +89,6 @@ class StateMachine(EventLoop):
     def make_transition_func(self, transition_func, to_states):
         """Run the transition function"""
         # Transition function can return:
-        # - None for no change
-        # - State for a state change (with message "State Change")
-        # - "message" for no state change, just message
         # - (State, "message") for state change with message
         self = weakref.proxy(self)
         transition_func = weak_method(transition_func)

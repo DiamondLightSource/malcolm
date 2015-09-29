@@ -26,7 +26,7 @@ class HasAttributes(HasListeners):
             "Name {} already exists as attribute".format(name)
         self.attributes[name] = attribute
         # Set attribute name, this is the only place we should do this
-        attribute._name = name  # noqa
+        attribute.name = name
         attribute.notify_listeners = functools.partial(
             weak_method(self.notify_listeners),
             prefix=self._attributes_prefix + name + ".")
@@ -103,7 +103,7 @@ class Attribute(Base):
         return self._timeStamp
 
     def __repr__(self):
-        return "<Attribute: {}>".format(repr(self.value))
+        return "<Attribute: {}={}>".format(self.name, repr(self.value))
 
     def update(self, value, alarm=None, timeStamp=None):
         changes = {}

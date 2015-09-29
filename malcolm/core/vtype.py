@@ -105,11 +105,19 @@ class VEnum(VType):
         if type(labels) == str:
             labels = labels.split(",")
         self.labels = tuple(labels)
+        for label in self.labels:
+            assert type(label) == str, \
+                "Expected string, got {}".format(repr(label))
 
     def validate(self, value):
-        assert value in self.labels, \
-            "{} should be one of {}".format(value, self.labels)
-        return value
+        if value in self.labels:
+            return value
+        try:
+            return self.labels[value]
+        except:
+            raise AssertionError(
+                "Value {} is not an index or value in {}"
+                .format(value, self.labels))
 
     def to_dict(self):
         d = super(VEnum, self).to_dict()

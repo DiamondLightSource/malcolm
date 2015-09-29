@@ -1,4 +1,5 @@
 import abc
+import functools
 
 from enum import Enum
 
@@ -80,6 +81,11 @@ class RunnableDevice(Device):
         t(s.abortable(), e.Abort,     do.abort,     s.Aborting)
         t(s.Aborting,    e.AbortSta,  do.abortsta,  s.Aborting, s.Aborted)
 
+        # Add post_ methods
+        for event in list(DEvent):
+            f = functools.partial(self.stateMachine.post, event)
+            setattr(self, "post_{}".format(event.name.lower()), f)
+
     def add_all_attributes(self):
         super(RunnableDevice, self).add_all_attributes()
         # Timeout for functions
@@ -107,7 +113,7 @@ class RunnableDevice(Device):
     @abc.abstractmethod
     def do_reset(self):
         """Check and attempt to clear any error state, arranging for a
-        callback doing self.post(DEvent.ResetSta, resetsta) when progress has
+        callback doing self.post_resetsta(resetsta) when progress has
         been made, where resetsta is any device specific reset status
         """
 
@@ -120,7 +126,7 @@ class RunnableDevice(Device):
     @abc.abstractmethod
     def do_config(self, **config_params):
         """Start doing a configuration using config_params, arranging for a
-        callback doing self.post(DEvent.ConfigSta, configsta) when progress has
+        callback doing self.post_configsta(configsta) when progress has
         been made, where configsta is any device specific configuration status
         """
 
@@ -133,7 +139,7 @@ class RunnableDevice(Device):
     @abc.abstractmethod
     def do_run(self):
         """Start doing a run, arranging for a callback doing
-        self.post(DEvent.RunSta, runsta) when progress has been made, where
+        self.post_runsta(runsta) when progress has been made, where
         runsta is any device specific run status
         """
 
@@ -148,7 +154,7 @@ class RunnableDevice(Device):
     @abc.abstractmethod
     def do_abort(self):
         """Start doing an abort, arranging for a callback doing
-        self.post(DEvent.AbortSta, runsta) when progress has been made, where
+        self.post_abortsta(abortsta) when progress has been made, where
         abortsta is any device specific abort status
         """
 
@@ -159,15 +165,20 @@ class RunnableDevice(Device):
         """
 
     @abc.abstractmethod
-    def validate(self, arg1, arg2="arg2default"):
+    def validate(self, params):
         """Check whether a set of configuration parameters is valid or not. Each
         parameter name must match one of the names in self.attributes. This set
         of parameters should be checked in isolation, no device state should be
         taken into account. It is allowed from any DState and raises an error
         if the set of configuration parameters is invalid. It should return
-        some metrics on the set of parameters, e.g.
-        {"estimatedTime": 1.5}
+        some metrics on the set of parameters as well as the actual parameters
+        that should be used, e.g.
+        {"runTime": 1.5, arg1=2, arg2="arg2default"}
         """
+        params.pop("self", None)
+        assert "runTime" in params, \
+            "Expected runTime to be in param dict, got {}".format(params)
+        return params
 
     @wrap_method(only_in=DState.abortable())
     def abort(self, timeout=None):
@@ -177,7 +188,7 @@ class RunnableDevice(Device):
          * If something goes wrong it will return a DState.Fault Status
         """
         timeout = timeout or self.timeout
-        self.stateMachine.post(DEvent.Abort)
+        self.post_abort()
         self.wait_until(DState.rest(), timeout=timeout)
 
     @wrap_method(only_in=DState.resettable())
@@ -188,7 +199,7 @@ class RunnableDevice(Device):
          * If something goes wrong it will return a DState.Fault Status
         """
         timeout = timeout or self.timeout
-        self.stateMachine.post(DEvent.Reset)
+        self.post_reset()
         self.wait_until(DState.rest(), timeout=timeout)
 
     @wrap_method(only_in=DState.configurable(), arguments_from=validate)
@@ -200,8 +211,9 @@ class RunnableDevice(Device):
          * If something goes wrong it will return a DState.Fault Status
         """
         timeout = timeout or self.timeout
-        self.validate(**params)
-        self.stateMachine.post(DEvent.Config, **params)
+        params = self.validate(**params)
+        params.pop("runTime")
+        self.post_config(**params)
         self.wait_until(DState.rest(), timeout=timeout)
 
     @wrap_method(only_in=DState.runnable())
@@ -215,6 +227,5 @@ class RunnableDevice(Device):
          * If something goes wrong it will return a DState.Fault Status
         """
         timeout = timeout or self.timeout
-        self.stateMachine.post(DEvent.Run)
+        self.post_run()
         self.wait_until(DState.rest(), timeout=timeout)
-

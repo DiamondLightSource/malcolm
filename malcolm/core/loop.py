@@ -179,8 +179,12 @@ class EventLoop(ILoop):
         """Return the next event to be processed. Co-operatively block and
         allow interruption from stop()
         Returns (event, args, kwargs)"""
-        ret = self.inq.Wait(timeout)
-        return ret
+        try:
+            ret = self.inq.Wait(timeout)
+        except self.cothread.cothread.Timedout:
+            raise StopIteration
+        else:
+            return ret
 
     def add_event_handler(self, event, function):
         assert callable(function), \

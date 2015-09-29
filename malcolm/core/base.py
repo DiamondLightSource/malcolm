@@ -11,6 +11,14 @@ class Base(object):
 
     def __init__(self, name):
         super(Base, self).__init__()
+        self.name = name
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, name):
         self._name = name
         lname = "{}({})".format(type(self).__name__, self._name)
         self._log = logging.getLogger(lname)
@@ -19,10 +27,6 @@ class Base(object):
         self.log_info = self._log.info
         self.log_error = self._log.error
         self.log_exception = self._log.exception
-
-    @property
-    def name(self):
-        return self._name
 
     def to_dict(self, **overrides):
         d = OrderedDict()

@@ -37,9 +37,14 @@ class AttributeTest(unittest.TestCase):
         self.assertRaises(AssertionError, VStringArray().validate, "thing")
         self.assertRaises(AssertionError, VStringArray().validate, u"thing")
 
-    def test_venum(self):
-        self.assertEqual(VEnum(range(3)).validate(2), 2)
-        self.assertRaises(AssertionError, VEnum(range(3)).validate, u"thing")
+    def test_sting_venum(self):
+        self.assertRaises(AssertionError, VEnum, range(3))
+        v = VEnum("a,b,c")
+        self.assertEqual(v.validate("a"), "a")
+        self.assertEqual(v.validate(u"a"), "a")
+        self.assertEqual(v.validate(2), "c")
+        self.assertRaises(AssertionError, v.validate, "x")
+        self.assertRaises(AssertionError, v.validate, 3)
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

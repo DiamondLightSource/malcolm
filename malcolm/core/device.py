@@ -71,6 +71,10 @@ class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops):
         """Stop the event loop and destoy the device"""
         self.__del__()
 
+    @property
+    def state(self):
+        return self.stateMachine.state
+
     def to_dict(self):
         """Serialize this object"""
         tags = []

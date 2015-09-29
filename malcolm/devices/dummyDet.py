@@ -94,7 +94,7 @@ class DummyDet(PausableDevice):
             configureSleep=Attribute(VDouble, "Time to sleep to simulate configure"),
         )
 
-    @wrap_method(only_in=DState)
+    @wrap_method()
     def validate(self, nframes, exposure, configureSleep=0.0):
         """Check whether the configuration parameters are valid or not. This set
         of parameters are checked in isolation, no device state is taken into
@@ -103,10 +103,12 @@ class DummyDet(PausableDevice):
         """
         assert nframes > 0, "nframes {} should be > 0".format(nframes)
         assert exposure > 0.0, "exposure {} should be > 0.0".format(exposure)
+        runTime = nframes * exposure
+        return super(DummyDet, self).validate(locals())
 
     def do_reset(self):
         """Reset the underlying device"""
-        self.stateMachine.post(DEvent.ResetSta, "finished")
+        self.post_resetsta("finished")
         return DState.Resetting, "Resetting..."
 
     def do_resetsta(self, resetsta):
@@ -120,29 +122,28 @@ class DummyDet(PausableDevice):
         sim_state = status.state
         my_state = self.stateMachine.state
         if my_state == DState.Configuring and sim_state == SState.Ready:
-            self.stateMachine.post(DEvent.ConfigSta, "finished")
+            self.post_configsta("finished")
         elif my_state == DState.Running and sim_state == SState.Acquiring:
-            self.stateMachine.post(DEvent.RunSta, self.sim.nframes)
+            self.post_runsta(self.sim.nframes)
         elif my_state == DState.Running and sim_state == SState.Idle:
-            self.stateMachine.post(DEvent.RunSta, "finished")
+            self.post_runsta("finished")
         elif my_state == DState.Pausing and sim_state == SState.Acquiring:
-            self.stateMachine.post(DEvent.PauseSta, "finishing")
+            self.post_pausesta("finishing")
         elif my_state == DState.Pausing and sim_state == SState.Idle:
-            self.stateMachine.post(DEvent.PauseSta, "finished")
+            self.post_pausesta("finished")
         elif my_state == DState.Pausing and sim_state == SState.Ready:
-            self.stateMachine.post(DEvent.PauseSta, "configured")
+            self.post_pausesta("configured")
         elif my_state == DState.Aborting and sim_state == SState.Acquiring:
-            self.stateMachine.post(DEvent.AbortSta, "finishing")
+            self.post_abortsta("finishing")
         elif my_state == DState.Aborting and sim_state == SState.Idle:
-            self.stateMachine.post(DEvent.AbortSta, "finished")
+            self.post_abortsta("finished")
         else:
             print "Unhandled", status
 
-    def do_config(self, nframes, exposure, configureSleep):
+    def do_config(self, **config_params):
         """Check config params and send them to sim state machine"""
-        self.nframes = nframes
-        self.exposure = exposure
-        self.configureSleep = configureSleep
+        for param, value in config_params.items():
+            self.attributes[param].update(value)
         self.sim_post(
             SEvent.Config, self.nframes, self.exposure, self.configureSleep)
         return DState.Configuring, "Configuring started"
@@ -176,7 +177,7 @@ class DummyDet(PausableDevice):
                 "Cannot retrace {} steps as we are only on step {}".format(
                     steps, self.nframes - self.frames_to_do)
             self.frames_to_do += steps
-            self.stateMachine.post(DEvent.PauseSta, "finished")
+            self.post_pausesta("finished")
             message = "Retracing started"
         return DState.Pausing, message
 
@@ -204,7 +205,7 @@ class DummyDet(PausableDevice):
         if self.sim.state == SState.Acquiring:
             self.sim_post(SEvent.Abort)
         else:
-            self.stateMachine.post(DEvent.AbortSta, "finished")
+            self.post_abortsta("finished")
         return DState.Aborting, "Aborting"
 
     def do_abortsta(self, abortsta):

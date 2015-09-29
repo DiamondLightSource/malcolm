@@ -34,7 +34,7 @@ class PausableDevice(RunnableDevice):
     @abc.abstractmethod
     def do_pause(self, steps=None):
         """Start doing an pause with a retrace of steps, arranging for a
-        callback doing self.post(DEvent.PauseSta, pausesta) when progress has
+        callback doing self.post_pausesta(pausesta) when progress has
         been made, where pausesta is any device specific abort status
         """
 
