@@ -142,9 +142,8 @@ class ZmqDocsTest(unittest.TestCase):
         el = self.zebraClient.do_subscribe(lambda: None, "stateMachine")
         call_args = self.cs.sock.send_multipart.call_args
         self.assertDocExample("subscribe_zebra_status", call_args[0][0][0])
-        el.inq = MagicMock()
+        el.loop_run()
         el.loop_stop()
-        el._loop_state = LState.Stopped
         call_args = self.cs.sock.send_multipart.call_args
         self.assertDocExample("unsubscribe_zebra_status", call_args[0][0][0])
 

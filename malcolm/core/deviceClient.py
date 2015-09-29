@@ -21,25 +21,14 @@ class ValueQueue(ILoop):
         """Start the event loop running"""
         super(ValueQueue, self).loop_run()
         self.inq = self.cothread.EventQueue()
-        self.finished = self.cothread.Pulse()
 
     def post(self, event, **kwargs):
         self.inq.Signal((event, kwargs))
 
-    def loop_wait(self):
-        """Wait for a loop to finish"""
-        if self.loop_state() != LState.Stopped:
-            self.finished.Wait()
-
-    def loop_confirm_stopped(self):
-        super(ValueQueue, self).loop_confirm_stopped()
-        self.finished.Signal()
-
     def loop_stop(self):
         """Signal the event loop to stop running and wait for it to finish"""
+        self.inq.close()        
         super(ValueQueue, self).loop_stop()
-        self.inq.close()
-        self.loop_confirm_stopped()
 
     def wait_for_return(self, timeout=None):
         event, d = self.inq.Wait(timeout)

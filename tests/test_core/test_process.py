@@ -82,7 +82,7 @@ class ProcessTest(unittest.TestCase):
         self.s = None
         self.p = None
         self.assertEqual(msgs, ['Garbage collecting loop', 'Stopping loop', 'Waiting for loop to finish', 
-                                'Confirming loop stopped', 'Loop garbage collected'])
+                                "Loop finished", 'Loop garbage collected'])
 
     def test_create_device(self):
         expected = ['Device', 'RunnableDevice', 'PausableDevice', 'Process', 'DirectoryService', 'MockDevice']

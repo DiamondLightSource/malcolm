@@ -10,8 +10,8 @@ import weakref
 import cothread
 
 import logging
-#logging.basicConfig()
-#logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig()
+# logging.basicConfig(level=logging.DEBUG)
 from mock import patch, MagicMock
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -38,6 +38,9 @@ class DummyZmqServerSocket(ZmqServerSocket):
 
     def make_zmq_sock(self, address):
         return InqSock()
+
+    def close(self):
+        self.sock.close()
 
 DummyZmqServerSocket.register("dzmq://")
 
