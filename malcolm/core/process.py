@@ -3,6 +3,7 @@ import sys
 import weakref
 import functools
 import inspect
+import socket
 
 from .loop import EventLoop, TimerLoop, LState
 from .method import Method, wrap_method
@@ -16,7 +17,7 @@ from .vtype import VStringArray, VString, VDouble
 
 
 @not_process_creatable
-class Process(Device, multiprocessing.Process):
+class Process(Device): #, multiprocessing.Process):
 
     def __init__(self, serverStrings, name, ds_name="DirectoryService",
                  ds_string=None, timeout=None):
@@ -99,7 +100,7 @@ class Process(Device, multiprocessing.Process):
     def register_devices(self):
         for device in self.localDevices:
             if device not in self.ds.Device_instances:
-                self.ds.register_device(device, self.serverStrings)
+                self.ds.register(device, self.serverStrings)
 
     def update_devices(self):
         self.localDevices = sorted(self._device_servers)
@@ -126,8 +127,8 @@ class Process(Device, multiprocessing.Process):
 
     def get_client_sock(self, serverStrings):
         # If we already have a client sock, return that
-        # TODO: handle localhost conversion here?
         for string in serverStrings:
+            string = string.replace("localhost", "127.0.0.1")
             if string in self._client_socks:
                 return self._client_socks[string]
         cs = ClientSocket.make_socket(string)
@@ -206,6 +207,8 @@ class Process(Device, multiprocessing.Process):
         assert callable(endpoint), "Expected function, got {}".format(endpoint)
         if method == "exit" and device.name == self.name:
             send(SType.Return, None)
+            # Let the socket send
+            #self.cothread.Yield()
             return self.exit()
         elif method == "exit":
             self._device_servers.pop(device.name)

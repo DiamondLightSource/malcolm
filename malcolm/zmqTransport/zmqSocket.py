@@ -3,6 +3,7 @@ from collections import OrderedDict
 import time
 
 import zmq
+import sys
 
 from malcolm.core.transport import ISocket, SType
 from malcolm.core.base import weak_method
@@ -20,23 +21,25 @@ class ZmqSocket(ISocket):
 
     def send(self, msg):
         """Send the message to the socket"""
-        # self.sock.send_multipart(msg)
-        weak_method(self.__retry)(self.poll_out_flags, self.sock.send_multipart, msg,
+        #self.sock.send_multipart(msg)
+        # self.cothread.Yield()
+        weak_method(self.__retry)(self.sock.send_multipart, msg,
                                   flags=zmq.NOBLOCK)
-        # self.log_debug("Sent message {}".format(msg))
+        #sys.stdout.write("Sent message {}\n".format(msg))
+        #sys.stdout.flush()
 
     def recv(self):
         """Co-operatively block until received"""
         try:
-            msg = weak_method(self.__retry)(self.poll_in_flags, self.sock.recv_multipart,
-                                            flags=zmq.NOBLOCK)
+            msg = weak_method(self.__retry)(self.sock.recv_multipart, flags=zmq.NOBLOCK)
         except zmq.ZMQError as error:
-            if error.errno == zmq.ENOTSUP:
+            if error.errno == zmq.ENOTSOCK:
                 raise StopIteration
             else:
                 raise
         else:
-            # self.log_debug("Got message {}".format(msg))
+            #sys.stdout.write("Got message {}\n".format(msg))
+            #sys.stdout.flush()
             return msg
 
     def serialize(self, typ, kwargs):
@@ -80,7 +83,7 @@ class ZmqSocket(ISocket):
         """Needed so that we can co-operatively poll socket"""
         return self.sock.fd
 
-    def __retry(self, poll, action, *args, **kwargs):
+    def __retry(self, action, *args, **kwargs):
         start = time.time()
         while True:
             try:
@@ -91,25 +94,26 @@ class ZmqSocket(ISocket):
                     raise
             if self.timeout and time.time() - start > self.timeout:
                 raise zmq.ZMQError(zmq.ETIMEDOUT, 'Timeout waiting for socket')
-            # Unfortunately, doing a close() on the socket doesn't always
-            # break out of this poll(), so timeout and rely on the socket
-            # call to catch the fact it's been closed
-            self.poll_list([(self, poll)], 1)
-
+            # Unfortunately, sometimes we miss an event, so only wait 1s for a msg
+            # self.poll_list([(self, poll)], 1)
+            if not self.poll_list([(self, self.poll_flags)], self.timeout):
+                raise zmq.ZMQError(zmq.ETIMEDOUT, 'Timeout waiting for socket')
+            
     def open(self, address):
         """Open the socket on the given address"""
         from cothread import coselect
         import cothread
         self.cothread = cothread
         self.poll_list = coselect.poll_list
-        # Extras that we should listen to apart from our dir
-        poll_extra_flags = coselect.POLLHUP | coselect.POLLERR
-        self.poll_in_flags = coselect.POLLIN | poll_extra_flags
-        self.poll_out_flags = coselect.POLLOUT | poll_extra_flags
+        # Must listen for all poll events, otherwise we might miss a recv
+        # when we send at the same time as recv
+        self.poll_flags = coselect.POLLIN | coselect.POLLOUT | \
+            coselect.POLLERR | coselect.POLLHUP
         self.context = zmq.Context()
         self.sock = self.make_zmq_sock(address)
 
     def close(self):
         """Close the socket"""
         self.sock.close()
-        self.context.term()
+        self.context.destroy()
+        

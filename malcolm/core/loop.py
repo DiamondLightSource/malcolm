@@ -24,15 +24,15 @@ class ILoop(Base):
         import cothread
         self.cothread = cothread
         self._loop_state = LState.Running
-        if self.loop_event:
-            # Call unbound function with a weak reference to self so that
-            # garbage collector will call __del__ when we finish
-            event_loop = weak_method(self.event_loop)
+        self._stopping = cothread.Pulse()
+        #Call unbound function with a weak reference to self so that
+        # garbage collector will call __del__ when we finish
+        event_loop = weak_method(self.event_loop)     
+        if self.loop_event is not None:
             loop_event = weak_method(self.loop_event)
-            self.event_loop_proc = cothread.Spawn(event_loop, loop_event)
-            # stack_size=1000000)
         else:
-            self.event_loop_proc = cothread.Pulse()
+            loop_event = None
+        self.event_loop_proc = cothread.Spawn(event_loop, loop_event)#, stack_size=10000000)
 
     def event_loop(self, loop_event):
         while True:
@@ -42,7 +42,10 @@ class ILoop(Base):
                 if self.loop_state() != LState.Running:
                     self.log_debug("Breaking as loop state not Running")
                     break
-                loop_event()
+                if loop_event is not None:
+                    loop_event()
+                else:
+                    self._stopping.Wait()
             except (ReferenceError, StopIteration) as e:
                 try:
                     self.log_debug("Breaking from {}".format(type(e)))
@@ -61,6 +64,7 @@ class ILoop(Base):
         """Signal the event loop to stop running"""
         self._loop_state = LState.Stopping
         self.log_debug("Stopping loop")
+        self._stopping.Signal()
 
     def loop_wait(self, timeout=None):
         """Wait for a loop to finish"""
@@ -87,26 +91,24 @@ class ILoop(Base):
         if hasattr(self.event_loop_proc, "Signal"):
             self.event_loop_proc.Signal()
 
+    def loop_exit(self):
+        if self.loop_state() == LState.Running:
+            self.loop_stop()
+        if self.loop_state() == LState.Stopping:
+            self.loop_wait()
+        
     def __del__(self):
         self.log_debug("Garbage collecting loop")
         if LState is None:
             # When run under nosetests, LState is sometimes garbage collected
             # before us, so just return here
-            return
-        if self.loop_state() == LState.Running:
-            try:
-                self.loop_stop()
-            except ReferenceError:
-                self.log_debug("Garbage collecting caught ref error in stop")
-            except:
-                self.log_exception("Unexpected error during loop_stop")
-        if self.loop_state() == LState.Stopping:
-            try:
-                self.loop_wait()
-            except ReferenceError:
-                self.log_debug("Garbage collecting caught ref error in wait")
-            except:
-                self.log_exception("Unexpected error during loop_wait")
+            return        
+        try:
+            self.loop_exit()
+        except ReferenceError:
+            self.log_debug("Garbage collecting caught ref error")
+        except:
+            self.log_exception("Unexpected error during loop_exit")
         self.log_debug("Loop garbage collected")
 
 
@@ -143,21 +145,24 @@ class HasLoops(ILoop):
         super(HasLoops, self).loop_stop()
         loops = reversed(getattr(self, "_loops", []))
         for loop in loops:
-            loop.loop_stop()
+            if loop.loop_state == LState.Running:
+                loop.loop_stop()
 
     def loop_wait(self, timeout=None):
         """Wait for a loop to finish"""
         # Do in reverse so sockets (first) can send anything the other loops
         # produce
-        self.log_debug("Waiting for loop to finish")
         loops = reversed(getattr(self, "_loops", []))
         for loop in loops:
-            loop.loop_wait(timeout=timeout)
-            # It might remove itself, if it doesn't then remove it
-            if loop in self._loops:
-                self.remove_loop(loop)
+            if loop.loop_state == LState.Stopping:
+                loop.loop_wait(timeout=timeout)
+                # It might remove itself, if it doesn't then remove it
+                if loop in self._loops:
+                    self.remove_loop(loop)
+        # GC the loops
         loops = None
-        self.loop_confirm_stopped()
+        # Call the super class to wait for ourselves
+        super(HasLoops, self).loop_wait()
 
 
 class EventLoop(ILoop):
@@ -248,6 +253,7 @@ class TimerLoop(ILoop):
         self.retrigger = retrigger
 
     def on_trigger(self):
+        # TODO: this should be called?
         if not self.retrigger:
             self.loop_stop()
         self.callback()
@@ -261,6 +267,6 @@ class TimerLoop(ILoop):
 
     def loop_stop(self):
         """Signal the event loop to stop running and wait for it to finish"""
-        super(TimerLoop, self).loop_stop()
         self.timer.cancel()
-        self.loop_confirm_stopped()
+        super(TimerLoop, self).loop_stop()
+

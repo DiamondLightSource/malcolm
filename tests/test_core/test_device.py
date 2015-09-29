@@ -8,9 +8,10 @@ import os
 import time
 import cothread
 import logging
+from mock import MagicMock
 #logging.basicConfig(level=logging.DEBUG)
 
-#logging.basicConfig()
+logging.basicConfig()
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.devices.dummyDet import DummyDet, DState, SState, DEvent
@@ -178,6 +179,8 @@ class DeviceTest(unittest.TestCase):
         self.assertRaisesRegexp(AssertionError, "Unknown arguments supplied: \['foo'\]", self.d.configure, nframes=10, exposure=0.1, foo="bar")        
 
     def test_del_called_when_out_of_scope(self):
+        exc = MagicMock()
+        self.d.sim.log_exception = exc
         self.d.add_listener(self.callback, "stateMachine")
         self.d.configure(nframes=10, exposure=0.05)
         expected = [DState.Configuring, DState.Ready]
@@ -186,9 +189,11 @@ class DeviceTest(unittest.TestCase):
         self.d.stateMachine.post(DEvent.Run)
         cothread.Sleep(0.3)
         self.assertEqual(len(self.states), 7)
+        self.assertEqual(exc.call_count, 0)
         self.d = None
         cothread.Sleep(0.3)
         self.assertEqual(len(self.states), 7)
+        self.assertEqual(exc.call_count, 5)
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

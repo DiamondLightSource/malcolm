@@ -113,7 +113,7 @@ class DeviceTest(unittest.TestCase):
         self.assertEqual(msgs, ['Garbage collecting loop',
                                 'Stopping loop',
                                 'Waiting for loop to finish',
-                                'Confirming loop stopped',
+                                "Loop finished",
                                 'Loop garbage collected'])
 
 if __name__ == '__main__':
