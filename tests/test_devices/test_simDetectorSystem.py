@@ -15,7 +15,7 @@ import subprocess
 
 import logging
 #logging.basicConfig()
-logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 from mock import MagicMock, patch
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
