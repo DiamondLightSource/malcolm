@@ -99,22 +99,35 @@ class VString(VType):
         return cast
 
 
+class EnumString(str):
+
+    def __eq__(self, other):
+        return self.i == other or str.__eq__(self, other)
+
+    def to_dict(self):
+        return self.i
+
+
 class VEnum(VType):
 
     def __init__(self, labels):
         if type(labels) == str:
             labels = labels.split(",")
-        self.labels = tuple(labels)
-        for label in self.labels:
+        self.labels = []
+        for i, label in enumerate(labels):
             assert type(label) == str, \
                 "Expected string, got {}".format(repr(label))
+            es = EnumString(label)
+            es.i = i
+            self.labels.append(es)
+        self.labels = tuple(self.labels)
 
     def validate(self, value):
-        if value in self.labels:
-            return value
         try:
             return self.labels[value]
         except:
+            if value in self.labels:
+                return value
             raise AssertionError(
                 "Value {} is not an index or value in {}"
                 .format(value, self.labels))
@@ -125,10 +138,10 @@ class VEnum(VType):
         return d
 
     def __eq__(self, other):
-        if type(self) != type(other):
+        if type(self) != type(other) or len(self.labels) != len(other.labels):
             return False
         else:
-            return set(self.labels) == set(other.labels)
+            return min(a == b for a, b in zip(self.labels, other.labels))
 
 
 class VStringArray(VType):

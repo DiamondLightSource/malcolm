@@ -48,14 +48,6 @@ class SimDetector(RunnableDevice):
         self.config_params = {}
         self.add_listener(self.on_attribute_change, "attributes")
 
-    def assert_idle(self):
-        # This is called as a result of caput callback. Sometimes we get
-        # a callback before a monitor update, so explicitly call caget
-        # to make sure we get the up to date value of acquire
-        acquiring = self.attributes["acquire"].rbv.caget()
-        assert not acquiring, \
-            "Expected to be not acquiring now..."
-
     @wrap_method()
     def validate(self, exposure, numImages, period=None):
         if period is None:

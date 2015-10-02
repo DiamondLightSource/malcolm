@@ -43,6 +43,7 @@ class AttributeTest(unittest.TestCase):
         self.assertEqual(v.validate("a"), "a")
         self.assertEqual(v.validate(u"a"), "a")
         self.assertEqual(v.validate(2), "c")
+        self.assertEqual(v.validate(2), 2)
         self.assertRaises(AssertionError, v.validate, "x")
         self.assertRaises(AssertionError, v.validate, 3)
 
