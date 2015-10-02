@@ -72,7 +72,7 @@ class ZmqTest(unittest.TestCase):
             try:
                 s.Wait(0.1)
             except zmq.ZMQError, e:
-                self.assertEqual(e.errno, zmq.ENOTSOCK)
+                self.assertIn(e.errno, [zmq.ENOTSOCK, zmq.ENOTSUP])
             else:
                 self.fail("Didn't get right exception")
             end = time.time()

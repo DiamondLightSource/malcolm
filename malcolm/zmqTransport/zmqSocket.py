@@ -33,7 +33,7 @@ class ZmqSocket(ISocket):
         try:
             msg = weak_method(self.__retry)(self.sock.recv_multipart, flags=zmq.NOBLOCK)
         except zmq.ZMQError as error:
-            if error.errno == zmq.ENOTSOCK:
+            if error.errno in [zmq.ENOTSOCK, zmq.ENOTSUP]:
                 raise StopIteration
             else:
                 raise

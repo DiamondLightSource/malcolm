@@ -1,6 +1,5 @@
 #!/bin/env dls-python
 from pkg_resources import require
-from collections import OrderedDict
 from malcolm.core.runnableDevice import DState
 require("mock")
 require("pyzmq")
@@ -22,7 +21,7 @@ from malcolm.core import Attribute
 
 class DummyPVAttribute(PVAttribute):
 
-    def make_pvs(self, pv, rbv, rbv_suff):
+    def make_pvs(self):
         self.pv = MagicMock()
         self.rbv = MagicMock()
 
@@ -55,14 +54,13 @@ class SimDetectorTest(unittest.TestCase):
         self.assertEqual(actual, self.valid_params)
 
     def check_set(self, attr, expected):
-        print self.s.attributes[attr].pv
         self.assertEqual(self.s.attributes[attr].pv.caput.call_count, 1)
         call_args = self.s.attributes[attr].pv.caput.call_args
         val, cb = call_args[0][0], call_args[1]["callback"]
         self.assertEquals(
             val, expected, "{}: expected {} got {}".format(attr, expected, val))
         Attribute.update(self.s.attributes[attr], val)
-        return cb
+        self.s.attributes[attr].pv.reset_mock()
 
     def test_configure(self):
         spawned = cothread.Spawn(self.s.configure, **self.in_params)
@@ -73,21 +71,16 @@ class SimDetectorTest(unittest.TestCase):
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Configuring)
         for attr in sorted(self.send_params):
-            self.check_set(attr, self.send_params[attr])(None)
-        self.mock_pv.reset_mock()
+            self.check_set(attr, self.send_params[attr])
         spawned.Wait(1)
-        self.assertEqual(len(self.mock_pv.mock_calls), 0)
         self.assertEqual(self.s.stateMachine.state, DState.Ready)
 
     def set_configured(self):
-        self.mock_pv.reset_mock()
         # Set all the pvs to the right value
         for attr in sorted(self.send_params):
             self.s.attributes[attr]._value = self.send_params[attr]
         self.s.configure(timeout=1, **self.in_params)
         self.assertEqual(self.s.stateMachine.state, DState.Ready)
-        # Check we didnt write anything
-        self.assertEqual(len(self.mock_pv.mock_calls), 0)
 
     def test_run(self):
         self.set_configured()
@@ -96,14 +89,12 @@ class SimDetectorTest(unittest.TestCase):
         cothread.Yield()
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Running)
-        cb = self.check_set("acquire", 1)
+        self.check_set("acquire", 1)
         self.assertEqual(self.s.acquire, 1)
-        self.s.attributes["acquire"].rbv.caget.return_value = False
+        Attribute.update(self.s.attributes["acquire"], False)
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Idle)
         spawned.Wait(1)
-        self.assertEqual(len(self.mock_pv.mock_calls), 1)
-        self.s.attributes["acquire"].rbv.caget.assert_called_once_with()
         self.assertEqual(self.s.stateMachine.state, DState.Idle)
 
     def test_abort(self):
@@ -112,20 +103,18 @@ class SimDetectorTest(unittest.TestCase):
         cothread.Yield()
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Running)
-        cb = self.check_set("acquire", 1)
+        self.check_set("acquire", 1)
         self.assertEqual(self.s.acquire, 1)
         aspawned = cothread.Spawn(self.s.abort, timeout=1)
         cothread.Yield()
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Aborting)
-        cb2 = self.check_set("acquire", 0)
-        self.s.attributes["acquire"].rbv.caget.return_value = False
+        self.check_set("acquire", 0)
+        Attribute.update(self.s.attributes["acquire"], False)
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Aborted)
         spawned.Wait(1)
         aspawned.Wait(1)
-        self.assertEqual(len(self.mock_pv.mock_calls), 1)
-        self.s.attributes["acquire"].rbv.caget.assert_called_once_with()
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

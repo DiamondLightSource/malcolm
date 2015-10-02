@@ -34,7 +34,8 @@ class SimDetector(RunnableDevice):
                 rbv_suff="_RBV"),
             acquire=PVAttribute(
                 p + "Acquire", VBool,
-                "Demand and readback for starting acquisition"),
+                "Demand and readback for starting acquisition",
+                put_callback=False),
             arrayCounter=PVAttribute(
                 p + "ArrayCounter", VInt,
                 "Current unique id number for frame",
@@ -133,7 +134,7 @@ class SimDetector(RunnableDevice):
     def do_run(self):
         """Start doing a run, stopping when it calls back
         """
-        self.attributes["acquire"].update(1, callback=False)
+        self.acquire = True
         return DState.Running, "Running started"
 
     def do_runsta(self):
@@ -145,7 +146,7 @@ class SimDetector(RunnableDevice):
     def do_abort(self):
         """Stop acquisition
         """
-        self.attributes["acquire"].update(0, callback=False)
+        self.acquire = False
         return DState.Aborting, "Aborting started"
 
     def do_abortsta(self):

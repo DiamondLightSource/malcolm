@@ -25,14 +25,15 @@ class ILoop(Base):
         self.cothread = cothread
         self._loop_state = LState.Running
         self._stopping = cothread.Pulse()
-        #Call unbound function with a weak reference to self so that
+        # Call unbound function with a weak reference to self so that
         # garbage collector will call __del__ when we finish
-        event_loop = weak_method(self.event_loop)     
+        event_loop = weak_method(self.event_loop)
         if self.loop_event is not None:
             loop_event = weak_method(self.loop_event)
         else:
             loop_event = None
-        self.event_loop_proc = cothread.Spawn(event_loop, loop_event)#, stack_size=10000000)
+        # , stack_size=10000000)
+        self.event_loop_proc = cothread.Spawn(event_loop, loop_event)
 
     def event_loop(self, loop_event):
         while True:
@@ -59,7 +60,6 @@ class ILoop(Base):
         except ReferenceError as e:
             return
 
-    @abc.abstractmethod
     def loop_stop(self):
         """Signal the event loop to stop running"""
         self._loop_state = LState.Stopping
@@ -96,13 +96,13 @@ class ILoop(Base):
             self.loop_stop()
         if self.loop_state() == LState.Stopping:
             self.loop_wait()
-        
+
     def __del__(self):
         self.log_debug("Garbage collecting loop")
         if LState is None:
             # When run under nosetests, LState is sometimes garbage collected
             # before us, so just return here
-            return        
+            return
         try:
             self.loop_exit()
         except ReferenceError:
@@ -269,4 +269,3 @@ class TimerLoop(ILoop):
         """Signal the event loop to stop running and wait for it to finish"""
         self.timer.cancel()
         super(TimerLoop, self).loop_stop()
-

@@ -5,10 +5,11 @@ import functools
 from .alarm import Alarm
 from .listener import HasListeners
 from .base import weak_method, Base
-from malcolm.core.vtype import VType
+from .vtype import VType
+from .loop import HasLoops, ILoop
 
 
-class HasAttributes(HasListeners):
+class HasAttributes(HasLoops, HasListeners):
     """Mixin that allows Attribute objects to be stored in a class"""
     _attributes_prefix = "attributes."
 
@@ -30,6 +31,9 @@ class HasAttributes(HasListeners):
         attribute.notify_listeners = functools.partial(
             weak_method(self.notify_listeners),
             prefix=self._attributes_prefix + name + ".")
+        # if this is a loop and we have loops, add it
+        if isinstance(attribute, ILoop):
+            self.add_loop(attribute)
         return attribute
 
     def __getattr__(self, attr):

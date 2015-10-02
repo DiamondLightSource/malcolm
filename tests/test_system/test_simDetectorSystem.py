@@ -28,8 +28,8 @@ class SimDetectorTest(unittest.TestCase):
     def setUp(self):
         # Start the GDA SWMR demo
         ioc = "/dls_sw/work/R3.14.12.3/support/mapping/iocs/TS-EA-IOC-02/bin/linux-x86_64/stTS-EA-IOC-02.sh"
-        #self.ioc = subprocess.Popen([ioc, "512", "512"], stdin=subprocess.PIPE)
-        #cothread.Sleep(5)
+        self.ioc = subprocess.Popen([ioc, "512", "512"], stdin=subprocess.PIPE)
+        cothread.Sleep(5)
         from socket import gethostname
         hostname = gethostname().split(".")[0]
         pre = "{}-AD-SIM-01:CAM:".format(hostname)
@@ -42,10 +42,10 @@ class SimDetectorTest(unittest.TestCase):
 
     def test_100_sequences(self):
         for i in range(100):
-            self.test_sequence()
+            self.do_sequence()
             cothread.Sleep(random.random())
 
-    def test_sequence(self):
+    def do_sequence(self):
         start = time.time()
         self.s.configure(**self.in_params)
         end = time.time()
@@ -66,8 +66,8 @@ class SimDetectorTest(unittest.TestCase):
         self.assertEqual(self.s.arrayCounter, self.in_params["numImages"])
 
     def tearDown(self):
-        #self.ioc.stdin.close()
-        #self.ioc.wait()
+        self.ioc.stdin.close()
+        self.ioc.wait()
         pass
 
 if __name__ == '__main__':
