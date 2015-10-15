@@ -14,7 +14,7 @@ class PausableDevice(RunnableDevice):
         super(PausableDevice, self).__init__(name, timeout=timeout)
 
         # some shortcuts for the state table
-        do, t, s, e = self.shortcuts()
+        do, t, s, e = self.shortcuts(DState, DEvent)
 
         # add pause states
         t(s.Running,     e.Pause,     do.pause,     s.Pausing)
@@ -26,10 +26,24 @@ class PausableDevice(RunnableDevice):
         super(PausableDevice, self).add_all_attributes()
         # Add attributes
         self.add_attributes(
-            totalSteps=Attribute(VInt, "Number of scan steps"),
-            currentStep=Attribute(VInt, "Current scan step"),
+            totalSteps=Attribute(VInt, "Readback of number of scan steps"),
+            currentStep=Attribute(VInt, "Readback of current scan step"),
+            stepsPerRun=Attribute(
+                VInt, "Readback of steps that will be done each run"),
             retraceSteps=Attribute(VInt, "Number of steps to retrace by"),
         )
+
+    def _get_default_times(self, funcname=None):
+        # If we have a cached version, use this
+        if not hasattr(self, "_default_times"):
+            # update defaults with our extra functions
+            super(PausableDevice, self)._get_default_times().update(
+                pauseTimeout=1,
+                retraceTimeout=1,
+                resumeTimeout=1,
+            )
+        # Now just return superclass result
+        return super(PausableDevice, self)._get_default_times(funcname)
 
     @abc.abstractmethod
     def do_pause(self, steps=None):
@@ -46,36 +60,39 @@ class PausableDevice(RunnableDevice):
         raise NotImplementedError
 
     @wrap_method(only_in=DState.Running)
-    def pause(self, timeout=None):
+    def pause(self, block=True):
         """Pause a run so that it can be resumed later. It blocks until the
         device is in a pause done state:
          * Normally it will return a DState.Paused Status
          * If the user aborts then it will return a DState.Aborted Status
          * If something goes wrong it will return a DState.Fault Status
         """
-        timeout = timeout or self.timeout
-        self.stateMachine.post(DEvent.Pause, None)
-        self.wait_until(DState.pausedone(), timeout=timeout)
+        self.post_pause(None)
+        if block:
+            timeout = self._get_default_times("pause")
+            self.wait_until(DState.donePause(), timeout=timeout)
 
     @wrap_method(only_in=DState.Paused)
-    def retrace(self, retraceSteps, timeout=None):
+    def retrace(self, retraceSteps, block=True):
         """Retrace a number of steps in the current scan. It blocks until the
         device is in pause done state:
          * Normally it will return a DState.Paused Status
          * If the user aborts then it will return a DState.Aborted Status
          * If something goes wrong it will return a DState.Fault Status
         """
-        timeout = timeout or self.timeout
-        self.stateMachine.post(DEvent.Pause, retraceSteps)
-        self.wait_until(DState.pausedone(), timeout=timeout)
+        self.post_pause(retraceSteps)
+        if block:
+            timeout = self._get_default_times("retrace")
+            self.wait_until(DState.donePause(), timeout=timeout)
 
     @wrap_method(only_in=DState.Paused)
-    def resume(self, timeout=None):
+    def resume(self, block=True):
         """Resume the current scan. It returns as soon as the device has
         continued to run:
          * Normally it will return a DState.Running Status
          * If something goes wrong it will return a DState.Fault Status
         """
-        timeout = timeout or self.timeout
-        self.stateMachine.post(DEvent.Run)
-        self.wait_until([DState.Running, DState.Fault], timeout=timeout)
+        self.post_run()
+        if block:
+            timeout = self._get_default_times("resume")
+            self.wait_until([DState.Running, DState.Fault], timeout=timeout)

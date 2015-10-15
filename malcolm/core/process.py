@@ -3,9 +3,8 @@ import sys
 import weakref
 import functools
 import inspect
-import socket
 
-from .loop import EventLoop, TimerLoop, LState
+from .loop import EventLoop, LState
 from .method import Method, wrap_method
 from .device import Device, not_process_creatable
 from .deviceClient import DeviceClient
@@ -13,11 +12,11 @@ from .transport import ClientSocket, ServerSocket, SType
 from .subscription import ServerSubscription
 from .attribute import Attribute
 from .base import weak_method
-from .vtype import VStringArray, VString, VDouble
+from .vtype import VStringArray, VString, VDouble, VObject
 
 
 @not_process_creatable
-class Process(Device): #, multiprocessing.Process):
+class Process(Device, multiprocessing.Process):
 
     def __init__(self, serverStrings, name, ds_name="DirectoryService",
                  ds_string=None, timeout=None):
@@ -71,7 +70,8 @@ class Process(Device): #, multiprocessing.Process):
         for d in deviceTypes:
             # Add it to the deviceTypes attribute
             self.deviceTypes.append(d.__name__)
-            if d not in Device.not_process_creatable and not inspect.isabstract(d):
+            if d not in Device.not_process_creatable and \
+                    not inspect.isabstract(d):
                 # Make a method to create an instance of it
                 self.make_create_device(d)
 
@@ -97,13 +97,24 @@ class Process(Device): #, multiprocessing.Process):
         self.update_devices()
         return device
 
-    def register_devices(self):
-        for device in self.localDevices:
-            if device not in self.ds.Device_instances:
-                self.ds.register(device, self.serverStrings)
-
     def update_devices(self):
+        # update our localDevices attribute to reflect our Device instances
         self.localDevices = sorted(self._device_servers)
+        if self.ds:
+            self.on_device_list_changed()
+
+    def on_device_list_changed(self):
+        # Make sure our localDevices are pushed to ds
+        for dname in self.localDevices + [self.name]:
+            if dname not in self.ds.instancesDevice:
+                self.ds.register(dname, self.serverStrings)
+        # Make sure our instance attributes are correct
+        for device in self._device_servers.values() + [self]:
+            for ia in device._instance_attributes:
+                labels = getattr(
+                    self.ds, "instances{}".format(ia.dcls.__name__), [])
+                if tuple(labels) != ia.typ.labels:
+                    ia.update_type(VObject(labels, weak_method(self.get_device)))
 
     def get_device(self, device, serverStrings=None):
         """Create a weak reference to a new DeviceClient object (or existing)
@@ -158,9 +169,9 @@ class Process(Device): #, multiprocessing.Process):
         # Create a client to directory service
         if self.ds_string is not None:
             self.ds = self.get_device(self.ds_name, [self.ds_string])
-            # Make a timer to keep checking ds has our devices
-            self.add_loop(TimerLoop(self.name + ".dsupdate",
-                                    self.register_devices, 10))
+            # Monitor ds and update all instance attributes
+            self.ds.add_listener(self.on_device_list_changed,
+                                 "attributes.instanceDevice")
         self.quitsig = self.cothread.Pulse()
         if block:
             self.quitsig.Wait()
@@ -208,7 +219,7 @@ class Process(Device): #, multiprocessing.Process):
         if method == "exit" and device.name == self.name:
             send(SType.Return, None)
             # Let the socket send
-            #self.cothread.Yield()
+            # self.cothread.Yield()
             return self.exit()
         elif method == "exit":
             self._device_servers.pop(device.name)
@@ -231,7 +242,8 @@ class Process(Device): #, multiprocessing.Process):
         if send in self.subscriptions:
             self.subscriptions.pop(send).loop_stop()
         else:
-            self.log_error("Unknown send func {}".format(getattr(send, "endpoint", send.__name__)))
+            send_name = getattr(send, "endpoint", send.__name__)
+            self.log_error("Unknown send func {}".format(send_name))
 
     def do_error(self, error, send, *args, **kwargs):
         EventLoop.error_handler(self.router, error, send, *args, **kwargs)

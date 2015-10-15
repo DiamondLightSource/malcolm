@@ -2,9 +2,11 @@ from collections import OrderedDict
 import inspect
 import functools
 import weakref
+import copy
 
 from .base import Base
 from .attribute import Attribute
+from malcolm.core.attribute import InstanceAttribute
 
 
 class HasMethods(Base):
@@ -25,12 +27,18 @@ class HasMethods(Base):
             self.add_method(method, **attributes)
 
     def add_method(self, method, **attributes):
+        # Decorated function is an object, when we subclass we need to
+        # copy it so we do the manualy weak binding on the right object
+        # can't do it elsewhere, so do it here
+        method = copy.copy(method)
         # Lazily make methods dict
         if not hasattr(self, "methods"):
             self.methods = OrderedDict()
 
         method.describe(self, attributes)
         self.methods[method.name] = method
+        # make sure self.blah calls the copied method
+        setattr(self, method.name, method)
 
 
 def wrap_method(only_in=None, arguments_from=None, **attributes):
@@ -96,10 +104,12 @@ class Method(Base):
             else:
                 function = self.arguments_from
             args, defaults = self._get_args_defaults(function)
-            extra_args, extra_defaults = self._get_args_defaults(self.function, check_var=False)
+            extra_args, extra_defaults = self._get_args_defaults(
+                self.function, check_var=False)
             for arg in extra_args:
                 assert arg not in args, \
-                    "Duplicate argument {} in {}".format(arg, self.function.__name__)
+                    "Duplicate argument {} in {}".format(
+                        arg, self.function.__name__)
                 args.append(arg)
                 if arg in extra_defaults:
                     defaults[arg] = extra_defaults[arg]
@@ -107,7 +117,7 @@ class Method(Base):
             function = self.function
             args, defaults = self._get_args_defaults(function)
         # Make the structure
-        self.arguments = {}
+        self.arguments = OrderedDict()
         for arg in args:
             if arg in defaults:
                 # default
@@ -118,11 +128,14 @@ class Method(Base):
                 tags = ["argument:required"]
                 value = None
             attribute = self.attributes[arg]
-            self.arguments[arg] = Attribute(typ=attribute.typ,
-                                            descriptor=attribute.descriptor,
-                                            name=arg,
-                                            value=value,
-                                            tags=tags)
+            attr_args = dict(descriptor=attribute.descriptor,
+                             name=arg, value=value, tags=tags)
+            if isinstance(attribute, InstanceAttribute):
+                a = InstanceAttribute(dcls=attribute.dcls, **attr_args)
+                device._instance_attributes.append(a)
+            else:
+                a = Attribute(typ=attribute.typ, **attr_args)
+            self.arguments[arg] = a
             attribute.tags.append("method:{}".format(self.function.__name__))
 
     def __call__(self, *args, **kwargs):
@@ -131,7 +144,8 @@ class Method(Base):
         sm = getattr(self.device, "stateMachine", None)
         if sm and self.valid_states is not None:
             assert sm.state in self.valid_states, \
-                "Method {} not allowed in {} state".format(self.function.__name__, sm.state)
+                "Method {} not allowed in {} state".format(
+                    self.function.__name__, sm.state)
         # Add in args
         for aname, aval in zip(self.arguments.keys(), args):
             kwargs[aname] = aval
@@ -144,11 +158,14 @@ class Method(Base):
                 else:
                     missing.append(arg)
         assert len(missing) == 0, \
-            "Arguments not supplied: {}".format(missing)
+            "Arguments not supplied: {}, you gave me {}".format(missing, kwargs)
         # Now report extras
         extras = [x for x in sorted(kwargs) if x not in self.arguments]
         assert len(extras) == 0, \
             "Unknown arguments supplied: {}".format(extras)
+        # Now validate
+        for k, v in kwargs.items():
+            kwargs[k] = self.arguments[k].typ.validate(v)
         return self.function(self.device, **kwargs)
 
     def to_dict(self):

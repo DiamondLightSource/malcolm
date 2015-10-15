@@ -178,6 +178,7 @@ class EventLoop(ILoop):
 
         :param event: a event enum
         """
+        self.log_debug("Posting {} {} {}".format(event, args, kwargs))
         self.inq.Signal((event, args, kwargs))
 
     def get_next_event(self, timeout=None):

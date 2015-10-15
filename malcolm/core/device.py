@@ -1,4 +1,5 @@
 import inspect
+import functools
 from collections import OrderedDict
 
 from .attribute import HasAttributes, Attribute
@@ -22,6 +23,7 @@ class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops):
 
     def __init__(self, name, timeout=None):
         super(Device, self).__init__(name)
+        # TODO: delete this?
         self.timeout = timeout
         self.add_all_attributes()
         self.add_methods()
@@ -74,6 +76,23 @@ class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops):
     @property
     def state(self):
         return self.stateMachine.state
+
+    def add_post_methods(self, events):
+        for event in events:
+            f = functools.partial(self.stateMachine.post, event)
+            setattr(self, "post_{}".format(event.name.lower()), f)
+
+    def shortcuts(self, s, e):
+        # Shortcut to all the self.do_ functions
+        class do:
+            pass
+        for fname in dir(self):
+            if fname.startswith("do_"):
+                setattr(do, fname[3:], getattr(self, fname))
+
+        # Shortcut to transition function, state list and event list
+        t = self.stateMachine.transition
+        return (do, t, s, e)
 
     def to_dict(self):
         """Serialize this object"""

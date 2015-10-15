@@ -39,7 +39,6 @@ class MockSocket(ServerSocket):
         """Open the socket on the given address"""
         self.out = []
         self.send = None
-        import cothread
         self.inq = cothread.EventQueue()
 
     def close(self):

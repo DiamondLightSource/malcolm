@@ -45,6 +45,7 @@ class StateMachineTest(unittest.TestCase):
 
     def test_state1_2_transition_works(self):
         trans = MagicMock(return_value=(VState.State2, "mess"))
+        trans.__name__ = "my_transition"
         self.sm.transition(VState.State1, VEvent.Event1, trans, VState)
         self.sm.loop_run()
         self.sm.post(VEvent.Event1)
@@ -56,6 +57,7 @@ class StateMachineTest(unittest.TestCase):
         mock_exception = MagicMock()
         self.sm.log_exception = mock_exception
         trans = MagicMock(return_value=None)
+        trans.__name__ = "my_transition"
         self.sm.transition(VState.State1, VEvent.Event1, trans, VState.State2)
         self.sm.loop_run()
         self.sm.post(VEvent.Event1)
@@ -63,12 +65,13 @@ class StateMachineTest(unittest.TestCase):
         self.assertEquals(self.sm.state, VState.Err)
         trans.assert_called_once_with()
         mock_exception.assert_called_once_with(
-            'Handler raised error: Needed tuple or list of length 2, got None')
+            'Handler raised error: Needed tuple or list of length 2 from my_transition, got None')
 
     def test_transition_with_no_matching_func(self):
         mock_info = MagicMock()
         self.sm.log_info = mock_info
         trans = MagicMock(return_value=(VState.State2, "Boo"))
+        trans.__name__ = "my_transition"
         self.sm.transition(VState.State1, VEvent.Event1, trans, VState.State2)
         self.sm.loop_run()
         self.sm.post(VEvent.Event2)
@@ -86,6 +89,7 @@ class StateMachineTest(unittest.TestCase):
     def test_2_transitions_works(self):
         self.sm.transition(VState.State1, VEvent.Event1, None, VState.State2)
         trans2 = MagicMock(return_value=(VState.State1, None))
+        trans2.__name__ = "my_transition2"
         self.sm.transition(VState.State2, VEvent.Event2, trans2, VState)
         self.sm.loop_run()
         self.sm.post(VEvent.Event1)
@@ -103,6 +107,7 @@ class StateMachineTest(unittest.TestCase):
         self.sm.log_exception = mock_exception
         c = HasStateMachine("C")
         trans = MagicMock(side_effect=ValueError("My Error Message"))
+        trans.__name__ = "my_transition"
         self.sm.transition(VState.State1, VEvent.Event1, trans, VState.State2)
         c.add_stateMachine(self.sm)
         c.add_listener(self.callback)
@@ -120,6 +125,7 @@ class StateMachineTest(unittest.TestCase):
         mock_exception = MagicMock()
         self.sm.log_exception = mock_exception
         trans = MagicMock(side_effect=ValueError("My Error Message"))
+        trans.__name__ = "my_transition"
         self.sm.transition(VState.State1, VEvent.Event1, trans, VState.State2)
         self.sm.loop_run()
         self.sm.post(VEvent.Event1, 3, boo="foo")

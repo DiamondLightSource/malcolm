@@ -62,7 +62,7 @@ class SimDetectorTest(unittest.TestCase):
         self.assertAlmostEqual(end - start, self.runtime, delta=0.05)
         self.assertEqual(self.s.stateMachine.state, DState.Idle)
         # Allow numImages to update
-        cothread.Yield()
+        cothread.Sleep(0.05)
         self.assertEqual(self.s.arrayCounter, self.in_params["numImages"])
 
     def tearDown(self):

@@ -11,8 +11,7 @@ from .stateMachine import StateMachine, HasStateMachine
 from .alarm import Alarm
 from .subscription import ClientSubscription
 from .method import HasMethods
-from .vtype import VBool, VType
-from malcolm.core.vtype import VEnum
+from .vtype import VBool, VType, VEnum
 
 
 class ValueQueue(ILoop):
@@ -27,7 +26,7 @@ class ValueQueue(ILoop):
 
     def loop_stop(self):
         """Signal the event loop to stop running and wait for it to finish"""
-        self.inq.close()        
+        self.inq.close()
         super(ValueQueue, self).loop_stop()
 
     def wait_for_return(self, timeout=None):
@@ -75,7 +74,7 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
         self.attributes = {}
         # Add connection attribute
         self.add_attributes(
-            device_client_connected=Attribute(VBool, "Is device reponsive?"))
+            deviceClientConnected=Attribute(VBool, "Is device reponsive?"))
         for aname, adata in structure.get("attributes", {}).items():
             typ = adata["type"]["name"]
             typ = VType.subclasses()[typ]
@@ -122,7 +121,7 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
             f.__doc__ = mdata.get("descriptor", mname)
             f.func_name = str(mname)
             setattr(self, mname, f)
-        self.device_client_connected = True
+        self.deviceClientConnected = True
         self.log_info("Device connected")
 
     def do_subscribe(self, callback, endpoint=None):
@@ -162,7 +161,7 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
         if self._last_uptime >= self.uptime and self._uptime_static > 5:
             # Device inactive for 5s, must be dead
             self.log_info("Device inactive, reconnecting")
-            self.device_client_connected = False
+            self.deviceClientConnected = False
             self._reconnect()
         elif self._last_uptime >= self.uptime:
             self._uptime_static += 1

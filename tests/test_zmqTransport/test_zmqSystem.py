@@ -17,18 +17,46 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.core.process import Process
 
 
+from malcolm.core.directoryService import DirectoryService
+from malcolm.core.loop import TimerLoop
+from malcolm.core import Device, wrap_method
+
+
+class Counter(Device):
+
+    def __init__(self, name, timeout=None):
+        super(Counter, self).__init__(name, timeout)
+        self.counter = 0
+        self.add_loop(TimerLoop("timer", self.do_count, 0.01))
+
+    def do_count(self):
+        self.counter += 1
+
+    @wrap_method()
+    def getCount(self):
+        return self.counter
+
+    @wrap_method()
+    def hello(self):
+        self.cothread.Sleep(0.1)
+        return "world"
+
+    @wrap_method()
+    def longHello(self):
+        self.cothread.Sleep(0.5)
+        return "long world"
+
+    def exit(self):
+        pass
+
+
 class ZmqSystemTest(unittest.TestCase):
     # class ZmqSystemTest(object):
 
     def setUp(self):
-        """
-        Creates and starts a PongProc process and sets up sockets to
-        communicate with it.
-
-        """
-        test_counter = os.path.join(
-            os.path.dirname(__file__), "..", "util", "counter_server.py")
-        self.ds = subprocess.Popen([sys.executable, test_counter])
+        # Spawn ds under cothread
+        self.ds = DirectoryService(["zmq://ipc:///tmp/sock.ipc"])
+        self.ds.run(block=False)
         self.lp = Process(
             [], "Local Process", ds_string="zmq://ipc:///tmp/sock.ipc")
         self.lp.run(block=False)
@@ -59,7 +87,7 @@ class ZmqSystemTest(unittest.TestCase):
         self.lp.ds.exit()
         self.lp.exit()
         self.lp = None
-        self.ds.wait()
+        self.ds.loop_wait()
         self.ds = None
 
 if __name__ == '__main__':

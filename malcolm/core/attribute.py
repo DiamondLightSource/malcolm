@@ -1,11 +1,12 @@
 from collections import OrderedDict
 import time
 import functools
+import copy
 
 from .alarm import Alarm
 from .listener import HasListeners
 from .base import weak_method, Base
-from .vtype import VType
+from .vtype import VType, VObject
 from .loop import HasLoops, ILoop
 
 
@@ -22,7 +23,10 @@ class HasAttributes(HasLoops, HasListeners):
         if not hasattr(self, "attributes"):
             self.attributes = OrderedDict()
             if hasattr(self, "class_attributes"):
-                self.add_attributes(**self.class_attributes)
+                for cn, ca in sorted(self.class_attributes.items()):
+                    self.add_attribute(cn, copy.copy(ca))
+        if not hasattr(self, "_instance_attributes"):
+            self._instance_attributes = []
         assert name not in self.attributes, \
             "Name {} already exists as attribute".format(name)
         self.attributes[name] = attribute
@@ -34,6 +38,14 @@ class HasAttributes(HasLoops, HasListeners):
         # if this is a loop and we have loops, add it
         if isinstance(attribute, ILoop):
             self.add_loop(attribute)
+        # if this is an instance attribute, add it
+        if isinstance(attribute, InstanceAttribute):
+            self._instance_attributes.append(attribute)
+            # if the instance attribute is a sentinal This then replace it
+            # with type of self
+            # TODO: this is actually wrong if we subclass, but never mind
+            if attribute.dcls == This:
+                attribute.dcls = type(self)
         return attribute
 
     def __getattr__(self, attr):
@@ -62,13 +74,7 @@ class Attribute(Base):
     def __init__(self, typ, descriptor, value=None, alarm=None,
                  timeStamp=None, name=None, tags=None):
         super(Attribute, self).__init__(name)
-        if isinstance(typ, VType):
-            self._typ = typ
-        elif typ in VType.subclasses().values():
-            self._typ = typ()
-        else:
-            raise AssertionError("Expected subclass or instance of {}, got {}"
-                                 .format(VType.subclasses().keys(), typ))
+        self.update_type(typ)
         self._descriptor = descriptor
         if tags:
             self._tags = list(tags)
@@ -114,7 +120,11 @@ class Attribute(Base):
         # Assert type
         if value is not None:
             value = self.typ.validate(value)
-            if value != self.value:
+            diff = value != self.value
+            # comparing arrays doesn't give boolean, make it so
+            if hasattr(diff, "any"):
+                diff = diff.any()
+            if diff:
                 changes.update(value=value)
                 self._value = value
         # Check alarm
@@ -135,5 +145,40 @@ class Attribute(Base):
         if hasattr(self, "notify_listeners"):
             self.notify_listeners(changes)
 
+    def update_type(self, typ):
+        old_typ = getattr(self, "_typ", None)
+        if isinstance(typ, VType):
+            self._typ = typ
+        elif typ in VType.subclasses().values():
+            self._typ = typ()
+        else:
+            raise AssertionError("Expected subclass or instance of {}, got {}"
+                                 .format(VType.subclasses().keys(), typ))
+        if self._typ != old_typ:
+            # Notify anyone listening
+            if hasattr(self, "notify_listeners"):
+                self.notify_listeners(dict(type=self._typ))
+
+    def to_dict(self, **kwargs):
+        return super(Attribute, self).to_dict(type=self.typ, **kwargs)
+
+
+class This(object):
+    # Sentinel class to allow us to refer to ourselves in class attributes
+    pass
+
+
+class InstanceAttribute(Attribute):
+
+    def __init__(self, dcls, descriptor, value=None, alarm=None,
+                 timeStamp=None, name=None, tags=None):
+        super(InstanceAttribute, self).__init__(
+            VObject, descriptor, value=value, alarm=alarm,
+            timeStamp=timeStamp, name=name, tags=tags)
+        self.dcls = dcls
+
     def to_dict(self):
-        return super(Attribute, self).to_dict(type=self.typ)
+        value = self.value
+        if value is not None:
+            value = value.name
+        return super(InstanceAttribute, self).to_dict(value=value)

@@ -14,7 +14,8 @@ from mock import MagicMock
 logging.basicConfig()
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from malcolm.devices.dummyDet import DummyDet, DState, SState, DEvent
+from malcolm.devices.dummyDet import DummyDet, DState, SState
+from malcolm.core import DEvent
 
 
 class DeviceTest(unittest.TestCase):
@@ -38,7 +39,7 @@ class DeviceTest(unittest.TestCase):
         self.assertEqual(self.d.stateMachine.state, DState.Idle)
 
     def test_enum_classes(self):
-        self.assertIn(DState.Idle, DState.configurable())
+        self.assertIn(DState.Idle, DState.canConfig())
 
     def test_setting_up_calls_back_correct_methods(self):
         self.d.add_listener(self.callback, "stateMachine")
@@ -164,10 +165,10 @@ class DeviceTest(unittest.TestCase):
 
     def test_class_attributes(self):
         self.d.nframes = 3
-        self.assertEqual(len(self.d.attributes), 9)
+        self.assertEqual(len(self.d.attributes), 10)
         items = [(k, v.value) for k, v in self.d.attributes.items()]
-        self.assertEqual(items, [('single', False), ('uptime', None), ('timeout', None), ('currentStep', None), (
-            'retraceSteps', None), ('totalSteps', None), ('configureSleep', None), ('exposure', None), ('nframes', 3)])
+        self.assertEqual(items, [('single', False), ('uptime', None), ('block', None), ('currentStep', None), (
+            'retraceSteps', None), ('stepsPerRun', None), ('totalSteps', None), ('configureSleep', None), ('exposure', None), ('nframes', 3)])
 
     def test_uptime(self):
         self.assertEqual(self.d.uptime, None)

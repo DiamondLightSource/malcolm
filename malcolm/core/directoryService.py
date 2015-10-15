@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import weakref
 
 from .process import Process
 from .method import wrap_method
@@ -37,7 +38,8 @@ class DirectoryService(Process):
         elif device in self._connection_strings:
             return self._connection_strings[device]
         raise AssertionError("{} not in {} or {}"
-                             .format(device, self._connection_strings.keys(), self._device_servers.keys()))
+                             .format(device, self._connection_strings.keys(),
+                                     self._device_servers.keys()))
 
     @wrap_method(
         device=Attribute(VString, "Device name"),
@@ -54,10 +56,14 @@ class DirectoryService(Process):
         self._registered_devices[device] = dc
         # When its connection status changes, update our device list
         dc.add_listener(
-            self.update_devices, "attributes.device_client_connected")
+            self.update_devices, "attributes.deviceClientConnected")
+
+    def run(self, block=True):
+        super(DirectoryService, self).run(block=block)
+        # we are our own ds
+        self.ds = weakref.proxy(self)
 
     def update_devices(self, connected=None, changes=None):
-        super(DirectoryService, self).update_devices()
         instances = OrderedDict()
         for typ in self.deviceTypes:
             instances[typ] = []
@@ -76,3 +82,5 @@ class DirectoryService(Process):
         # Push these to attributes
         for typ, devices in instances.items():
             self.attributes["instances" + typ].update(sorted(devices))
+        # Call the baseclass to publish localDevices
+        super(DirectoryService, self).update_devices()

@@ -21,17 +21,18 @@ class ZmqSocket(ISocket):
 
     def send(self, msg):
         """Send the message to the socket"""
-        #self.sock.send_multipart(msg)
+        # self.sock.send_multipart(msg)
         # self.cothread.Yield()
         weak_method(self.__retry)(self.sock.send_multipart, msg,
                                   flags=zmq.NOBLOCK)
         #sys.stdout.write("Sent message {}\n".format(msg))
-        #sys.stdout.flush()
+        # sys.stdout.flush()
 
     def recv(self):
         """Co-operatively block until received"""
         try:
-            msg = weak_method(self.__retry)(self.sock.recv_multipart, flags=zmq.NOBLOCK)
+            msg = weak_method(self.__retry)(
+                self.sock.recv_multipart, flags=zmq.NOBLOCK)
         except zmq.ZMQError as error:
             if error.errno in [zmq.ENOTSOCK, zmq.ENOTSUP]:
                 raise StopIteration
@@ -39,7 +40,7 @@ class ZmqSocket(ISocket):
                 raise
         else:
             #sys.stdout.write("Got message {}\n".format(msg))
-            #sys.stdout.flush()
+            # sys.stdout.flush()
             return msg
 
     def serialize(self, typ, kwargs):
@@ -98,7 +99,7 @@ class ZmqSocket(ISocket):
             # self.poll_list([(self, poll)], 1)
             if not self.poll_list([(self, self.poll_flags)], self.timeout):
                 raise zmq.ZMQError(zmq.ETIMEDOUT, 'Timeout waiting for socket')
-            
+
     def open(self, address):
         """Open the socket on the given address"""
         from cothread import coselect
@@ -107,8 +108,7 @@ class ZmqSocket(ISocket):
         self.poll_list = coselect.poll_list
         # Must listen for all poll events, otherwise we might miss a recv
         # when we send at the same time as recv
-        self.poll_flags = coselect.POLLIN | coselect.POLLOUT | \
-            coselect.POLLERR | coselect.POLLHUP
+        self.poll_flags = coselect.POLLIN | coselect.POLLOUT
         self.context = zmq.Context()
         self.sock = self.make_zmq_sock(address)
 
@@ -116,4 +116,3 @@ class ZmqSocket(ISocket):
         """Close the socket"""
         self.sock.close()
         self.context.destroy()
-        

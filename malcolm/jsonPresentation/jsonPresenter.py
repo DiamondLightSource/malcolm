@@ -19,7 +19,6 @@ class JsonPresenter(Presenter):
             match = self.camel_re.match(key)
             if not match:
                 self.log_warning("Key {} isn't camelCase".format(key))
-            #    print match.group()
         if "timeStamp" in d:
             timeStamp = d["timeStamp"]
             ts = OrderedDict(secondsPastEpoch=int(timeStamp))

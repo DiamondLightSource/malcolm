@@ -52,13 +52,13 @@ class DummyZebra(RunnableDevice):
     def add_all_attributes(self):
         RunnableDevice.add_all_attributes(self)
         self.add_attributes(
-            pcBitCap=Attribute(VInt, "Which encoders to capture"),
             pcTsPre=Attribute(VString, "What time units for capture"),
+            pcBitCap=Attribute(VInt, "Which encoders to capture"),
             connected=Attribute(VInt, "Is zebra connected"),
         )
 
     @wrap_method()
-    def validate(self, pcBitCap, pcTsPre):
+    def validate(self, pcTsPre, pcBitCap):
         "Check parameters are valid"
 
     def do_abort(self):

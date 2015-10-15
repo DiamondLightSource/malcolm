@@ -1,7 +1,5 @@
-from malcolm.core import RunnableDevice, Attribute, wrap_method
-from malcolm.core.pvattribute import PVAttribute
-from malcolm.core.vtype import VString, VDouble, VEnum, VInt, VBool
-from malcolm.core.runnableDevice import DState
+from malcolm.core import RunnableDevice, Attribute, wrap_method, PvAttribute, \
+    VString, VDouble, VEnum, VInt, VBool, DState, PvSeq, PvSeqSet
 
 
 class SimDetector(RunnableDevice):
@@ -11,45 +9,75 @@ class SimDetector(RunnableDevice):
     def __init__(self, name, prefix, timeout=None):
         self.prefix = prefix
         super(SimDetector, self).__init__(name, timeout)
-
+        self._make_config()
+        
     def add_all_attributes(self):
         super(SimDetector, self).add_all_attributes()
         p = self.prefix
         self.add_attributes(
-            exposure=PVAttribute(
+            # Configure
+            exposure=PvAttribute(
                 p + "AcquireTime", VDouble,
                 "Exposure time for each frame",
                 rbv_suff="_RBV"),
-            period=PVAttribute(
+            period=PvAttribute(
                 p + "AcquirePeriod", VDouble,
                 "Time between the start of each frame",
                 rbv_suff="_RBV"),
-            imageMode=PVAttribute(
+            imageMode=PvAttribute(
                 p + "ImageMode", VEnum("Single,Multiple,Continuous"),
                 "How many images to take when acquire is started",
                 rbv_suff="_RBV"),
-            numImages=PVAttribute(
+            numImages=PvAttribute(
                 p + "NumImages", VInt,
                 "Number of images to take if imageMode=Multiple",
                 rbv_suff="_RBV"),
-            acquire=PVAttribute(
-                p + "Acquire", VBool,
-                "Demand and readback for starting acquisition",
-                put_callback=False),
-            arrayCounter=PVAttribute(
+            arrayCounter=PvAttribute(
                 p + "ArrayCounter", VInt,
                 "Current unique id number for frame",
                 rbv_suff="_RBV"),
-            arrayCallbacks=PVAttribute(
+            arrayCallbacks=PvAttribute(
                 p + "ArrayCallbacks", VBool,
                 "Whether to produce images or not",
                 rbv_suff="_RBV"),
+            # Run
+            acquire=PvAttribute(
+                p + "Acquire", VBool,
+                "Demand and readback for starting acquisition",
+                put_callback=False),
         )
-        self.config_params = {}
-        self.add_listener(self.on_attribute_change, "attributes")
+        self.add_listener(self.on_acquire_change, "attributes.acquire")
+
+    def on_acquire_change(self, acquire, changes):
+        if self.state == DState.Running:
+            self.post_runsta()
+        elif self.state == DState.Aborting:
+            self.post_abortsta()
+
+    def _make_config(self):
+        # make some sequences for config
+        s1 = PvSeqSet(
+            "Configuring parameters",
+            imageMode="Multiple",
+            arrayCallbacks=1,
+            **self.validate.arguments  # all the config params
+        )
+        # Add a configuring object
+        self._pconfig = PvSeq(self.name + ".Config", self, s1)
+        self._pconfig.add_listener(self.on_pconfig_change, "stateMachine")
+        self.add_loop(self._pconfig)
+
+    def on_pconfig_change(self, sm, changes):
+        if self.state == DState.Configuring:
+            self.post_configsta(sm.state, sm.message)
+        elif self.state == DState.Ready and \
+                sm.state != self._pconfig.PvState.Ready:
+            self.post_error(sm.message)
+        elif self.state == DState.Aborting:
+            self.post_abortsta()
 
     @wrap_method()
-    def validate(self, exposure, numImages, period=None):
+    def validate(self, exposure, numImages, period=None, arrayCounter=0):
         if period is None:
             period = exposure
         assert exposure >= period, \
@@ -71,57 +99,25 @@ class SimDetector(RunnableDevice):
         """
         return DState.Idle, "Resetting finished"
 
-    def on_attribute_change(self, attributes, changes):
-        prefixes = set(x.split(".")[0] for x in changes)
-        assert len(prefixes) == 1, \
-            "Only expected one attribute to change at once, got {}" \
-            .format(prefixes)
-        attr = prefixes.pop()
-        if self.state == DState.Configuring:
-            self.post_configsta(attr)
-        elif self.state == DState.Ready:
-            if self._config_mismatches():
-                self.post_error()
-        elif attr == "acquire" and self.acquire == 0:
-            if self.state == DState.Running:
-                self.post_runsta()
-            elif self.state == DState.Aborting:
-                self.post_abortsta()
-
     def do_config(self, **config_params):
         """Start doing a configuration using config_params"""
-        config_params.update(imageMode="Multiple")
-        config_params.update(arrayCounter=0)
-        config_params.update(arrayCallbacks=1)
-        self.config_params = config_params
-        # Work out which attributes need to change and set them
-        self.config_changed = {}
-        for attr, value in sorted(config_params.items()):
-            if getattr(self, attr) != value:
-                setattr(self, attr, value)
-                self.config_changed[attr] = False
-        mess = "Configuring {} attributes".format(len(self.config_changed))
-        return DState.Configuring, mess
+        assert self._pconfig.state in self._pconfig.rest_states(), \
+            "Can't configure sub-state machine in {} state" \
+            .format(self._pconfig.state)
+        self._pconfig.configure(config_params)
+        return DState.Configuring, "Started configuring"
 
-    def _config_mismatches(self):
-        "Check if current config matches required"
-        mismatches = []
-        for attr, value in sorted(self.config_params.items()):
-            if getattr(self, attr) != value:
-                mismatches.append(attr)
-        return mismatches
-
-    def do_configsta(self, attr):
+    def do_configsta(self, state, message):
         """Do the next param in self.config_params, returning
         DState.Configuring if still in progress, or DState.Ready if done.
         """
-        if attr in self.config_changed:
-            self.config_changed[attr] = True
-        todo = len([x for x in self.config_changed.values() if x is False])
-        if todo:
-            return DState.Configuring, "{} attributes left to do".format(todo)
+        if state in self._pconfig.rest_states():
+            assert state == self._pconfig.PvState.Ready, \
+                "Configuring failed: {}".format(message) 
+            state = DState.Ready
         else:
-            return DState.Ready, "Configuring finished"
+            state = DState.Configuring
+        return state, message
 
     def do_run(self):
         """Start doing a run, stopping when it calls back
@@ -132,17 +128,34 @@ class SimDetector(RunnableDevice):
     def do_runsta(self):
         """If acquiring then return
         """
-        assert not self.acquire, "Shouldn't be acquiring"
-        return DState.Idle, "Running finished"
+        if self.acquire:
+            # No change
+            return None, None
+        else:
+            return DState.Idle, "Running finished"
 
     def do_abort(self):
         """Stop acquisition
         """
-        self.acquire = False
+        if self.state == DState.Configuring:
+            if self._pconfig.state not in self._pconfig.rest_states():
+                # Abort configure
+                self._pconfig.abort()
+            else:
+                # Statemachine already done, nothing to do
+                self.post_abortsta()
+        else:
+            # Abort run
+            self.acquire = False
         return DState.Aborting, "Aborting started"
 
     def do_abortsta(self):
         """Check we finished
         """
-        assert not self.acquire, "Shouldn't be acquiring"
-        return DState.Aborted, "Aborting finished"
+        if not self.acquire and \
+                self._pconfig.state in self._pconfig.rest_states():
+            return DState.Aborted, "Aborting finished"
+        else:
+            # No change
+            return None, None
+

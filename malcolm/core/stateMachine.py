@@ -99,7 +99,8 @@ class StateMachine(EventLoop):
             ret = transition_func(*args, **kwargs)
             self.log_debug("Return is {}".format(ret))
             assert type(ret) in (tuple, list) and len(ret) == 2, \
-                "Needed tuple or list of length 2, got {}".format(ret)
+                "Needed tuple or list of length 2 from {}, got {}" \
+                .format(transition_func.__name__, ret)
             state, message = ret
             assert message is None or type(message) == str, \
                 "Message should be string or None, got {}".format(message)
@@ -168,8 +169,5 @@ class StateMachine(EventLoop):
             else:
                 handler = self.make_transition_func(transition_func,
                                                     to_state_list)
-                if not hasattr(transition_func, "__name__"):
-                    # Think this is only for mock objects...
-                    transition_func.__name__ = "mock_transition_func"
                 functools.update_wrapper(handler, transition_func)
             self.add_event_handler((from_state, event), handler)

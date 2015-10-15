@@ -15,12 +15,13 @@
             "name": "abort", 
             "descriptor": "Abort configuration or abandon the current run whether it is\n        running or paused. It blocks until the device is in a rest state:\n         * Normally it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
             "arguments": {
-              "timeout": {
+              "block": {
+                "value": true, 
                 "type": {
-                  "name": "VFloat", 
+                  "name": "VBool", 
                   "version": "2"
                 }, 
-                "descriptor": "Time in seconds to wait for function"
+                "descriptor": "Whether to wait for a function to complete"
               }
             }, 
             "validStates": [
@@ -56,12 +57,13 @@
                 ], 
                 "descriptor": "Which encoders to capture"
               }, 
-              "timeout": {
+              "block": {
+                "value": true, 
                 "type": {
-                  "name": "VFloat", 
+                  "name": "VBool", 
                   "version": "2"
                 }, 
-                "descriptor": "Time in seconds to wait for function"
+                "descriptor": "Whether to wait for a function to complete"
               }
             }, 
             "validStates": [
@@ -77,12 +79,13 @@
             "name": "reset", 
             "descriptor": "Try and reset the device into DState.Idle. It blocks until the\n        device is in a rest state:\n         * Normally it will return a DState.Idle Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
             "arguments": {
-              "timeout": {
+              "block": {
+                "value": true, 
                 "type": {
-                  "name": "VFloat", 
+                  "name": "VBool", 
                   "version": "2"
                 }, 
-                "descriptor": "Time in seconds to wait for function"
+                "descriptor": "Whether to wait for a function to complete"
               }
             }, 
             "validStates": [
@@ -94,12 +97,13 @@
             "name": "run", 
             "descriptor": "Start a configured device running. It blocks until the device is in a\n        rest state:\n         * Normally it will return a DState.Idle Status\n         * If the device allows many runs from a single configure the it\n           will return a DState.Ready Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
             "arguments": {
-              "timeout": {
+              "block": {
+                "value": true, 
                 "type": {
-                  "name": "VFloat", 
+                  "name": "VBool", 
                   "version": "2"
                 }, 
-                "descriptor": "Time in seconds to wait for function"
+                "descriptor": "Whether to wait for a function to complete"
               }
             }, 
             "validStates": [
@@ -161,9 +165,9 @@
             }, 
             "descriptor": "Seconds since device was created"
           }, 
-          "timeout": {
+          "block": {
             "type": {
-              "name": "VFloat", 
+              "name": "VBool", 
               "version": "2"
             }, 
             "tags": [
@@ -172,7 +176,7 @@
               "method:reset", 
               "method:run"
             ], 
-            "descriptor": "Time in seconds to wait for function"
+            "descriptor": "Whether to wait for a function to complete"
           }, 
           "connected": {
             "value": 0, 

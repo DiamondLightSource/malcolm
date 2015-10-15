@@ -1,5 +1,6 @@
 from enum import Enum
-from malcolm.core import wrap_method, DState, DEvent, PausableDevice, \
+
+from malcolm.core import wrap_method, DState, PausableDevice, \
     Attribute, VInt, VBool, VDouble
 from malcolm.core.base import weak_method
 from malcolm.core.stateMachine import StateMachine
