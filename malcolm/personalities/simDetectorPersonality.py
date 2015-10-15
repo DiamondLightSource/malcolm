@@ -1,7 +1,7 @@
 import os
 
 from malcolm.core import PausableDevice, DState, InstanceAttribute, \
-    wrap_method, Attribute, VDouble, VString, VTable, VNumber
+    wrap_method, Attribute, VDouble, VString, VTable
 from malcolm.devices import SimDetector, Hdf5Writer, PositionPlugin
 
 
@@ -114,7 +114,7 @@ class SimDetectorPersonality(PausableDevice):
             todo = len(r for r in rest if not r)
             return DState.Resetting, "Waiting for {} plugins".format(todo)
 
-    def do_config(self, **config_params):        
+    def do_config(self, **config_params):
         """Start doing a configuration using config_params"""
         for d in self.children:
             assert d.state in DState.canConfig(), \

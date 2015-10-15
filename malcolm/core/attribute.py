@@ -3,6 +3,8 @@ import time
 import functools
 import copy
 
+import numpy
+
 from .alarm import Alarm
 from .listener import HasListeners
 from .base import weak_method, Base
@@ -120,11 +122,16 @@ class Attribute(Base):
         # Assert type
         if value is not None:
             value = self.typ.validate(value)
-            diff = value != self.value
-            # comparing arrays doesn't give boolean, make it so
-            if hasattr(diff, "any"):
-                diff = diff.any()
-            if diff:
+            # if types mismatch then we have a change
+            if type(value) != type(self.value):
+                equal = False
+            # if value is numpy array then any element change is change
+            elif type(value).__module__ == numpy.__name__:
+                equal = numpy.array_equal(value, self.value)
+            # otherwise do scalar comparison
+            else:
+                equal = value == self.value
+            if not equal:
                 changes.update(value=value)
                 self._value = value
         # Check alarm
