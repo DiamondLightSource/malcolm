@@ -77,7 +77,7 @@ class ZmqTest(unittest.TestCase):
 
     def fast_recv(self, s):
         start = time.time()
-        msg = s.outq.Wait(0.1)
+        msg = s.outq.Wait(0.2)
         end = time.time()
         self.assertLess(end - start, 0.05)
         return msg
@@ -87,7 +87,7 @@ class ZmqTest(unittest.TestCase):
         sp = cothread.Spawn(s.event_loop, raise_on_wait=True)
         c = ZmqWrapper("ipc:///tmp/sock.ipc", 0.1, bind=False)
         cp = cothread.Spawn(c.event_loop, raise_on_wait=True)
-        for i in range(1000):
+        for i in range(10000):
             c.send_multipart(["sub1"])
             c.send_multipart(["sub2"])
             cid, msg = self.fast_recv(s)
