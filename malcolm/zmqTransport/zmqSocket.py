@@ -6,7 +6,6 @@ import zmq
 import os
 
 from malcolm.core.transport import ISocket, SType
-from malcolm.core.base import weak_method
 from malcolm.jsonPresentation.jsonPresenter import JsonPresenter
 
 
@@ -19,33 +18,43 @@ class ZmqSocket(ISocket):
     def make_zmq_sock(self, address):
         """Make the zmq sock and bind or connect to address, returning it"""
 
-    def send(self, msg, timeout=None):
+    def send(self, msg):
         """Send the message to the socket"""
-        # Tell our event loop to recheck recv
-        os.write(self.sendsig_w, "-")
-        if timeout is None:
-            timeout = self.timeout
-        weak_method(self.__retry)(
-            self.sock.send_multipart, self.send_list, timeout, msg)
+        self.sock.send_multipart(msg)
         # sys.stdout.write("Sent message {}\n".format(msg))
         # sys.stdout.flush()
+        # Tell our event loop to recheck recv
+        os.write(self.sendsig_w, "-")
 
     def recv(self, timeout=None):
         """Co-operatively block until received"""
+        start = time.time()
         if timeout is None:
             timeout = self.timeout
-        try:
-            msg = weak_method(self.__retry)(
-                self.sock.recv_multipart, self.recv_list, timeout)
-        except zmq.ZMQError as error:
-            if error.errno in [zmq.ENOTSOCK, zmq.ENOTSUP]:
-                raise StopIteration
+        while True:
+            try:
+                msg = self.sock.recv_multipart(flags=zmq.NOBLOCK)
+            except zmq.ZMQError as error:
+                if error.errno == zmq.EAGAIN:
+                    if timeout:
+                        t = start + self.timeout - time.time()
+                    else:
+                        t = None
+                    ready = self.poll_list(self.event_list, t)
+                    if not ready:
+                        raise zmq.ZMQError(
+                            zmq.ETIMEDOUT, 'Timeout waiting for socket')
+                    elif ready[0][0] == self.sendsig_r:
+                        # clear send pipe
+                        os.read(self.sendsig_r, 1)
+                elif error.errno in [zmq.ENOTSOCK, zmq.ENOTSUP]:
+                    raise StopIteration
+                else:
+                    raise
             else:
-                raise
-        else:
-            # sys.stdout.write("Got message {}\n".format(msg))
-            # sys.stdout.flush()
-            return msg
+                # sys.stdout.write("Got message {}\n".format(msg))
+                # sys.stdout.flush()
+                return msg
 
     def serialize(self, typ, kwargs):
         """Serialize the arguments to a string that can be sent to the socket
@@ -84,28 +93,6 @@ class ZmqSocket(ISocket):
             d["zmq_id"] = zmq_id
         return typ, d
 
-    def __retry(self, action, event_list, timeout, *args, **kwargs):
-        start = time.time()
-        kwargs.update(flags=zmq.NOBLOCK)
-        while True:
-            try:
-                return action(*args, **kwargs)
-            except zmq.ZMQError as error:
-                if error.errno != zmq.EAGAIN:
-                    raise
-                else:
-                    if timeout:
-                        t = start + self.timeout - time.time()
-                    else:
-                        t = None
-                    ready = self.poll_list(event_list, t)
-                    if not ready:
-                        raise zmq.ZMQError(
-                            zmq.ETIMEDOUT, 'Timeout waiting for socket')
-                    elif ready[0][0] == self.sendsig_r:
-                        # clear send pipe
-                        os.read(self.sendsig_r, 1)
-
     def open(self, address):
         """Open the socket on the given address"""
         from cothread import coselect
@@ -115,9 +102,8 @@ class ZmqSocket(ISocket):
         self.context = zmq.Context()
         self.sock = self.make_zmq_sock(address)
         self.sendsig_r, self.sendsig_w = os.pipe()
-        self.send_list = [(self.sock.fd, coselect.POLLOUT)]
-        self.recv_list = [(self.sock.fd, coselect.POLLIN),
-                          (self.sendsig_r, coselect.POLLIN)]
+        self.event_list = [(self.sock.fd, coselect.POLLIN),
+                           (self.sendsig_r, coselect.POLLIN)]
 
     def close(self):
         """Close the socket"""

@@ -31,9 +31,9 @@ class ZmqWrapper(object):
         self.sendsig_r, self.sendsig_w = os.pipe()
         self.timeout = timeout
         self.outq = cothread.EventQueue()
-        self.send_list = [(self.sock.fd, coselect.POLLOUT)]
-        self.recv_list = [(self.sock.fd, coselect.POLLIN),
-                          (self.sendsig_r, coselect.POLLIN)]
+        self.event_list = [(self.sock.fd, coselect.POLLIN),
+                           (self.sendsig_r, coselect.POLLIN)]
+        self.poll_list = coselect.poll_list
 
     def event_loop(self):
         while True:
@@ -44,34 +44,35 @@ class ZmqWrapper(object):
         # Tell our event loop to recheck recv
         self.sock.send_multipart(msg)
         os.write(self.sendsig_w, "-")
-        #timeout = timeout or self.timeout
-        #self.__retry(self.sock.send_multipart, self.send_list, timeout, msg)
 
     def recv_multipart(self, timeout=None):
-        timeout = timeout or self.timeout
-        return self.__retry(self.sock.recv_multipart, self.recv_list, timeout)
-
-    def __retry(self, action, event_list, timeout, *args, **kwargs):
         start = time.time()
-        kwargs.update(flags=zmq.NOBLOCK)
+        if timeout is None:
+            timeout = self.timeout
         while True:
             try:
-                return action(*args, **kwargs)
+                msg = self.sock.recv_multipart(flags=zmq.NOBLOCK)
             except zmq.ZMQError as error:
-                if error.errno != zmq.EAGAIN:
-                    raise
-                else:
+                if error.errno == zmq.EAGAIN:
                     if timeout:
                         t = start + self.timeout - time.time()
                     else:
                         t = None
-                    ready = coselect.poll_list(event_list, t)
+                    ready = self.poll_list(self.event_list, t)
                     if not ready:
                         raise zmq.ZMQError(
                             zmq.ETIMEDOUT, 'Timeout waiting for socket')
                     elif ready[0][0] == self.sendsig_r:
                         # clear send pipe
                         os.read(self.sendsig_r, 1)
+                elif error.errno in [zmq.ENOTSOCK, zmq.ENOTSUP]:
+                    raise StopIteration
+                else:
+                    raise
+            else:
+                # sys.stdout.write("Got message {}\n".format(msg))
+                # sys.stdout.flush()
+                return msg
 
     def close(self):
         os.write(self.sendsig_w, "-")
@@ -88,12 +89,7 @@ class ZmqTestNew(unittest.TestCase):
             s = cothread.Spawn(self.s.event_loop, raise_on_wait=True)
             cothread.Sleep(0.01)
             self.s.close()
-            try:
-                s.Wait(0.1)
-            except zmq.ZMQError, e:
-                self.assertIn(e.errno, [zmq.ENOTSOCK, zmq.ENOTSUP])
-            else:
-                self.fail("Didn't get right exception")
+            self.assertRaises(StopIteration, s.Wait, 0.1)
             end = time.time()
             self.assertLess(end - start, 0.05)
 
@@ -109,7 +105,7 @@ class ZmqTestNew(unittest.TestCase):
         sp = cothread.Spawn(s.event_loop, raise_on_wait=True)
         c = ZmqWrapper("ipc:///tmp/sock.ipc", 0.1, bind=False)
         cp = cothread.Spawn(c.event_loop, raise_on_wait=True)
-        for i in range(1000):
+        for i in range(10000):
             c.send_multipart(["sub1"])
             c.send_multipart(["sub2"])
             cid, msg = self.fast_recv(s)
@@ -129,8 +125,8 @@ class ZmqTestNew(unittest.TestCase):
             self.assertEqual(self.fast_recv(c), ["val3"])
         s.close()
         c.close()
-        self.assertRaises(zmq.ZMQError, sp.Wait, 0.1)
-        self.assertRaises(zmq.ZMQError, cp.Wait, 0.1)
+        self.assertRaises(StopIteration, sp.Wait, 0.1)
+        self.assertRaises(StopIteration, cp.Wait, 0.1)
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

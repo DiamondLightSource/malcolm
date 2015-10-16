@@ -22,7 +22,7 @@ class ISocket(ILoop):
         self.timeout = timeout
 
     @abc.abstractmethod
-    def send(self, msg, timeout=None):
+    def send(self, msg):
         """Send the message to the socket"""
 
     @abc.abstractmethod
