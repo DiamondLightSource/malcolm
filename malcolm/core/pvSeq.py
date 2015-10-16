@@ -95,6 +95,8 @@ class PvSeq(Device):
         self.stateMachine.post(PvEvent.Abort)
 
     def on_attribute_change(self, attributes, changes):
+        if self.state == self.PvState.Idle:
+            return
         prefixes = set(x.split(".")[0] for x in changes)
         assert len(prefixes) == 1, \
             "Only expected one attribute to change at once, got {}" \

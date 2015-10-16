@@ -3,7 +3,7 @@ from collections import OrderedDict
 import time
 
 import zmq
-import sys
+import os
 
 from malcolm.core.transport import ISocket, SType
 from malcolm.core.base import weak_method
@@ -19,20 +19,26 @@ class ZmqSocket(ISocket):
     def make_zmq_sock(self, address):
         """Make the zmq sock and bind or connect to address, returning it"""
 
-    def send(self, msg):
+    def send(self, msg, timeout=None):
         """Send the message to the socket"""
-        # self.sock.send_multipart(msg)
-        # self.cothread.Yield()
-        weak_method(self.__retry)(self.sock.send_multipart, msg,
-                                  flags=zmq.NOBLOCK)
-        #sys.stdout.write("Sent message {}\n".format(msg))
+        timeout = timeout or self.timeout
+        event_list = [(self.sock.fd, self.POLLOUT)]
+        weak_method(self.__retry)(
+            self.sock.send_multipart, event_list, timeout, msg)
+        # sys.stdout.write("Sent message {}\n".format(msg))
         # sys.stdout.flush()
+        # Tell our event loop to recheck recv
+        os.write(self.sendp_w, "-")
 
-    def recv(self):
+    def recv(self, timeout=None):
         """Co-operatively block until received"""
+        timeout = timeout or self.timeout
+        event_list = [(self.sock.fd, self.POLLIN),
+                      (self.sendp_r, self.POLLIN)]
+
         try:
             msg = weak_method(self.__retry)(
-                self.sock.recv_multipart, flags=zmq.NOBLOCK)
+                self.sock.recv_multipart, event_list, timeout)
         except zmq.ZMQError as error:
             if error.errno in [zmq.ENOTSOCK, zmq.ENOTSUP]:
                 raise StopIteration
@@ -80,25 +86,27 @@ class ZmqSocket(ISocket):
             d["zmq_id"] = zmq_id
         return typ, d
 
-    def fileno(self):
-        """Needed so that we can co-operatively poll socket"""
-        return self.sock.fd
-
-    def __retry(self, action, *args, **kwargs):
+    def __retry(self, action, event_list, timeout, *args, **kwargs):
         start = time.time()
+        kwargs.update(flags=zmq.NOBLOCK)
         while True:
             try:
-                ret = action(*args, **kwargs)
-                return ret
+                return action(*args, **kwargs)
             except zmq.ZMQError as error:
                 if error.errno != zmq.EAGAIN:
                     raise
-            if self.timeout and time.time() - start > self.timeout:
-                raise zmq.ZMQError(zmq.ETIMEDOUT, 'Timeout waiting for socket')
-            # Unfortunately, sometimes we miss an event, so only wait 1s for a msg
-            # self.poll_list([(self, poll)], 1)
-            if not self.poll_list([(self, self.poll_flags)], self.timeout):
-                raise zmq.ZMQError(zmq.ETIMEDOUT, 'Timeout waiting for socket')
+                else:
+                    if timeout:
+                        t = start + self.timeout - time.time()
+                    else:
+                        t = None
+                    ready = self.poll_list(event_list, t)
+                    if not ready:
+                        raise zmq.ZMQError(
+                            zmq.ETIMEDOUT, 'Timeout waiting for socket')
+                    elif ready[0][0] == self.sendp_r:
+                        # clear send pipe
+                        os.read(self.sendp_r, 1)
 
     def open(self, address):
         """Open the socket on the given address"""
@@ -106,13 +114,14 @@ class ZmqSocket(ISocket):
         import cothread
         self.cothread = cothread
         self.poll_list = coselect.poll_list
-        # Must listen for all poll events, otherwise we might miss a recv
-        # when we send at the same time as recv
-        self.poll_flags = coselect.POLLIN | coselect.POLLOUT
+        self.POLLIN = coselect.POLLIN
+        self.POLLOUT = coselect.POLLOUT
         self.context = zmq.Context()
         self.sock = self.make_zmq_sock(address)
+        self.sendp_r, self.sendp_w = os.pipe()
 
     def close(self):
         """Close the socket"""
+        os.write(self.sendp_w, "-")
         self.sock.close()
         self.context.destroy()

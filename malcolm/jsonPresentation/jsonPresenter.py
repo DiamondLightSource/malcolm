@@ -5,6 +5,7 @@ import re
 import numpy
 
 from malcolm.core.presentation import Presenter
+from malcolm.core.vtype import VType, VEnum
 
 
 class JsonPresenter(Presenter):
@@ -40,6 +41,10 @@ class JsonPresenter(Presenter):
             return o.tolist()
         elif isinstance(o, numpy.bool_):
             return bool(o)
+        elif isinstance(o, numpy.ndarray):
+            assert len(o.shape) == 1, \
+                "Expected 1d array, got {}".format(o.shape)
+            return o.tolist()
         else:
             raise AssertionError("Can't encode {}".format(repr(o)))
 
@@ -53,6 +58,12 @@ class JsonPresenter(Presenter):
         if "timeStamp" in d:
             d["timeStamp"] = d["timeStamp"]["secondsPastEpoch"] + \
                 float(d["timeStamp"]["nanoseconds"]) * 1e-9
+        if "name" in d and "version" in d and d["name"].startswith("V"):
+            typ = VType.subclasses()[d["name"]]
+            if typ == VEnum:
+                d = typ(d["labels"])
+            else:
+                d = typ
         return d
 
     def deserialize(self, s):

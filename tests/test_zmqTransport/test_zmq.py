@@ -13,11 +13,12 @@ from cothread import coselect
 import zmq
 import logging
 # logging.basicConfig()
-#logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 from mock import MagicMock
 
 
 class ZmqWrapper(object):
+
     def __init__(self, addr, timeout=1, bind=True):
         self.ctx = zmq.Context()
         if bind:
@@ -30,36 +31,32 @@ class ZmqWrapper(object):
         self.timeout = timeout
         self.outq = cothread.EventQueue()
 
-    def fileno(self):
-        """Needed so that we can co-operatively poll socket"""
-        #print hex(id(self)), "Wait", self.sock.fd
-        return self.sock.fd
-    
     def event_loop(self):
         while True:
             self.outq.Signal(self.recv_multipart())
-    
+
     def send_multipart(self, msg):
-        #print hex(id(self)), "Send", msg
+        # print hex(id(self)), "Send", msg
         self.sock.send_multipart(msg)
-    
+
     def recv_multipart(self):
         poll = coselect.POLLIN | coselect.POLLOUT
         while True:
             try:
                 ret = self.sock.recv_multipart(flags=zmq.NOBLOCK)
-                #print hex(id(self)), "Recv", ret
+                # print hex(id(self)), "Recv", ret
                 return ret
             except zmq.ZMQError as error:
                 if error.errno != zmq.EAGAIN:
                     raise
-            if not coselect.poll_list([(self, poll)], self.timeout):
+            if not coselect.poll_list([(self.sock.fd, poll)], self.timeout):
                 raise Exception("Timed out")
-    
+
     def close(self):
         self.sock.close()
         self.ctx.destroy()
-        
+
+
 class ZmqTest(unittest.TestCase):
 
     def test_close(self):
@@ -76,14 +73,14 @@ class ZmqTest(unittest.TestCase):
             else:
                 self.fail("Didn't get right exception")
             end = time.time()
-            self.assertLess(end-start, 0.05)
-    
+            self.assertLess(end - start, 0.05)
+
     def fast_recv(self, s):
         start = time.time()
         msg = s.outq.Wait(0.1)
         end = time.time()
-        self.assertLess(end-start, 0.05)  
-        return msg      
+        self.assertLess(end - start, 0.05)
+        return msg
 
     def test_recv(self):
         s = ZmqWrapper("ipc:///tmp/sock.ipc", 0.1)
@@ -103,7 +100,7 @@ class ZmqTest(unittest.TestCase):
             s.send_multipart([cid, "val1"])
             s.send_multipart([cid, "val2"])
             c.send_multipart(["call2"])
-            s.send_multipart([cid, "val3"])            
+            s.send_multipart([cid, "val3"])
             self.assertEqual(self.fast_recv(s)[1], "call2")
             self.assertEqual(self.fast_recv(c), ["val1"])
             self.assertEqual(self.fast_recv(c), ["val2"])
@@ -112,6 +109,6 @@ class ZmqTest(unittest.TestCase):
         c.close()
         self.assertRaises(zmq.ZMQError, sp.Wait, 0.1)
         self.assertRaises(zmq.ZMQError, cp.Wait, 0.1)
-    
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

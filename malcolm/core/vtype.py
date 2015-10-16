@@ -191,7 +191,7 @@ class VEnum(VType):
             labels = labels.split(",")
         self.labels = []
         for i, label in enumerate(labels):
-            assert type(label) == str, \
+            assert isinstance(label, basestring), \
                 "Expected string, got {}".format(repr(label))
             es = EnumString(label)
             es.i = i
@@ -249,7 +249,7 @@ class VTable(VType):
             assert len(column) == 3, \
                 "Expected (name, typ, array_value), got {}".format(column)
             name = column[0]
-            assert type(name) == str, \
+            assert isinstance(name, basestring), \
                 "Expected string, got {}".format(repr(name))
             typ = column[1]
             assert issubclass(typ, VType), \

@@ -28,14 +28,13 @@ class HasStateMachine(HasLoops, HasListeners):
         except TypeError:
             states = [states]
         # Construct object that will wait for us
-        sub = ServerSubscription(self, self._stateMachine_prefix + "state",
-                                 timeout=timeout)
+        sub = ServerSubscription(self, self._stateMachine_prefix + "state")
         for state in states:
             sub.add_event_handler(state, sub.loop_stop)
         # Add the waiter to our list of loops, and listen for state
         self.add_loop(sub)
         # Wait for the state to match
-        sub.loop_wait()
+        sub.loop_wait(timeout=timeout)
 
 
 class StateMachine(EventLoop):

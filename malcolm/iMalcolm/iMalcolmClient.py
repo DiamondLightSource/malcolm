@@ -10,6 +10,8 @@ if __name__ == "__main__":
 
 from malcolm.core.process import Process
 from malcolm.core.deviceClient import DeviceClient
+from malcolm.core import VDouble
+import numpy
 import argparse
 import IPython
 import logging

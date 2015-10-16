@@ -1,6 +1,7 @@
 #!/bin/env dls-python
 from pkg_resources import require
 from collections import OrderedDict
+from malcolm.core.vtype import VDouble
 require("mock")
 require("pyzmq")
 import unittest
@@ -53,6 +54,23 @@ class JsonPresenterTest(unittest.TestCase):
         s = self.jp.serialize(d)
         expected = '{"type": "Return", "id": 0, "value": {"timeStamp": {"secondsPastEpoch": 43, "nanoseconds": 200000000, "userTag": 0}}}'
         self.assertEqual(s, expected)
+
+    def test_vtype_serialize(self):
+        d = OrderedDict()
+        d.update(type="Return")
+        d.update(id=0)
+        d.update(value=VDouble)
+        s = self.jp.serialize(d)
+        expected = '{"type": "Return", "id": 0, "value": {"name": "VDouble", "version": "2"}}'
+        self.assertEqual(s, expected)
+
+    def test_vtype_deserialize(self):
+        d = self.jp.deserialize(
+            '{"type": "Return", "id": 0, "value": {"name": "VDouble", "version": "2"}}')
+        self.assertEqual(d["type"], "Return")
+        self.assertEqual(d["id"], 0)
+        self.assertEqual(d["value"], VDouble)
+        
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

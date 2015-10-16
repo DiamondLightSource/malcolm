@@ -1,13 +1,3 @@
-#!/bin/env dls-python
-if __name__ == "__main__":
-    # Test
-    from pkg_resources import require
-    require("pyzmq==13.1.0")
-    require("cothread==2.12")
-    import sys
-    import os
-    sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-
 from malcolm.core.directoryService import DirectoryService, \
     not_process_creatable
 import argparse
@@ -48,8 +38,3 @@ These are the local devices:
 {}
 """.format(self.serverStrings, self.localDevices))
 
-if __name__ == "__main__":
-    # Test
-    ims = IMalcolmServer()
-    ims.createDummyDet(name="det")
-    ims.interact()

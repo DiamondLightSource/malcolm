@@ -42,7 +42,7 @@ class DeviceTest(unittest.TestCase):
         def side_effect(post, typ, kwargs):
             if kwargs["endpoint"] == "D":
                 self.post = post
-                bit = dict(type=dict(name="VInt", version=2), descriptor="Desc", value=3,
+                bit = dict(type=VInt, descriptor="Desc", value=3,
                            alarm=Alarm.ok().to_dict(), timeStamp=43.2)
                 post(SType.Return, value=dict(attributes=dict(bit=bit)))
             elif kwargs["endpoint"] == "D.attributes.bit":

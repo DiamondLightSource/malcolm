@@ -2,6 +2,7 @@ from .attribute import Attribute
 from .alarm import AlarmSeverity, AlarmStatus, Alarm
 from .base import weak_method
 from .loop import ILoop
+from malcolm.core.vtype import VBool
 
 
 class PvAttribute(Attribute, ILoop):
@@ -86,6 +87,9 @@ class PvAttribute(Attribute, ILoop):
         assert alarm is None, "Can't set alarm on a PvAttribute"
         assert timeStamp is None, "Can't set timeStamp on a PvAttribute"
         self.log_debug("Caput {} {}".format(repr(value), self.pv))
+        # Convert value for some VTypes
+        if isinstance(self.typ, VBool):
+            value = bool(value)
         if self.put_callback:
             assert self.put_callbacks == 0, \
                 "Cannot run put callback when another is active"

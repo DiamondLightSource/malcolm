@@ -76,10 +76,7 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
         self.add_attributes(
             deviceClientConnected=Attribute(VBool, "Is device reponsive?"))
         for aname, adata in structure.get("attributes", {}).items():
-            typ = adata["type"]["name"]
-            typ = VType.subclasses()[typ]
-            if typ == VEnum:
-                typ = typ(adata["type"]["labels"])
+            typ = adata["type"]
             attr = self.add_attribute(
                 aname, Attribute(typ, adata["descriptor"],
                                  tags=adata.get("tags", None)))
