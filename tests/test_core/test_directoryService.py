@@ -18,11 +18,11 @@ from malcolm.core.attribute import InstanceAttribute, This
 
 class MockSocket(ServerSocket):
 
-    def send(self, msg):
+    def send(self, msg, timeout=None):
         """Send the message to the socket"""
         self.out.append(msg)
 
-    def recv(self):
+    def recv(self, timeout=None):
         """Co-operatively block until received"""
         return self.inq.Wait()
 
