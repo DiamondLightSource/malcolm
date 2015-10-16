@@ -41,10 +41,10 @@ class ZmqWrapper(object):
             self.outq.Signal(ret)
 
     def send_multipart(self, msg, timeout=None):
-        timeout = timeout or self.timeout
-        self.__retry(self.sock.send_multipart, self.send_list, timeout, msg)
         # Tell our event loop to recheck recv
         os.write(self.sendsig_w, "-")
+        timeout = timeout or self.timeout
+        self.__retry(self.sock.send_multipart, self.send_list, timeout, msg)
 
     def recv_multipart(self, timeout=None):
         timeout = timeout or self.timeout
