@@ -42,9 +42,10 @@ class ZmqWrapper(object):
 
     def send_multipart(self, msg, timeout=None):
         # Tell our event loop to recheck recv
+        self.sock.send_multipart(msg)
         os.write(self.sendsig_w, "-")
-        timeout = timeout or self.timeout
-        self.__retry(self.sock.send_multipart, self.send_list, timeout, msg)
+        #timeout = timeout or self.timeout
+        #self.__retry(self.sock.send_multipart, self.send_list, timeout, msg)
 
     def recv_multipart(self, timeout=None):
         timeout = timeout or self.timeout
@@ -108,7 +109,7 @@ class ZmqTestNew(unittest.TestCase):
         sp = cothread.Spawn(s.event_loop, raise_on_wait=True)
         c = ZmqWrapper("ipc:///tmp/sock.ipc", 0.1, bind=False)
         cp = cothread.Spawn(c.event_loop, raise_on_wait=True)
-        for i in range(10000):
+        for i in range(1000):
             c.send_multipart(["sub1"])
             c.send_multipart(["sub2"])
             cid, msg = self.fast_recv(s)
