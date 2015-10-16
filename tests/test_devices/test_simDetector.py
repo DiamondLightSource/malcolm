@@ -10,7 +10,7 @@ import os
 import cothread
 
 import logging
-# logging.basicConfig()
+logging.basicConfig()
 # logging.basicConfig(level=logging.DEBUG)#, format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
 from mock import MagicMock, patch
 # Module import
@@ -64,9 +64,9 @@ class SimDetectorTest(unittest.TestCase):
         self.set_configured()
         Attribute.update(self.s.attributes["arrayCallbacks"], False)
         self.assertEqual(self.s.stateMachine.state, DState.Ready)
-        self.assertEqual(self.s._pconfig.state, self.s._pconfig.PvState.Ready)
+        self.assertEqual(self.s._pconfig.state, self.s._pconfig.SeqState.Ready)
         cothread.Yield()
-        self.assertEqual(self.s._pconfig.state, self.s._pconfig.PvState.Idle)
+        self.assertEqual(self.s._pconfig.state, self.s._pconfig.SeqState.Idle)
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Fault)
 
@@ -95,11 +95,12 @@ class SimDetectorTest(unittest.TestCase):
 
     def set_configured(self):
         # Set all the pvs to the right value
-        self.s._pconfig.config_params = self.send_params.copy()
+        for seq_item in self.s._pconfig.seq_items.values():
+            seq_item.check_params = self.send_params.copy()
         for attr in sorted(self.send_params):
             self.s.attributes[attr]._value = self.send_params[attr]
         self.s.stateMachine.state = DState.Ready
-        self.s._pconfig.stateMachine.state = self.s._pconfig.PvState.Ready
+        self.s._pconfig.stateMachine.state = self.s._pconfig.SeqState.Ready
 
     def test_run(self):
         self.set_configured()

@@ -3,7 +3,8 @@ from xml.etree import ElementTree as ET
 import numpy
 
 from malcolm.core import RunnableDevice, Attribute, wrap_method, PvAttribute, \
-    VString, VInt, VBool, DState, VTable, VIntArray, VNumber, PvSeq, PvSeqSet
+    VString, VInt, VBool, DState, VTable, VIntArray, VNumber, Sequence, \
+    AttributeSeqItem
 
 
 class PositionPlugin(RunnableDevice):
@@ -99,12 +100,12 @@ class PositionPlugin(RunnableDevice):
 
     def _make_config(self):
         # make some sequences for config
-        s1 = PvSeqSet(
+        s1 = AttributeSeqItem(
             "Deleting old positions",
             delete=True,
         )
         s1.set_extra(post=self._make_xml)
-        s2 = PvSeqSet(
+        s2 = AttributeSeqItem(
             "Configuring positions",
             xml=None,                   # from _make_xml above
             enableCallbacks=True,
@@ -112,7 +113,9 @@ class PositionPlugin(RunnableDevice):
         )
         s2.set_extra(always=["xml"])
         # Add a configuring object
-        self._pconfig = PvSeq(self.name + ".Config", self, s1, s2)
+        self._pconfig = Sequence(
+            self.name + ".Config", self.attributes, s1, s2)
+        self.add_listener(self._pconfig.on_change, "attributes")
         self._pconfig.add_listener(self.on_pconfig_change, "stateMachine")
         self.add_loop(self._pconfig)
 
@@ -120,7 +123,7 @@ class PositionPlugin(RunnableDevice):
         if self.state == DState.Configuring:
             self.post_configsta(sm.state, sm.message)
         elif self.state == DState.Ready and \
-                sm.state != self._pconfig.PvState.Ready:
+                sm.state != self._pconfig.SeqState.Ready:
             self.post_error(sm.message)
         elif self.state == DState.Aborting:
             self.post_abortsta()
@@ -157,7 +160,7 @@ class PositionPlugin(RunnableDevice):
         assert self._pconfig.state in self._pconfig.rest_states(), \
             "Can't configure sub-state machine in {} state" \
             .format(self._pconfig.state)
-        self._pconfig.configure(config_params)
+        self._pconfig.start(config_params)
         return DState.Configuring, "Started configuring"
 
     def do_configsta(self, state, message):
@@ -165,8 +168,8 @@ class PositionPlugin(RunnableDevice):
         DState.Configuring if still in progress, or DState.Ready if done.
         """
         if state in self._pconfig.rest_states():
-            assert state == self._pconfig.PvState.Ready, \
-                "Configuring failed: {}".format(message) 
+            assert state == self._pconfig.SeqState.Ready, \
+                "Configuring failed: {}".format(message)
             state = DState.Ready
         else:
             state = DState.Configuring

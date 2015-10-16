@@ -1,7 +1,7 @@
 import os
 
 from malcolm.core import PausableDevice, DState, InstanceAttribute, \
-    wrap_method, Attribute, VDouble, VString, VTable
+    wrap_method, Attribute, VDouble, VString, VTable, Device
 from malcolm.devices import SimDetector, Hdf5Writer, PositionPlugin
 
 

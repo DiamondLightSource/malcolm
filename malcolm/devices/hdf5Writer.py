@@ -1,7 +1,8 @@
 import os
 
 from malcolm.core import RunnableDevice, Attribute, PvAttribute, DState, \
-    wrap_method, VString, VEnum, VInt, VBool, PvSeq, PvSeqSet
+    wrap_method, VString, VEnum, VInt, VBool, Sequence, \
+    AttributeSeqItem
 
 
 class Hdf5Writer(RunnableDevice):
@@ -111,7 +112,7 @@ class Hdf5Writer(RunnableDevice):
 
     def _make_config(self):
         # make some sequences for config
-        s1 = PvSeqSet(
+        s1 = AttributeSeqItem(
             "Configuring parameters",
             enableCallbacks=True,
             fileWriteMode="Stream",
@@ -125,7 +126,8 @@ class Hdf5Writer(RunnableDevice):
             **self.validate.arguments  # all the config params
         )
         # Add a configuring object
-        self._pconfig = PvSeq(self.name + ".Config", self, s1)
+        self._pconfig = Sequence(self.name + ".Config", self.attributes, s1)
+        self.add_listener(self._pconfig.on_change, "attributes")
         self._pconfig.add_listener(self.on_pconfig_change, "stateMachine")
         self.add_loop(self._pconfig)
 
@@ -133,7 +135,7 @@ class Hdf5Writer(RunnableDevice):
         if self.state == DState.Configuring:
             self.post_configsta(sm.state, sm.message)
         elif self.state == DState.Ready and \
-                sm.state != self._pconfig.PvState.Ready:
+                sm.state != self._pconfig.SeqState.Ready:
             self.post_error(sm.message)
         elif self.state == DState.Aborting:
             self.post_abortsta()
@@ -172,7 +174,7 @@ class Hdf5Writer(RunnableDevice):
         assert self._pconfig.state in self._pconfig.rest_states(), \
             "Can't configure sub-state machine in {} state" \
             .format(self._pconfig.state)
-        self._pconfig.configure(config_params)
+        self._pconfig.start(config_params)
         return DState.Configuring, "Started configuring"
 
     def do_configsta(self, state, message):
@@ -180,7 +182,7 @@ class Hdf5Writer(RunnableDevice):
         DState.Configuring if still in progress, or DState.Ready if done.
         """
         if state in self._pconfig.rest_states():
-            assert state == self._pconfig.PvState.Ready, \
+            assert state == self._pconfig.SeqState.Ready, \
                 "Configuring failed: {}".format(message)
             state = DState.Ready
         else:

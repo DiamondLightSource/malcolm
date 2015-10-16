@@ -14,8 +14,8 @@ ims = IMalcolmServer()
 from socket import gethostname
 hostname = gethostname().split(".")[0]
 pre = "{}-AD-SIM-01:".format(hostname)
-#ims.createSimDetector("det:det", pre + "CAM:")
-#ims.createPositionPlugin("det:pos", pre + "POS:")
-#ims.createHdf5Writer("det:hdf5", pre + "HDF5:")
-#ims.createSimDetectorPersonality("det", "det:det", "det:pos", "det:hdf5")
+ims.createSimDetector("det:det", pre + "CAM:")
+ims.createPositionPlugin("det:pos", pre + "POS:")
+ims.createHdf5Writer("det:hdf5", pre + "HDF5:")
+ims.createSimDetectorPersonality("det", "det:det", "det:pos", "det:hdf5")
 ims.interact()

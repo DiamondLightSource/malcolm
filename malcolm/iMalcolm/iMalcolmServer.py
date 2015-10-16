@@ -42,4 +42,4 @@ These are the local devices:
             import code
             code.interact(header, local=locals())
         else:
-            IPython.embed(header)
+            IPython.embed(header=header)

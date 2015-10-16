@@ -75,7 +75,7 @@ det.run()
         import code
         code.interact(header, local=locals())
     else:
-        IPython.embed(header)
+        IPython.embed(header=header)
 
 if __name__ == "__main__":
     # Entry point
