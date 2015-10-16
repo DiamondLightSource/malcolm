@@ -78,7 +78,7 @@ class ZmqWrapper(object):
         self.ctx.destroy()
 
 
-class ZmqTest(unittest.TestCase):
+class ZmqTestNew(unittest.TestCase):
 
     def test_close(self):
         for i in range(10):

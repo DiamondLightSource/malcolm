@@ -21,14 +21,14 @@ class ZmqSocket(ISocket):
 
     def send(self, msg, timeout=None):
         """Send the message to the socket"""
+        # Tell our event loop to recheck recv
+        os.write(self.sendsig_w, "-")
         if timeout is None:
             timeout = self.timeout
         weak_method(self.__retry)(
             self.sock.send_multipart, self.send_list, timeout, msg)
         # sys.stdout.write("Sent message {}\n".format(msg))
         # sys.stdout.flush()
-        # Tell our event loop to recheck recv
-        os.write(self.sendsig_w, "-")
 
     def recv(self, timeout=None):
         """Co-operatively block until received"""
