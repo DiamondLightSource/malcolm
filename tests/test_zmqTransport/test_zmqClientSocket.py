@@ -23,6 +23,7 @@ class InqSock(cothread.EventQueue):
     def __init__(self):
         super(InqSock, self).__init__()
         self.send_multipart = MagicMock()
+        self.fd = 0
 
     def recv_multipart(self, flags=None):
         return self.Wait()
@@ -30,15 +31,15 @@ class InqSock(cothread.EventQueue):
 
 class DummyZmqClientSocket(ZmqClientSocket):
 
-    def send(self, msg):
+    def send(self, msg, timeout=None):
         return self.sock.send_multipart(msg, flags=1)
 
-    def recv(self):
+    def recv(self, timeout=None):
         return self.sock.recv_multipart(flags=1)
 
     def make_zmq_sock(self, address):
         return InqSock()
-    
+
     def close(self):
         self.sock.close()
 

@@ -1,6 +1,7 @@
 #!/bin/env dls-python
 from pkg_resources import require
 from collections import OrderedDict
+import collections
 require("mock")
 require("pyzmq")
 import unittest
@@ -23,36 +24,56 @@ class ZmqWrapper(object):
         self.ctx = zmq.Context()
         if bind:
             self.sock = self.ctx.socket(zmq.ROUTER)
-            #self.sock.setsockopt(zmq.LINGER, int(timeout*1000))
             self.sock.bind(addr)
         else:
             self.sock = self.ctx.socket(zmq.DEALER)
             self.sock.connect(addr)
+        self.sendsig_r, self.sendsig_w = os.pipe()
         self.timeout = timeout
         self.outq = cothread.EventQueue()
+        self.send_list = [(self.sock.fd, coselect.POLLOUT)]
+        self.recv_list = [(self.sock.fd, coselect.POLLIN),
+                          (self.sendsig_r, coselect.POLLIN)]
 
     def event_loop(self):
         while True:
-            self.outq.Signal(self.recv_multipart())
+            ret = self.recv_multipart(timeout=None)
+            self.outq.Signal(ret)
 
-    def send_multipart(self, msg):
-        # print hex(id(self)), "Send", msg
-        self.sock.send_multipart(msg)
+    def send_multipart(self, msg, timeout=None):
+        timeout = timeout or self.timeout
+        self.__retry(self.sock.send_multipart, self.send_list, timeout, msg)
+        # Tell our event loop to recheck recv
+        os.write(self.sendsig_w, "-")
 
-    def recv_multipart(self):
-        poll = coselect.POLLIN | coselect.POLLOUT
+    def recv_multipart(self, timeout=None):
+        timeout = timeout or self.timeout
+        return self.__retry(self.sock.recv_multipart, self.recv_list, timeout)
+
+    def __retry(self, action, event_list, timeout, *args, **kwargs):
+        start = time.time()
+        kwargs.update(flags=zmq.NOBLOCK)
         while True:
             try:
-                ret = self.sock.recv_multipart(flags=zmq.NOBLOCK)
-                # print hex(id(self)), "Recv", ret
-                return ret
+                return action(*args, **kwargs)
             except zmq.ZMQError as error:
                 if error.errno != zmq.EAGAIN:
                     raise
-            if not coselect.poll_list([(self.sock.fd, poll)], self.timeout):
-                raise Exception("Timed out")
+                else:
+                    if timeout:
+                        t = start + self.timeout - time.time()
+                    else:
+                        t = None
+                    ready = coselect.poll_list(event_list, t)
+                    if not ready:
+                        raise zmq.ZMQError(
+                            zmq.ETIMEDOUT, 'Timeout waiting for socket')
+                    elif ready[0][0] == self.sendsig_r:
+                        # clear send pipe
+                        os.read(self.sendsig_r, 1)
 
     def close(self):
+        os.write(self.sendsig_w, "-")
         self.sock.close()
         self.ctx.destroy()
 
@@ -63,7 +84,7 @@ class ZmqTest(unittest.TestCase):
         for i in range(10):
             self.s = ZmqWrapper("ipc:///tmp/sock.ipc", 0.1)
             start = time.time()
-            s = cothread.Spawn(self.s.recv_multipart, raise_on_wait=True)
+            s = cothread.Spawn(self.s.event_loop, raise_on_wait=True)
             cothread.Sleep(0.01)
             self.s.close()
             try:

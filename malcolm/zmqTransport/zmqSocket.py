@@ -21,31 +21,29 @@ class ZmqSocket(ISocket):
 
     def send(self, msg, timeout=None):
         """Send the message to the socket"""
-        timeout = timeout or self.timeout
-        event_list = [(self.sock.fd, self.POLLOUT)]
+        if timeout is None:
+            timeout = self.timeout
         weak_method(self.__retry)(
-            self.sock.send_multipart, event_list, timeout, msg)
+            self.sock.send_multipart, self.send_list, timeout, msg)
         # sys.stdout.write("Sent message {}\n".format(msg))
         # sys.stdout.flush()
         # Tell our event loop to recheck recv
-        os.write(self.sendp_w, "-")
+        os.write(self.sendsig_w, "-")
 
     def recv(self, timeout=None):
         """Co-operatively block until received"""
-        timeout = timeout or self.timeout
-        event_list = [(self.sock.fd, self.POLLIN),
-                      (self.sendp_r, self.POLLIN)]
-
+        if timeout is None:
+            timeout = self.timeout
         try:
             msg = weak_method(self.__retry)(
-                self.sock.recv_multipart, event_list, timeout)
+                self.sock.recv_multipart, self.recv_list, timeout)
         except zmq.ZMQError as error:
             if error.errno in [zmq.ENOTSOCK, zmq.ENOTSUP]:
                 raise StopIteration
             else:
                 raise
         else:
-            #sys.stdout.write("Got message {}\n".format(msg))
+            # sys.stdout.write("Got message {}\n".format(msg))
             # sys.stdout.flush()
             return msg
 
@@ -104,9 +102,9 @@ class ZmqSocket(ISocket):
                     if not ready:
                         raise zmq.ZMQError(
                             zmq.ETIMEDOUT, 'Timeout waiting for socket')
-                    elif ready[0][0] == self.sendp_r:
+                    elif ready[0][0] == self.sendsig_r:
                         # clear send pipe
-                        os.read(self.sendp_r, 1)
+                        os.read(self.sendsig_r, 1)
 
     def open(self, address):
         """Open the socket on the given address"""
@@ -114,14 +112,15 @@ class ZmqSocket(ISocket):
         import cothread
         self.cothread = cothread
         self.poll_list = coselect.poll_list
-        self.POLLIN = coselect.POLLIN
-        self.POLLOUT = coselect.POLLOUT
         self.context = zmq.Context()
         self.sock = self.make_zmq_sock(address)
-        self.sendp_r, self.sendp_w = os.pipe()
+        self.sendsig_r, self.sendsig_w = os.pipe()
+        self.send_list = [(self.sock.fd, coselect.POLLOUT)]
+        self.recv_list = [(self.sock.fd, coselect.POLLIN),
+                          (self.sendsig_r, coselect.POLLIN)]
 
     def close(self):
         """Close the socket"""
-        os.write(self.sendp_w, "-")
+        os.write(self.sendsig_w, "-")
         self.sock.close()
         self.context.destroy()

@@ -63,7 +63,7 @@ class ISocket(ILoop):
                 return socket_cls(name, address, *args, **kwargs)
 
     def loop_event(self):
-        msg = weak_method(self.recv)()
+        msg = weak_method(self.recv)(timeout=0)
         typ, kwargs = weak_method(self.deserialize)(msg)
         weak_method(self.handle_message)(typ, kwargs)
 
