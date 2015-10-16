@@ -10,10 +10,7 @@ if __name__ == "__main__":
 
 from malcolm.core.process import Process
 from malcolm.core.deviceClient import DeviceClient
-from malcolm.core import VDouble
-import numpy
 import argparse
-import IPython
 import logging
 
 
@@ -61,7 +58,7 @@ def main():
     self = make_client()
     self.run(block=False)
     all_devices = self.ds.instancesDevice
-    IPython.embed(header="""Welcome to iMalcolmClient.
+    header = """Welcome to iMalcolmClient.
 You are connected to: {}
 These devices are available:
 {}
@@ -70,7 +67,15 @@ Try:
 det = self.get_device("det")
 det.configure(exposure=0.1, nframes=10)
 det.run()
-""".format(self.ds_string, all_devices))
+""".format(self.ds_string, all_devices)
+    import numpy
+    try:
+        import IPython
+    except ImportError:
+        import code
+        code.interact(header, local=locals())
+    else:
+        IPython.embed(header)
 
 if __name__ == "__main__":
     # Entry point

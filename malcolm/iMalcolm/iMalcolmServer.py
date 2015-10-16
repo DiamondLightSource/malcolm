@@ -1,7 +1,6 @@
 from malcolm.core.directoryService import DirectoryService, \
     not_process_creatable
 import argparse
-import IPython
 import logging
 
 
@@ -33,8 +32,14 @@ class IMalcolmServer(DirectoryService):
 
     def interact(self):
         locals().update(self._device_servers)
-        IPython.embed(header="""iMalcolmServer running on {}.
+        header = """iMalcolmServer running on {}.
 These are the local devices:
 {}
-""".format(self.serverStrings, self.localDevices))
-
+""".format(self.serverStrings, self.localDevices)
+        try:
+            import IPython
+        except ImportError:
+            import code
+            code.interact(header, local=locals())
+        else:
+            IPython.embed(header)
