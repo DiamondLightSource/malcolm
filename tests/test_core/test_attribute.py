@@ -4,12 +4,14 @@ import sys
 import os
 import time
 import logging
-#logging.basicConfig(level=logging.DEBUG)
+import numpy
+from mock import MagicMock
+# logging.basicConfig(level=logging.DEBUG)
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.core.attribute import Attribute, HasAttributes
 from malcolm.core.alarm import Alarm, AlarmSeverity, AlarmStatus
-from malcolm.core.vtype import VString, VInt, VStringArray
+from malcolm.core.vtype import VString, VInt, VStringArray, VTable, VLong
 
 
 class Container(HasAttributes):
@@ -79,14 +81,31 @@ class AttributeTest(unittest.TestCase):
         self.assertEqual(d.values(), [VString(), 'The String'])
         self.s.update("wow", timeStamp=3.2)
         d = self.s.to_dict()
-        self.assertEqual(d.keys(), ['value', 'type', 'descriptor', 'alarm', 'timeStamp'])
-        self.assertEqual(d.values(), ['wow', VString(), 'The String', Alarm.ok(), 3.2])
+        self.assertEqual(
+            d.keys(), ['value', 'type', 'descriptor', 'alarm', 'timeStamp'])
+        self.assertEqual(
+            d.values(), ['wow', VString(), 'The String', Alarm.ok(), 3.2])
 
     def test_lists(self):
         a = Attribute(VStringArray, "List of strings")
         a.update(["c", "b"])
         self.assertEqual(a.value, ["c", "b"])
         self.assertRaises(AssertionError, a.update, "c")
-        
+
+    def test_compare_vtables(self):
+        a = Attribute(VTable, "Positions")
+        a.notify_listeners = MagicMock()
+        t1 = [("x", VLong, numpy.arange(5)), ("y", VLong, numpy.arange(5) + 2)]
+        a.update(t1, None, 1.0)
+        a.notify_listeners.assert_called_with(
+            dict(value=t1, alarm=Alarm.ok(), timeStamp=1.0))
+        a.update(t1, None, 1.0)
+        a.notify_listeners.assert_called_with(dict())
+        t2 = [("x", VLong, numpy.arange(5) + 3),
+              ("y", VLong, numpy.arange(5) + 2)]
+        a.update(t2, None, 1.0)
+        a.notify_listeners.assert_called_with(dict(value=t2))
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

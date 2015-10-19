@@ -54,6 +54,10 @@ class SimDetectorPersonalityTest(unittest.TestCase):
         ]
         self.in_params = dict(exposure=0.1, positions=self.positions, 
                               hdf5File="/tmp/demo2.hdf5")
+        try:
+            os.remove(self.in_params["hdf5File"])
+        except OSError:
+            pass
         self.numImages = len(self.positions[0][2])
         self.runtime = self.numImages * 0.1
 
@@ -66,7 +70,7 @@ class SimDetectorPersonalityTest(unittest.TestCase):
         start = time.time()
         self.sp.configure(**self.in_params)
         end = time.time()
-        self.assertAlmostEqual(end - start, 0, delta=0.05)
+        self.assertAlmostEqual(end - start, 0, delta=0.08)
         self.assertEqual(self.sp.state, DState.Ready)
         self.assertEqual(self.s.state, DState.Ready)
         self.assertEqual(self.p.state, DState.Ready)
@@ -74,7 +78,7 @@ class SimDetectorPersonalityTest(unittest.TestCase):
         self.assertEqual(self.s.arrayCounter, 0)
         # Do a run
         start = time.time()
-        self.s.run()
+        self.sp.run()
         end = time.time()
         self.assertAlmostEqual(end - start, self.runtime, delta=0.05)
         self.assertEqual(self.s.stateMachine.state, DState.Idle)

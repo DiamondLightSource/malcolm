@@ -122,15 +122,10 @@ class Attribute(Base):
         # Assert type
         if value is not None:
             value = self.typ.validate(value)
-            # if types mismatch then we have a change
-            if type(value) != type(self.value):
+            if self.value is None:
                 equal = False
-            # if value is numpy array then any element change is change
-            elif type(value).__module__ == numpy.__name__:
-                equal = numpy.array_equal(value, self.value)
-            # otherwise do scalar comparison
             else:
-                equal = value == self.value
+                equal = self.typ.value_equal(value, self.value)
             if not equal:
                 changes.update(value=value)
                 self._value = value

@@ -1,9 +1,10 @@
 import abc
 from collections import OrderedDict
 import time
+import os
+import sys
 
 import zmq
-import os
 
 from malcolm.core.transport import ISocket, SType
 from malcolm.jsonPresentation.jsonPresenter import JsonPresenter

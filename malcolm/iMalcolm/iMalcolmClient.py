@@ -17,9 +17,13 @@ import logging
 class IDeviceClient(DeviceClient):
 
     def do_call(self, endpoint, *args, **kwargs):
+        self.last = ""
 
         def print_call(sm, changes=None):
-            print "{}: {}".format(sm.state.name, sm.message)
+            msg = "{}: {}".format(sm.state.name, sm.message)
+            if self.last != msg:
+                print msg
+                self.last = msg
 
         self.add_listener(print_call, "stateMachine")
         try:

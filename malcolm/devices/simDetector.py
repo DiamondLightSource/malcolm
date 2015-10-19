@@ -1,6 +1,6 @@
 from malcolm.core import RunnableDevice, Attribute, wrap_method, PvAttribute, \
     VString, VDouble, VEnum, VInt, VBool, DState, Sequence, \
-    AttributeSeqItem
+    SeqAttributeItem
 
 
 class SimDetector(RunnableDevice):
@@ -10,7 +10,7 @@ class SimDetector(RunnableDevice):
     def __init__(self, name, prefix, timeout=None):
         self.prefix = prefix
         super(SimDetector, self).__init__(name, timeout)
-        self._make_config()
+        self._make_sconfig()
 
     def add_all_attributes(self):
         super(SimDetector, self).add_all_attributes()
@@ -55,25 +55,25 @@ class SimDetector(RunnableDevice):
         elif self.state == DState.Aborting:
             self.post_abortsta()
 
-    def _make_config(self):
+    def _make_sconfig(self):
         # make some sequences for config
-        s1 = AttributeSeqItem(
-            "Configuring parameters",
+        s1 = SeqAttributeItem(
+            "Configuring parameters", self.attributes,
             imageMode="Multiple",
             arrayCallbacks=1,
             **self.validate.arguments  # all the config params
         )
         # Add a configuring object
-        self._pconfig = Sequence(self.name + ".Config", self.attributes, s1)
-        self.add_listener(self._pconfig.on_change, "attributes")
-        self._pconfig.add_listener(self.on_pconfig_change, "stateMachine")
-        self.add_loop(self._pconfig)
+        self._sconfig = Sequence(self.name + ".Config", s1)
+        self.add_listener(self._sconfig.on_change, "attributes")
+        self._sconfig.add_listener(self.on_sconfig_change, "stateMachine")
+        self.add_loop(self._sconfig)
 
-    def on_pconfig_change(self, sm, changes):
+    def on_sconfig_change(self, sm, changes):
         if self.state == DState.Configuring:
             self.post_configsta(sm.state, sm.message)
         elif self.state == DState.Ready and \
-                sm.state != self._pconfig.SeqState.Ready:
+                sm.state != self._sconfig.SeqState.Done:
             self.post_error(sm.message)
         elif self.state == DState.Aborting:
             self.post_abortsta()
@@ -103,18 +103,18 @@ class SimDetector(RunnableDevice):
 
     def do_config(self, **config_params):
         """Start doing a configuration using config_params"""
-        assert self._pconfig.state in self._pconfig.rest_states(), \
+        assert self._sconfig.state in self._sconfig.rest_states(), \
             "Can't configure sub-state machine in {} state" \
-            .format(self._pconfig.state)
-        self._pconfig.start(config_params)
+            .format(self._sconfig.state)
+        self._sconfig.start(config_params)
         return DState.Configuring, "Started configuring"
 
     def do_configsta(self, state, message):
         """Do the next param in self.config_params, returning
         DState.Configuring if still in progress, or DState.Ready if done.
         """
-        if state in self._pconfig.rest_states():
-            assert state == self._pconfig.SeqState.Ready, \
+        if state in self._sconfig.rest_states():
+            assert state == self._sconfig.SeqState.Done, \
                 "Configuring failed: {}".format(message)
             state = DState.Ready
         else:
@@ -140,9 +140,9 @@ class SimDetector(RunnableDevice):
         """Stop acquisition
         """
         if self.state == DState.Configuring:
-            if self._pconfig.state not in self._pconfig.rest_states():
+            if self._sconfig.state not in self._sconfig.rest_states():
                 # Abort configure
-                self._pconfig.abort()
+                self._sconfig.abort()
             else:
                 # Statemachine already done, nothing to do
                 self.post_abortsta()
@@ -155,7 +155,7 @@ class SimDetector(RunnableDevice):
         """Check we finished
         """
         if not self.acquire and \
-                self._pconfig.state in self._pconfig.rest_states():
+                self._sconfig.state in self._sconfig.rest_states():
             return DState.Aborted, "Aborting finished"
         else:
             # No change

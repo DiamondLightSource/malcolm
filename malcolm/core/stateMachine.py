@@ -94,7 +94,8 @@ class StateMachine(EventLoop):
 
         def generated_transition_func(*args, **kwargs):
             self.log_debug(
-                "Running transition_function {}".format(transition_func))
+                "Running transition_function {} {} {}"
+                .format(transition_func, args, kwargs))
             ret = transition_func(*args, **kwargs)
             self.log_debug("Return is {}".format(ret))
             assert type(ret) in (tuple, list) and len(ret) == 2, \

@@ -14,6 +14,10 @@ class VType(object):
         in this type without losing information. Return the argument in
         the correct type"""
 
+    @abc.abstractmethod
+    def value_equal(self, v1, v2):
+        """Return true if two values passed from validate() or None are equal"""
+
     def __eq__(self, other):
         return type(self) == type(other)
 
@@ -42,11 +46,18 @@ class VTypeArray(object):
         in this type without losing information. Return the argument in
         the correct type"""
 
+    @abc.abstractmethod
+    def array_value_equal(self, v1, v2):
+        """Return true if two values passed from validate() or None are equal"""
+
 
 class IsArray(VTypeArray):
 
     def validate(self, value):
         return self.array_validate(value)
+
+    def value_equal(self, v1, v2):
+        return self.array_value_equal(v1, v2)
 
 
 class VNumber(VType, VTypeArray):
@@ -66,6 +77,9 @@ class VNumber(VType, VTypeArray):
             "Lost information converting {} to {}".format(value, cast)
         return cast
 
+    def value_equal(self, v1, v2):
+        return v1 == v2
+
     def array_validate(self, value):
         """Check we match the numpy type"""
         # If we got a python list, then convert to a numpy array
@@ -84,6 +98,9 @@ class VNumber(VType, VTypeArray):
             cast = value
         # If correct type, return
         return cast
+
+    def array_value_equal(self, v1, v2):
+        return numpy.array_equal(v1, v2)
 
 
 class VDouble(VNumber):
@@ -163,12 +180,23 @@ class VString(VType, VTypeArray):
         cast = str(value)
         return cast
 
+    def value_equal(self, v1, v2):
+        return v1 == v2
+
     def array_validate(self, value):
         """Check we match the type"""
         assert hasattr(value, "__iter__"), \
             "Expected iterable, got {}".format(value)
         cast = [str(x) for x in value]
         return cast
+
+    def array_value_equal(self, v1, v2):
+        if len(v1) != len(v2):
+            return False
+        for s1, s2 in zip(v1, v2):
+            if s1 != s2:
+                return False
+        return True
 
 
 class VStringArray(IsArray, VString):
@@ -197,6 +225,9 @@ class VEnum(VType):
             es.i = i
             self.labels.append(es)
         self.labels = tuple(self.labels)
+
+    def value_equal(self, v1, v2):
+        return v1 == v2
 
     def validate(self, value):
         try:
@@ -266,3 +297,13 @@ class VTable(VType):
         assert len(datalengths) == 1, \
             "Got mismatching column lengths: {}".format(datalengths)
         return cast
+
+    def value_equal(self, v1, v2):
+        if len(v1) != len(v2):
+            return False
+        for (n1, t1, d1), (n2, t2, d2) in zip(v1, v2):
+            if n1 != n2 or t1 != t2:
+                return False
+            if not t1().array_value_equal(d1, d2):
+                return False
+        return True

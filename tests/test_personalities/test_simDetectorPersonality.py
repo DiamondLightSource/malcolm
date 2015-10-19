@@ -11,8 +11,8 @@ import cothread
 import numpy
 
 import logging
-logging.basicConfig()
-# logging.basicConfig(level=logging.DEBUG) #, format='%(asctime)s
+#logging.basicConfig()
+#logging.basicConfig(level=logging.DEBUG) #, format='%(asctime)s
 # %(name)-12s %(levelname)-8s %(message)s')
 from mock import MagicMock, patch
 # Module import
@@ -83,35 +83,41 @@ class SimDetectorPersonalityTest(unittest.TestCase):
         # Yield to let do_config and first do_configsta run
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Configuring)
+        # Yield to let Config state machine process
+        cothread.Yield()
         self.simDetector.configure.assert_called_once_with(
-            0.1, self.numImages, 0.1, block=False)
+            0.1, self.numImages, 0.1, 0, block=False)
         self.positionPlugin.configure.assert_called_once_with(
-            self.positions, block=False)
-        self.assertEqual(self.s.wait_pos, True)
+            self.positions, 1, block=False)
+        cothread.Yield()
+        self.assertEqual(self.s.stateMachine.message, 'Wait for positionPlugin to configure')
         # Now simulate simDetector ready
         self.positionPlugin.state = DState.Configuring
         self.simDetector.state = DState.Ready
-        self.s.on_child_state_change()
+        self.simDetector.stateMachine.timeStamp = time.time()
+        self.s._sconfig.on_change(None, None)
         cothread.Yield()
-        self.assertEqual(self.s.stateMachine.message, 'Waiting for 1 plugins')
+        self.assertEqual(self.s.stateMachine.message, 'Wait for positionPlugin to configure')
         # Now simulate pos plugin ready
         self.positionPlugin.state = DState.Ready
         self.positionPlugin.dimensions = [3, 5]
-        self.s.on_child_state_change()
+        self.s._sconfig.on_change(None, None)
         cothread.Yield()
         self.hdf5Writer.configure.assert_called_once_with(
-            '/tmp', 'demo.hdf5', 2, 'y', 'x', '', 3, 5, 1, block=False)
-        self.assertEqual(self.s.stateMachine.message, 'Configuring hdfWriter')
+            '/tmp', 'demo.hdf5', 1, 'y_index', 'x_index', '', 3, 5, 1, block=False)
+        cothread.Yield()
+        self.assertEqual(self.s.stateMachine.message, "Wait for hdf5Writer to configure")
         # simulate hdfwriter configuring
         self.hdf5Writer.state = DState.Configuring
-        self.s.on_child_state_change()
+        self.s._sconfig.on_change(None, None)
         cothread.Yield()
-        self.assertEqual(self.s.stateMachine.message, 'Waiting for 1 plugins')
+        self.assertEqual(self.s.stateMachine.message, "Wait for hdf5Writer to configure")
         # simulate hdfwriter ready
         self.hdf5Writer.state = DState.Ready
-        self.s.on_child_state_change()
+        self.s._sconfig.on_change(None, None)
         cothread.Yield()
-        self.assertEqual(self.s.stateMachine.message, 'Configuring finished')
+        cothread.Yield()
+        self.assertEqual(self.s.stateMachine.message, 'Done')
         self.assertEqual(self.s.stateMachine.state, DState.Ready)
         now = time.time()
         spawned.Wait(1)
@@ -134,44 +140,49 @@ class SimDetectorPersonalityTest(unittest.TestCase):
         # let do_run go
         cothread.Yield()
         self.assertEqual(self.s.state, DState.Running)
-        self.assertEqual(self.s.stateMachine.message, "Starting plugins")
+        # Yield to let Config state machine process
+        cothread.Yield()
+        cothread.Yield()
+        cothread.Yield()
         self.hdf5Writer.run.assert_called_once_with(block=False)
         self.positionPlugin.run.assert_called_once_with(block=False)
+        self.assertEqual(self.s.stateMachine.message, "Wait for hdf5Writer to run")
         # Now simulate some started
         self.simDetector.acquire = False
-        self.positionPlugin.running = False
-        self.hdf5Writer.capture = False
+        self.positionPlugin.attributes["running"].value = False
+        self.hdf5Writer.attributes["capture"].value = True
         self.hdf5Writer.state = DState.Running
-        self.s.on_child_state_change()
+        self.hdf5Writer.stateMachine.timeStamp = time.time()
+        self.s._srun.on_change(None, None)
         cothread.Yield()
-        self.assertEqual(self.s.stateMachine.message, 'Waiting for 1 plugins')
+        cothread.Yield()
+        self.assertEqual(self.s.stateMachine.message, 'Wait for positionPlugin to run')
         # And a bit more
-        self.hdf5Writer.capture = True
-        self.s.on_child_state_change()
-        cothread.Yield()
-        self.assertEqual(self.s.stateMachine.message, 'Waiting for 1 plugins')
-        # And now the rest
-        self.positionPlugin.running = True
+        self.positionPlugin.attributes["running"].value = True
         self.positionPlugin.state = DState.Running
-        self.s.on_child_state_change()
+        self.s._srun.on_change(None, None)
         cothread.Yield()
-        self.assertEqual(self.s.stateMachine.message, "Starting simDetector")
+        cothread.Yield()
+        self.assertEqual(self.s.stateMachine.message, "Wait for simDetector to finish")
         # Now start simDetector
         self.simDetector.state = DState.Running
-        self.s.on_child_state_change()
+        self.s._srun.on_change(None, None)
         cothread.Yield()
-        self.assertEqual(self.s.stateMachine.message, 'Waiting for 3 plugins')
+        cothread.Yield()
+        self.assertEqual(self.s.stateMachine.message, "Wait for simDetector to finish")
         # Now let them all finish except 1
-        self.simDetector.state = DState.Idle
-        self.positionPlugin.state = DState.Idle
-        self.s.on_child_state_change()
-        cothread.Yield()
-        self.assertEqual(self.s.stateMachine.message, 'Waiting for 1 plugins')
-        # and done
         self.hdf5Writer.state = DState.Idle
-        self.s.on_child_state_change()
+        self.simDetector.state = DState.Idle
+        self.s._srun.on_change(None, None)
         cothread.Yield()
-        self.assertEqual(self.s.stateMachine.message, "Running finished")
+        cothread.Yield()
+        self.assertEqual(self.s.stateMachine.message, 'Wait for positionPlugin to finish')
+        # and done
+        self.positionPlugin.state = DState.Idle
+        self.s._srun.on_change(None, None)
+        cothread.Yield()
+        cothread.Yield()
+        self.assertEqual(self.s.stateMachine.message, "Done")
         self.assertEqual(self.s.state, DState.Idle)
         now = time.time()
         spawned.Wait(1)

@@ -56,7 +56,8 @@ class HdfWriterTest(unittest.TestCase):
                'extraDimSizeX', 'extraDimSizeY', 'fileName', 'filePath',
                'fileTemplate', 'fileWriteMode', 'lazyOpen', 'ndAttributeChunk',
                'numCapture', 'numExtraDims', 'posNameDimN', 'posNameDimX',
-               'posNameDimY', 'positionMode', 'swmrMode', 'uniqueId']
+               'posNameDimY', 'positionMode', 'swmrMode', 'uniqueId', 
+               'writeMessage', 'writeStatus', 'xml']
         self.assertEqual(self.s.attributes.keys(), base + pvs)
         self.assertEqual(self.s.prefix, "PRE")
         for attr in pvs:
@@ -81,7 +82,7 @@ class HdfWriterTest(unittest.TestCase):
         # Yield to let configure run
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Idle)
-        # Yield to let do_config and _pconfig
+        # Yield to let do_config and _sconfig
         cothread.Yield()
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Configuring)
@@ -92,12 +93,12 @@ class HdfWriterTest(unittest.TestCase):
 
     def set_configured(self):
         # Set all the pvs to the right value
-        for seq_item in self.s._pconfig.seq_items.values():
+        for seq_item in self.s._sconfig.seq_items.values():
             seq_item.check_params = self.send_params.copy()
         for attr in sorted(self.send_params):
             self.s.attributes[attr]._value = self.send_params[attr]
         self.s.stateMachine.state = DState.Ready
-        self.s._pconfig.stateMachine.state = self.s._pconfig.SeqState.Ready
+        self.s._sconfig.stateMachine.state = self.s._sconfig.SeqState.Done
 
     def test_run(self):
         self.set_configured()
@@ -118,9 +119,9 @@ class HdfWriterTest(unittest.TestCase):
         self.set_configured()
         Attribute.update(self.s.attributes["extraDimSizeN"], 2)
         self.assertEqual(self.s.stateMachine.state, DState.Ready)
-        self.assertEqual(self.s._pconfig.state, self.s._pconfig.SeqState.Ready)
+        self.assertEqual(self.s._sconfig.state, self.s._sconfig.SeqState.Done)
         cothread.Yield()
-        self.assertEqual(self.s._pconfig.state, self.s._pconfig.SeqState.Idle)
+        self.assertEqual(self.s._sconfig.state, self.s._sconfig.SeqState.Idle)
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Fault)
 

@@ -64,9 +64,9 @@ class SimDetectorTest(unittest.TestCase):
         self.set_configured()
         Attribute.update(self.s.attributes["arrayCallbacks"], False)
         self.assertEqual(self.s.stateMachine.state, DState.Ready)
-        self.assertEqual(self.s._pconfig.state, self.s._pconfig.SeqState.Ready)
+        self.assertEqual(self.s._sconfig.state, self.s._sconfig.SeqState.Done)
         cothread.Yield()
-        self.assertEqual(self.s._pconfig.state, self.s._pconfig.SeqState.Idle)
+        self.assertEqual(self.s._sconfig.state, self.s._sconfig.SeqState.Idle)
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Fault)
 
@@ -95,12 +95,12 @@ class SimDetectorTest(unittest.TestCase):
 
     def set_configured(self):
         # Set all the pvs to the right value
-        for seq_item in self.s._pconfig.seq_items.values():
+        for seq_item in self.s._sconfig.seq_items.values():
             seq_item.check_params = self.send_params.copy()
         for attr in sorted(self.send_params):
             self.s.attributes[attr]._value = self.send_params[attr]
         self.s.stateMachine.state = DState.Ready
-        self.s._pconfig.stateMachine.state = self.s._pconfig.SeqState.Ready
+        self.s._sconfig.stateMachine.state = self.s._sconfig.SeqState.Done
 
     def test_run(self):
         self.set_configured()

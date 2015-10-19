@@ -8,4 +8,5 @@ from .process import Process
 from .directoryService import DirectoryService
 from .vtype import VInt, VDouble, VString, VEnum, VStringArray, VBool, \
     VDoubleArray, VTable, VNumber, VIntArray
-from .sequence import Sequence, AttributeSeqItem
+from .sequence import Sequence, SeqAttributeItem, SeqFunctionItem, \
+    SeqStateItem, SeqAttributeReadItem

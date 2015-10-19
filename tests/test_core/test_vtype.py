@@ -89,5 +89,6 @@ class AttributeTest(unittest.TestCase):
         ]
         self.assertRaises(AssertionError, VTable().validate, data)
 
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

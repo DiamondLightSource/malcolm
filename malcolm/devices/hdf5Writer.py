@@ -1,8 +1,9 @@
 import os
+from xml.etree import ElementTree as ET
 
 from malcolm.core import RunnableDevice, Attribute, PvAttribute, DState, \
     wrap_method, VString, VEnum, VInt, VBool, Sequence, \
-    AttributeSeqItem
+    SeqAttributeItem
 
 
 class Hdf5Writer(RunnableDevice):
@@ -12,7 +13,7 @@ class Hdf5Writer(RunnableDevice):
     def __init__(self, name, prefix, timeout=None):
         self.prefix = prefix
         super(Hdf5Writer, self).__init__(name, timeout)
-        self._make_config()
+        self._make_sconfig()
 
     def add_all_attributes(self):
         super(Hdf5Writer, self).add_all_attributes()
@@ -92,6 +93,10 @@ class Hdf5Writer(RunnableDevice):
                 p + "NumCapture", VInt,
                 "Number of frames to capture",
                 rbv_suff="_RBV"),
+            xml=PvAttribute(
+                p + "XMLFileName", VString,
+                "XML for layout",
+                rbv_suff="_RBV", long_string=True),
             # Run
             capture=PvAttribute(
                 p + "Capture", VBool,
@@ -101,8 +106,17 @@ class Hdf5Writer(RunnableDevice):
             uniqueId=PvAttribute(
                 p + "UniqueId_RBV", VInt,
                 "Current unique id number for frame"),
+            writeStatus=PvAttribute(
+                p + "WriteStatus", VEnum("Ok,Error"),
+                "Current status of write"),
+            writeMessage=PvAttribute(
+                p + "WriteMessage", VString,
+                "Error message if writeStatus == Error",
+                long_string=True),
         )
         self.add_listener(self.on_capture_change, "attributes.capture")
+        self.add_listener(self.on_writestatus_change,
+                          "attributes.writeStatus.value")
 
     def on_capture_change(self, capture, changes):
         if self.state == DState.Running:
@@ -110,10 +124,15 @@ class Hdf5Writer(RunnableDevice):
         elif self.state == DState.Aborting:
             self.post_abortsta()
 
-    def _make_config(self):
+    def on_writestatus_change(self, writestatus, changes):
+        if writestatus == "Error" and self.state not in DState.rest():
+            print "**post error"
+            self.post_error(self.writeMessage)
+
+    def _make_sconfig(self):
         # make some sequences for config
-        s1 = AttributeSeqItem(
-            "Configuring parameters",
+        s1 = SeqAttributeItem(
+            "Configuring parameters", self.attributes,
             enableCallbacks=True,
             fileWriteMode="Stream",
             fileTemplate="%s%s",
@@ -122,20 +141,22 @@ class Hdf5Writer(RunnableDevice):
             positionMode=True,
             dimAttDatasets=True,
             lazyOpen=True,
+            #xml=None,
             # numCapture=0,
             **self.validate.arguments  # all the config params
         )
+        s1.set_extra(always=["capture"])
         # Add a configuring object
-        self._pconfig = Sequence(self.name + ".Config", self.attributes, s1)
-        self.add_listener(self._pconfig.on_change, "attributes")
-        self._pconfig.add_listener(self.on_pconfig_change, "stateMachine")
-        self.add_loop(self._pconfig)
+        self._sconfig = Sequence(self.name + ".Config", s1)
+        self.add_listener(self._sconfig.on_change, "attributes")
+        self._sconfig.add_listener(self.on_sconfig_change, "stateMachine")
+        self.add_loop(self._sconfig)
 
-    def on_pconfig_change(self, sm, changes):
+    def on_sconfig_change(self, sm, changes):
         if self.state == DState.Configuring:
             self.post_configsta(sm.state, sm.message)
         elif self.state == DState.Ready and \
-                sm.state != self._pconfig.SeqState.Ready:
+                sm.state != self._sconfig.SeqState.Done:
             self.post_error(sm.message)
         elif self.state == DState.Aborting:
             self.post_abortsta()
@@ -152,7 +173,7 @@ class Hdf5Writer(RunnableDevice):
             filePath += os.sep
         fullPath = filePath + fileName
         assert not os.path.isfile(fullPath), \
-            "{} already exists".format()
+            "{} already exists".format(fullPath)
         return super(Hdf5Writer, self).validate(locals())
 
     def do_reset(self):
@@ -160,6 +181,7 @@ class Hdf5Writer(RunnableDevice):
         callback doing self.post(DEvent.ResetSta, resetsta) when progress has
         been made, where resetsta is any device specific reset status
         """
+        self.capture = False
         self.post_resetsta(None)
         return DState.Resetting, "Resetting started"
 
@@ -169,20 +191,39 @@ class Hdf5Writer(RunnableDevice):
         """
         return DState.Idle, "Resetting finished"
 
+    def _make_xml(self, config_params):
+        root_el = ET.Element("hdf5_layout")
+        entry_el = ET.SubElement(root_el, "group", name="entry")
+        ET.SubElement(entry_el, "attribute", name="NX_class",
+                      source="constant", value="NXentry", type="string")
+        data_el = ET.SubElement(entry_el, "group", name="data")
+        ET.SubElement(data_el, "attribute", name="signal", source="constant",
+                      value="det1", type="string")
+        ET.SubElement(data_el, "attribute", name="axes", source="constant",
+                      value="axis1_demand,axis2_demand,.,.,.", type="string")
+        ET.SubElement(data_el, "attribute", name="NX_class", source="constant",
+                      value="NXdata", type="string")
+        ET.SubElement(data_el, "attribute", name="axis1_demand_indices",
+                      source="constant", value="0", type="string")
+        ET.SubElement(data_el, "attribute", name="axis2_demand_indices",
+                      source="constant", value="1", type="string")
+
     def do_config(self, **config_params):
         """Start doing a configuration using config_params"""
-        assert self._pconfig.state in self._pconfig.rest_states(), \
+        assert self._sconfig.state in self._sconfig.rest_states(), \
             "Can't configure sub-state machine in {} state" \
-            .format(self._pconfig.state)
-        self._pconfig.start(config_params)
+            .format(self._sconfig.state)
+        self.capture = False
+        # config_params.update(xml=self._make_xml(config_params))
+        self._sconfig.start(config_params)
         return DState.Configuring, "Started configuring"
 
     def do_configsta(self, state, message):
         """Do the next param in self.config_params, returning
         DState.Configuring if still in progress, or DState.Ready if done.
         """
-        if state in self._pconfig.rest_states():
-            assert state == self._pconfig.SeqState.Ready, \
+        if state in self._sconfig.rest_states():
+            assert state == self._sconfig.SeqState.Done, \
                 "Configuring failed: {}".format(message)
             state = DState.Ready
         else:
@@ -208,9 +249,9 @@ class Hdf5Writer(RunnableDevice):
         """Stop acquisition
         """
         if self.state == DState.Configuring:
-            if self._pconfig.state not in self._pconfig.rest_states():
+            if self._sconfig.state not in self._sconfig.rest_states():
                 # Abort configure
-                self._pconfig.abort()
+                self._sconfig.abort()
             else:
                 # Statemachine already done, nothing to do
                 self.post_abortsta()
@@ -223,7 +264,7 @@ class Hdf5Writer(RunnableDevice):
         """Check we finished
         """
         if not self.capture and \
-                self._pconfig.state in self._pconfig.rest_states():
+                self._sconfig.state in self._sconfig.rest_states():
             return DState.Aborted, "Aborting finished"
         else:
             # No change

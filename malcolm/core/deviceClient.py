@@ -58,6 +58,10 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
         super(DeviceClient, self).loop_run()
         self._reconnect()
 
+    @property
+    def state(self):
+        return self.stateMachine.state
+
     def _reconnect(self):
         self._last_uptime = 0
         self._uptime_static = 0

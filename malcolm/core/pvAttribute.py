@@ -86,7 +86,7 @@ class PvAttribute(Attribute, ILoop):
     def update(self, value, alarm=None, timeStamp=None):
         assert alarm is None, "Can't set alarm on a PvAttribute"
         assert timeStamp is None, "Can't set timeStamp on a PvAttribute"
-        self.log_debug("Caput {} {}".format(repr(value), self.pv))
+        self.log_debug("caput({}, {})".format(self.pv.name, repr(value)))
         # Convert value for some VTypes
         if isinstance(self.typ, VBool):
             value = bool(value)

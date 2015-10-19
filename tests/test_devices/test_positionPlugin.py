@@ -86,14 +86,14 @@ class PositionPluginTest(unittest.TestCase):
         self.assertEqual(self.s.stateMachine.state, DState.Configuring)
         # Yield to let Config state machine process
         cothread.Yield()
-        self.assertEqual(self.s._pconfig.state, self.s._pconfig.SeqState.SeqItem1)
+        self.assertEqual(self.s._sconfig.state, self.s._sconfig.SeqState.SeqItem1)
         # Yield to let main statemachine process
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.message, "Deleting old positions")
         self.check_set("delete", True)
         # Yield to let this post and then once to let the sm process
         cothread.Yield()
-        self.assertEqual(self.s._pconfig.state, self.s._pconfig.SeqState.SeqItem2)
+        self.assertEqual(self.s._sconfig.state, self.s._sconfig.SeqState.SeqItem2)
         for attr in sorted(self.send_params):
             self.check_set(attr, self.send_params[attr])
         spawned.Wait(1)
@@ -126,7 +126,7 @@ class PositionPluginTest(unittest.TestCase):
 </pos_layout>
 """
         self.assert_xml(self.s.xml, expected)
-        self.assertEqual(self.s._pconfig.state, self.s._pconfig.SeqState.Ready)
+        self.assertEqual(self.s._sconfig.state, self.s._sconfig.SeqState.Done)
         self.assertEqual(self.s.stateMachine.state, DState.Ready)
         self.assertTrue(all(self.s.dimensions == [3, 5]))
 
@@ -141,12 +141,12 @@ class PositionPluginTest(unittest.TestCase):
 
     def set_configured(self):
         # Set all the pvs to the right value
-        for seq_item in self.s._pconfig.seq_items.values():
+        for seq_item in self.s._sconfig.seq_items.values():
             seq_item.check_params = self.send_params.copy()
         for attr in sorted(self.send_params):
             self.s.attributes[attr]._value = self.send_params[attr]
         self.s.stateMachine.state = DState.Ready
-        self.s._pconfig.stateMachine.state = self.s._pconfig.SeqState.Ready
+        self.s._sconfig.stateMachine.state = self.s._sconfig.SeqState.Done
 
     def test_run(self):
         self.set_configured()
@@ -167,9 +167,9 @@ class PositionPluginTest(unittest.TestCase):
         self.set_configured()
         Attribute.update(self.s.attributes["enableCallbacks"], False)
         self.assertEqual(self.s.stateMachine.state, DState.Ready)
-        self.assertEqual(self.s._pconfig.state, self.s._pconfig.SeqState.Ready)
+        self.assertEqual(self.s._sconfig.state, self.s._sconfig.SeqState.Done)
         cothread.Yield()
-        self.assertEqual(self.s._pconfig.state, self.s._pconfig.SeqState.Idle)
+        self.assertEqual(self.s._sconfig.state, self.s._sconfig.SeqState.Idle)
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Fault)
 
