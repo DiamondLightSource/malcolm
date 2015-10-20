@@ -60,6 +60,9 @@ class SeqAttributeItem(SeqItem):
             # Otherwise update our check params with
             else:
                 self.check_params[attr] = value
+            # If value is None, nothing to do
+            if value is None:
+                continue
             # Check if we should always set this attribute
             always = hasattr(self, "always") and attr in self.always
             # If always or if value doesn't match

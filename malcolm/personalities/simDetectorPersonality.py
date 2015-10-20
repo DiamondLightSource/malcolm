@@ -188,8 +188,9 @@ class SimDetectorPersonality(PausableDevice):
                 positions.append([n, t, d[self.last_done:]])
         else:
             positions = self.positions
-        self.positionPlugin.configure(positions, self.last_done + 1,
-                                      block=False)
+        self.positionPlugin.configure(
+            positions, self.last_done + 1, self.simDetector.portName,
+            block=False)
 
     def _configure_hdf5Writer(self):
         assert self.positionPlugin.state == DState.Ready, \
@@ -214,7 +215,7 @@ class SimDetectorPersonality(PausableDevice):
                 .format(numExtraDims, self.positionPlugin.dimensions))
         self.hdf5Writer.configure(
             filePath, fileName,  numExtraDims - 1, *posNames + extraDimSizes,
-            block=False)
+            arrayPort=self.positionPlugin.portName, block=False)
 
     @wrap_method()
     def validate(self, exposure, positions, hdf5File, period=None):

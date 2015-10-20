@@ -46,6 +46,10 @@ class SimDetector(RunnableDevice):
                 p + "Acquire", VBool,
                 "Demand and readback for starting acquisition",
                 put_callback=False),
+            # Monitor
+            portName=PvAttribute(
+                p + "PortName_RBV", VString,
+                "Port name of this plugin"),
         )
         self.add_listener(self.on_acquire_change, "attributes.acquire")
 

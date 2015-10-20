@@ -39,6 +39,10 @@ class PositionPlugin(RunnableDevice):
                 p + "IDStart", VInt,
                 "First uid value to look for",
                 rbv_suff="_RBV"),
+            arrayPort=PvAttribute(
+                p + "NDArrayPort", VString,
+                "Port name of array producer",
+                rbv_suff="_RBV"),
             # Run
             running=PvAttribute(
                 p + "Running", VBool,
@@ -50,6 +54,9 @@ class PositionPlugin(RunnableDevice):
             uniqueId=PvAttribute(
                 p + "UniqueId_RBV", VInt,
                 "Current unique id number for frame"),
+            portName=PvAttribute(
+                p + "PortName_RBV", VString,
+                "Port name of this plugin"),
         )
         self.add_listener(self.on_running_change, "attributes.running")
 
@@ -59,9 +66,8 @@ class PositionPlugin(RunnableDevice):
         elif self.state == DState.Aborting:
             self.post_abortsta()
 
-    def _make_xml(self, config_params):
+    def _make_xml(self, positions):
         # Now calculate dimensionality
-        positions = config_params["positions"]
         uniq = [sorted(set(data)) for _, _, data in positions]
         dims = [len(pts) for pts in uniq]
         npts = len(positions[0][2])
@@ -95,9 +101,7 @@ class PositionPlugin(RunnableDevice):
             last = ET.SubElement(positions_el, "position", **attribs)
         last.attrib["filePluginClose"] = "1"
         xml = ET.tostring(root_el)
-        # put it in the config_params dict
-        config_params["xml"] = xml
-        #self.cothread.Sleep(0.05)
+        return xml
 
     def _make_sconfig(self):
         # make some sequences for config
@@ -105,10 +109,10 @@ class PositionPlugin(RunnableDevice):
             "Deleting old positions", self.attributes,
             delete=True,
         )
-        s1.set_extra(post=self._make_xml, always=["delete"])
+        s1.set_extra(always=["delete"])
         s2 = SeqAttributeItem(
             "Configuring positions", self.attributes,
-            xml=None,                   # from _make_xml above
+            xml=None,
             enableCallbacks=True,
             **self.validate.arguments  # all the config params
         )
@@ -124,12 +128,14 @@ class PositionPlugin(RunnableDevice):
             self.post_configsta(sm.state, sm.message)
         elif self.state == DState.Ready and \
                 sm.state != self._sconfig.SeqState.Done:
+            # TODO: this is unsafe as we might be behind in the queue
+            # should post a "check" instead
             self.post_error(sm.message)
         elif self.state == DState.Aborting:
             self.post_abortsta()
 
     @wrap_method()
-    def validate(self, positions, idStart=1):
+    def validate(self, positions, idStart=1, arrayPort=None):
         assert len(positions) in range(1, 4), \
             "Can only do 1..3 position attributes"
         for name, typ, data in positions:
@@ -160,6 +166,8 @@ class PositionPlugin(RunnableDevice):
         assert self._sconfig.state in self._sconfig.rest_states(), \
             "Can't configure sub-state machine in {} state" \
             .format(self._sconfig.state)
+        positions = config_params["positions"]
+        config_params.update(xml=self._make_xml(positions))
         self._sconfig.start(config_params)
         return DState.Configuring, "Started configuring"
 

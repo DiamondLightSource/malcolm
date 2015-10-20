@@ -105,6 +105,9 @@ class StateMachine(EventLoop):
             assert message is None or type(message) == str, \
                 "Message should be string or None, got {}".format(message)
             if state is None:
+                if message is None:
+                    # No change
+                    return
                 state = self.state
             assert state in to_states, "State {} is not one of {}".format(
                 state, to_states)

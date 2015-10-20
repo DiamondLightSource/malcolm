@@ -17,6 +17,7 @@ import subprocess
 
 import logging
 logging.basicConfig()
+#logging.basicConfig(level=logging.INFO)
 #logging.basicConfig(level=logging.DEBUG)
 #logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
 
@@ -54,10 +55,6 @@ class SimDetectorPersonalityTest(unittest.TestCase):
         ]
         self.in_params = dict(exposure=0.1, positions=self.positions, 
                               hdf5File="/tmp/demo2.hdf5")
-        try:
-            os.remove(self.in_params["hdf5File"])
-        except OSError:
-            pass
         self.numImages = len(self.positions[0][2])
         self.runtime = self.numImages * 0.1
 
@@ -67,10 +64,14 @@ class SimDetectorPersonalityTest(unittest.TestCase):
             cothread.Sleep(random.random())
 
     def do_sequence(self):
+        try:
+            os.remove(self.in_params["hdf5File"])
+        except OSError:
+            pass
         start = time.time()
         self.sp.configure(**self.in_params)
         end = time.time()
-        self.assertAlmostEqual(end - start, 0, delta=0.08)
+        self.assertAlmostEqual(end - start, 0.0, delta=0.08)
         self.assertEqual(self.sp.state, DState.Ready)
         self.assertEqual(self.s.state, DState.Ready)
         self.assertEqual(self.p.state, DState.Ready)

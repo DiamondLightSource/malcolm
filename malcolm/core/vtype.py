@@ -177,6 +177,8 @@ class VString(VType, VTypeArray):
 
     def validate(self, value):
         """Check we match the type"""
+        if value is None:
+            return value
         cast = str(value)
         return cast
 
@@ -185,6 +187,8 @@ class VString(VType, VTypeArray):
 
     def array_validate(self, value):
         """Check we match the type"""
+        if value is None:
+            return value
         assert hasattr(value, "__iter__"), \
             "Expected iterable, got {}".format(value)
         cast = [str(x) for x in value]

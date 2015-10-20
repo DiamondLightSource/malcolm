@@ -45,7 +45,7 @@ class PositionPluginTest(unittest.TestCase):
         self.valid_params = dict(
             positions=self.positions, idStart=1,
             resetTimeout=1, runTime=None, runTimeout=1,
-            abortTimeout=1, configureTimeout=1)
+            abortTimeout=1, configureTimeout=1, arrayPort=None)
         self.send_params = dict(
             enableCallbacks=1,
             idStart=1, xml="something")
@@ -53,7 +53,7 @@ class PositionPluginTest(unittest.TestCase):
 
     def test_init(self):
         base = ['prefix', 'uptime', 'block']
-        pvs = ['delete', 'dimensions', 'enableCallbacks', 'idStart', 'positions',
+        pvs = ['arrayPort','delete', 'dimensions', 'enableCallbacks', 'idStart', 'portName','positions',
                'running', 'uniqueId', 'xml']
         self.assertEqual(self.s.attributes.keys(), base + pvs)
         self.assertEqual(self.s.prefix, "PRE")
@@ -229,8 +229,7 @@ class PositionPluginTest(unittest.TestCase):
             ("x", VDouble, xs),
             ("y", VDouble, ys),
         ]
-        config_params = dict(positions=positions)
-        self.s._make_xml(config_params)
+        xml = self.s._make_xml(positions)
         self.assertEqual(self.s.dimensions, len(xs))
         expected = """<?xml version="1.0" ?>
 <pos_layout>
@@ -273,7 +272,7 @@ class PositionPluginTest(unittest.TestCase):
   </positions>
 </pos_layout>
 """
-        self.assert_xml(config_params["xml"], expected)
+        self.assert_xml(xml, expected)
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

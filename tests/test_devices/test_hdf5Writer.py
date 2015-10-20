@@ -38,7 +38,7 @@ class HdfWriterTest(unittest.TestCase):
             posNameDimN="n", posNameDimX="x", posNameDimY="y",
             extraDimSizeN=1, extraDimSizeX=1, extraDimSizeY=1,
             resetTimeout=1, runTime=None, runTimeout=1,
-            abortTimeout=1, configureTimeout=1)
+            abortTimeout=1, configureTimeout=1, arrayPort=None)
         self.send_params = {
             'ndAttributeChunk': True, 'swmrMode': True, 'extraDimSizeX': 1,
             'extraDimSizeY': 1, 'filePath': '/tmp/', 'posNameDimN': 'n',
@@ -52,10 +52,10 @@ class HdfWriterTest(unittest.TestCase):
 
     def test_init(self):
         base = ['prefix', 'uptime', 'block']
-        pvs = ['capture', 'dimAttDatasets', 'enableCallbacks', 'extraDimSizeN',
+        pvs = ['arrayPort','capture', 'dimAttDatasets', 'enableCallbacks', 'extraDimSizeN',
                'extraDimSizeX', 'extraDimSizeY', 'fileName', 'filePath',
                'fileTemplate', 'fileWriteMode', 'lazyOpen', 'ndAttributeChunk',
-               'numCapture', 'numExtraDims', 'posNameDimN', 'posNameDimX',
+               'numCapture', 'numExtraDims', 'portName', 'posNameDimN', 'posNameDimX',
                'posNameDimY', 'positionMode', 'swmrMode', 'uniqueId', 
                'writeMessage', 'writeStatus', 'xml']
         self.assertEqual(self.s.attributes.keys(), base + pvs)

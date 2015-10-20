@@ -88,7 +88,7 @@ class SimDetectorPersonalityTest(unittest.TestCase):
         self.simDetector.configure.assert_called_once_with(
             0.1, self.numImages, 0.1, 0, block=False)
         self.positionPlugin.configure.assert_called_once_with(
-            self.positions, 1, block=False)
+            self.positions, 1, self.simDetector.portName, block=False)
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.message, 'Wait for positionPlugin to configure')
         # Now simulate simDetector ready
@@ -104,7 +104,7 @@ class SimDetectorPersonalityTest(unittest.TestCase):
         self.s._sconfig.on_change(None, None)
         cothread.Yield()
         self.hdf5Writer.configure.assert_called_once_with(
-            '/tmp', 'demo.hdf5', 1, 'y_index', 'x_index', '', 3, 5, 1, block=False)
+            '/tmp', 'demo.hdf5', 1, 'y_index', 'x_index', '', 3, 5, 1, arrayPort=self.positionPlugin.portName, block=False)
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.message, "Wait for hdf5Writer to configure")
         # simulate hdfwriter configuring

@@ -49,7 +49,7 @@ class SimDetectorTest(unittest.TestCase):
     def test_init(self):
         base = ['prefix', 'uptime', 'block']
         pvs = ['acquire', 'arrayCallbacks', 'arrayCounter', 'exposure',
-               'imageMode', 'numImages', 'period']
+               'imageMode', 'numImages', 'period', 'portName']
         self.assertEqual(self.s.attributes.keys(), base + pvs)
         self.assertEqual(self.s.prefix, "PRE")
         for attr in pvs:

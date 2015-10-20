@@ -69,7 +69,7 @@ class PvAttribute(Attribute, ILoop):
 
     def on_put_callback(self, _=None):
         "Called when a caput callback fires"
-        self.log_debug("Got put callback")
+        self.log_debug("{}: Got put callback".format(self.pv.name))
         assert self.put_callbacks == 1, \
             "Got a caput callback while {} active".format(self.put_callbacks)
         self.put_callbacks = 0
@@ -80,7 +80,7 @@ class PvAttribute(Attribute, ILoop):
         # Otherwise spawn a caget
         else:
             self.log_debug("Do caget")
-            self.cothread.Spawn(self.on_update, self.rbv, caget=True, 
+            self.cothread.Spawn(self.on_update, self.rbv, caget=True,
                                 pv_timestamp=False)
 
     def update(self, value, alarm=None, timeStamp=None):

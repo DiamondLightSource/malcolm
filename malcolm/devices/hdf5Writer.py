@@ -97,6 +97,10 @@ class Hdf5Writer(RunnableDevice):
                 p + "XMLFileName", VString,
                 "XML for layout",
                 rbv_suff="_RBV", long_string=True),
+            arrayPort=PvAttribute(
+                p + "NDArrayPort", VString,
+                "Port name of array producer",
+                rbv_suff="_RBV"),                            
             # Run
             capture=PvAttribute(
                 p + "Capture", VBool,
@@ -113,6 +117,9 @@ class Hdf5Writer(RunnableDevice):
                 p + "WriteMessage", VString,
                 "Error message if writeStatus == Error",
                 long_string=True),
+            portName=PvAttribute(
+                p + "PortName_RBV", VString,
+                "Port name of this plugin"),                            
         )
         self.add_listener(self.on_capture_change, "attributes.capture")
         self.add_listener(self.on_writestatus_change,
@@ -164,7 +171,8 @@ class Hdf5Writer(RunnableDevice):
     @wrap_method()
     def validate(self, filePath, fileName, numExtraDims=0,
                  posNameDimN="n", posNameDimX="x", posNameDimY="y",
-                 extraDimSizeN=1, extraDimSizeX=1, extraDimSizeY=1):
+                 extraDimSizeN=1, extraDimSizeX=1, extraDimSizeY=1,
+                 arrayPort=None):
         assert os.path.isdir(filePath), \
             "{} is not a directory".format(filePath)
         assert "." in fileName, \
