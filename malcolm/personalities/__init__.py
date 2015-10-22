@@ -1,1 +1,1 @@
-from simDetectorPersonality import SimDetectorPersonality
+from malcolm.personalities.simdetectorpersonality import SimDetectorPersonality

@@ -7,7 +7,7 @@ import inspect
 from .loop import EventLoop, LState
 from .method import Method, wrap_method
 from .device import Device, not_process_creatable
-from .deviceClient import DeviceClient
+from malcolm.core.deviceclient import DeviceClient
 from .transport import ClientSocket, ServerSocket, SType
 from .subscription import ServerSubscription
 from .attribute import Attribute

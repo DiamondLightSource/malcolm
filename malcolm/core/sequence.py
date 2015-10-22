@@ -6,7 +6,7 @@ from enum import Enum
 
 from .base import Base
 from .device import Device, not_process_creatable
-from .stateMachine import StateMachine
+from malcolm.core.statemachine import StateMachine
 
 
 class SeqEvent(Enum):
@@ -194,7 +194,7 @@ class Sequence(Device):
             states.append('SeqItem{}'.format(i + 1))
         self.SeqState = Enum('SeqState', states + ["Done"])
 
-        # Make a statemachine
+        # Make a stateMachine
         sm = StateMachine(name + ".stateMachine", self.SeqState.Idle,
                           self.SeqState.Fault)
         self.add_stateMachine(sm)

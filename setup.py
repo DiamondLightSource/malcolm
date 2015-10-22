@@ -49,7 +49,7 @@ setup(
         'zmq':  ['pyzmq']
     },
     entry_points={'console_scripts':
-                  ["imalcolm = malcolm.iMalcolm.iMalcolmClient:main"]
+                  ["imalcolm = malcolm.imalcolm.client:main"]
                   },
     include_package_data=True,
     test_suite='nose.collector',

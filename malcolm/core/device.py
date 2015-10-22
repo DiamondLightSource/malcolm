@@ -3,7 +3,7 @@ import functools
 from collections import OrderedDict
 
 from .attribute import HasAttributes, Attribute
-from .stateMachine import HasStateMachine
+from malcolm.core.statemachine import HasStateMachine
 from .method import HasMethods, wrap_method
 from .loop import HasLoops, TimerLoop
 from .base import weak_method
