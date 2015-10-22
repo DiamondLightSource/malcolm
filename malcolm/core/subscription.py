@@ -12,7 +12,8 @@ class ServerSubscription(EventLoop):
         super(ServerSubscription, self).__init__(name, timeout)
         # Device has a ref to us, so we shouldn't have a strong ref to it
         self.device_remove_listener = weak_method(device.remove_listener)
-        device.add_listener(self.post, ename)
+        self.ename = ename
+        device.add_listener(self.post, self.ename)
         if send:
             self.send = send
         else:
@@ -37,7 +38,7 @@ class ServerSubscription(EventLoop):
 
     def loop_stop(self, *args, **kwargs):
         super(ServerSubscription, self).loop_stop()
-        self.device_remove_listener(self.post)
+        self.device_remove_listener(self.post, self.ename)
         self.send(SType.Return)
 
 

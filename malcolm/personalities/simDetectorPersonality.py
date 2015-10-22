@@ -114,11 +114,10 @@ class SimDetectorPersonality(PausableDevice):
             self.name + ".SRun", *seqItems)
         for c in self.children:
             c.add_listener(self._srun.on_change, "stateMachine.state")
-        # TODO: horrible
         self.hdf5Writer.add_listener(
-            self._srun.on_change2, "attributes.capture")
+            self._srun.on_change, "attributes.capture")
         self.positionPlugin.add_listener(
-            self._srun.on_change2, "attributes.running")
+            self._srun.on_change, "attributes.running")
         self._srun.add_listener(self.on_srun_change, "stateMachine")
         self.add_loop(self._srun)
 

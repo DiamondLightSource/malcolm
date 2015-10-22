@@ -46,7 +46,7 @@ class DeviceTest(unittest.TestCase):
         start = time.time()
         ret = self.d.configure(nframes=10, exposure=0.01)
         end = time.time()
-        self.d.remove_listener(self.callback)
+        self.d.remove_listener(self.callback, "stateMachine")
         self.assertLess(end - start, 0.008)
         expected = [DState.Configuring, DState.Ready]
         self.assertEqual(self.states, expected)
@@ -61,7 +61,7 @@ class DeviceTest(unittest.TestCase):
         start = time.time()
         ret = self.d.run()
         end = time.time()
-        self.d.remove_listener(self.callback)
+        self.d.remove_listener(self.callback, "stateMachine")
         self.assertAlmostEqual(
             end - start, 0.03, delta=0.05)
         expected = [DState.Running] * 4 + [DState.Idle]

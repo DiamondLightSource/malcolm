@@ -260,9 +260,6 @@ class Sequence(Device):
         if self.state != self.SeqState.Idle:
             self.stateMachine.post(SeqEvent.Changes, changes=changes)
 
-    def on_change2(self, value, changes):
-        self.on_change(value, changes)
-
     def do_check(self, changes=None, is_done=False):
         if not is_done:
             is_done = self.seq_items[self.state].done(changes)

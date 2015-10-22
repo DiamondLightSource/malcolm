@@ -15,17 +15,20 @@ class HasListeners(Base):
         # Lazily make listeners dict
         if not hasattr(self, "_listeners"):
             self._listeners = OrderedDict()
-        assert callback not in self._listeners, \
+        listeners = self._listeners.setdefault(prefix, [])
+        assert callback not in listeners, \
             "Callback function {} already in callback list".format(
                 callback)
-        self._listeners[callback] = prefix
-        self.log_debug("Listeners are now {}".format(self._listeners.keys()))
+        listeners.append(callback)
 
-    def remove_listener(self, callback):
+    def remove_listener(self, callback, prefix=""):
         """Remove listener callback function"""
-        self.log_debug("Removing listener {}".format(callback))
-        self._listeners.pop(callback)
-        self.log_debug("Listeners are now {}".format(self._listeners.keys()))
+        assert prefix in self._listeners, \
+            "No listeners for prefix {}".format(prefix)
+        listeners = self._listeners[prefix]
+        assert callback in listeners, \
+            "Callback function {} not in {}".format(callback, listeners)
+        listeners.remove(callback)
 
     def get_endpoint(self, ename):
         endpoint = self
@@ -46,22 +49,23 @@ class HasListeners(Base):
                       x.startswith("attributes.uptime")]
         if not_uptime:
             self.log_debug("Notifying listeners of {}".format(changes))
-        for callback, prefix in self._listeners.items():
+        for prefix, listeners in self._listeners.items():
             filt_changes = {}
             for cname, cvalue in changes.items():
                 if cname.startswith(prefix):
                     filt_changes[cname[len(prefix):].lstrip(".")] = cvalue
-            # If we have a dict with a single entry "", we are monitoring
-            # a single item, not a structure, so make it "."
             if filt_changes:
+                # If we have a dict with a single entry "", we are monitoring
+                # a single item, not a structure, so make it "."
                 if filt_changes.keys() == [""]:
                     filt_changes["."] = filt_changes.pop("")
-                cname = getattr(callback, "__name__", "callback")
                 value = self.get_endpoint(prefix)
-                # self.log_debug("Calling {}({}, {})"
-                #                .format(cname, value, filt_changes))
-                try:
-                    callback(value, filt_changes)
-                except:
-                    self.log_exception("{}({}) raised exception"
-                                       .format(callback.__name__, filt_changes))
+                for callback in listeners:
+                    cname = getattr(callback, "__name__", "callback")
+                    # self.log_debug("Calling {}({}, {})"
+                    #                .format(cname, value, filt_changes))
+                    try:
+                        callback(value, filt_changes)
+                    except:
+                        self.log_exception(
+                            "{}({}) raised".format(cname, filt_changes))

@@ -31,7 +31,7 @@ class IDeviceClient(DeviceClient):
         except KeyboardInterrupt:
             super(IDeviceClient, self).do_call("abort")
         finally:
-            self.remove_listener(print_call)
+            self.remove_listener(print_call, "stateMachine")
 
 
 def make_client():
