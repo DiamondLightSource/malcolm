@@ -89,21 +89,8 @@ class SimDetector(RunnableDevice):
         assert exposure >= period, \
             "Exposure {} should be >= period {}".format(exposure, period)
         runTime = numImages * period
+        runTimeout = runTime + period
         return super(SimDetector, self).validate(locals())
-
-    def do_reset(self):
-        """Check and attempt to clear any error state, arranging for a
-        callback doing self.post(DEvent.ResetSta, resetsta) when progress has
-        been made, where resetsta is any device specific reset status
-        """
-        self.post_resetsta(None)
-        return DState.Resetting, "Resetting started"
-
-    def do_resetsta(self, resetsta):
-        """Examine configsta for configuration progress, returning
-        DState.Resetting if still in progress, or DState.Idle if done.
-        """
-        return DState.Idle, "Resetting finished"
 
     def do_config(self, **config_params):
         """Start doing a configuration using config_params"""
@@ -164,3 +151,17 @@ class SimDetector(RunnableDevice):
         else:
             # No change
             return None, None
+
+    def do_reset(self):
+        """Check and attempt to clear any error state, arranging for a
+        callback doing self.post(DEvent.ResetSta, resetsta) when progress has
+        been made, where resetsta is any device specific reset status
+        """
+        self.post_resetsta(None)
+        return DState.Resetting, "Resetting started"
+
+    def do_resetsta(self, resetsta):
+        """Examine configsta for configuration progress, returning
+        DState.Resetting if still in progress, or DState.Idle if done.
+        """
+        return DState.Idle, "Resetting finished"

@@ -107,17 +107,6 @@ class DummyDet(PausableDevice):
         runTime = nframes * exposure
         return super(DummyDet, self).validate(locals())
 
-    def do_reset(self):
-        """Reset the underlying device"""
-        self.post_resetsta("finished")
-        return DState.Resetting, "Resetting..."
-
-    def do_resetsta(self, resetsta):
-        if resetsta == "finished":
-            return DState.Idle, "Reset complete"
-        else:
-            return DState.Fault, "Unhandled reset message {}".format(resetsta)
-
     def on_status(self, status, changes):
         """Respond to status updates from the sim sim_state machine"""
         sim_state = status.state
@@ -217,3 +206,15 @@ class DummyDet(PausableDevice):
             return DState.Aborted, "Aborted"
         else:
             raise Exception("What is: {}".format(abortsta))
+
+    def do_reset(self):
+        """Reset the underlying device"""
+        self.post_resetsta("finished")
+        return DState.Resetting, "Resetting..."
+
+    def do_resetsta(self, resetsta):
+        if resetsta == "finished":
+            return DState.Idle, "Reset complete"
+        else:
+            return DState.Fault, "Unhandled reset message {}".format(resetsta)
+

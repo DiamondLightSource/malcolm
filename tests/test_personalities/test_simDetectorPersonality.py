@@ -48,10 +48,10 @@ class SimDetectorPersonalityTest(unittest.TestCase):
                              'resumeTimeout': 1,
                              'retraceTimeout': 1,
                              'runTime': self.numImages * 0.1,
-                             'runTimeout': 1}
+                             'runTimeout': (self.numImages + 1)* 0.1}
         self.maxDiff = None
         self.simDetector.validate.return_value = dict(
-            runTime=self.numImages * 0.1,
+            runTime=self.numImages * 0.1, runTimeout=(self.numImages + 1)* 0.1,
             period=0.1)
 
     def test_init(self):

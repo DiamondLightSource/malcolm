@@ -11,11 +11,12 @@ import cothread
 
 import logging
 logging.basicConfig()
-# logging.basicConfig(level=logging.DEBUG)#, format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+# logging.basicConfig(level=logging.DEBUG)#, format='%(asctime)s
+# %(name)-12s %(levelname)-8s %(message)s')
 from mock import MagicMock, patch
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from malcolm.devices import SimDetector
+from malcolm.devices import ProgScan
 from malcolm.core import Attribute, PvAttribute
 
 
@@ -26,30 +27,40 @@ class DummyPVAttribute(PvAttribute):
         self.rbv = MagicMock()
 
 
-class SimDetectorTest(unittest.TestCase):
+class ProgScanTest(unittest.TestCase):
 
-    @patch("malcolm.devices.simDetector.PvAttribute", DummyPVAttribute)
+    @patch("malcolm.devices.progScan.PvAttribute", DummyPVAttribute)
     def setUp(self):
-        self.s = SimDetector("S", "PRE")
+        self.s = ProgScan("S", "PRE")
         self.s.loop_run()
-        self.in_params = dict(numImages=2, exposure=0.1)
-        self.valid_params = {'abortTimeout': 1,
-                             'arrayCounter': 0,
-                             'configureTimeout': 1,
-                             'exposure': 0.1,
-                             'numImages': 2,
-                             'period': 0.1,
-                             'resetTimeout': 1,
-                             'runTime': 0.2,
-                             'runTimeout': 3*0.1}
-        self.send_params = {'imageMode': "Multiple", 'exposure':
-                            0.1, 'arrayCounter': 0, 'arrayCallbacks': 1,
-                            'period': 0.1, 'numImages': 2}
+        self.in_params = dict(
+            m1Start=1, m1Step=0.1, m1NumPoints=10, m1Dwell=1000)
+        self.valid_params = {
+            'm1NumPoints': 10, 'm2Step': 0.0, 'm3NumPoints': 0, 'm1Start': 1.0,
+            'm1Dwell': 1000, 'm2Alternate': False, 'm2Start': 0.0,
+            'runTimeout': 1, 'm3Alternate': False, 'm1Order': 3, 'm2Order': 2,
+            'resetTimeout': 1, 'm3Order': 1, 'm1Step': 0.10000000000000001,
+            'm3Dwell': 0, 'abortTimeout': 1, 'm2Dwell': 0, 'm2NumPoints': 0,
+            'm3Start': 0.0, 'runTime': 20.0, 'configureTimeout': 1,
+            'm1Alternate': False, 'm3Step': 0.0}
+        self.send_params = {
+            'm1NumPoints': 10, 'm2Step': 0.0, 'm3NumPoints': 0, 'm1Start': 1.0,
+            'm1Dwell': 1000, 'm2Alternate': False, 'm2Start': 0.0,
+            'm3Alternate': False, 'm1Order': 3, 'm2Order': 2,
+            'm3Order': 1, 'm1Step': 0.10000000000000001,
+            'm3Dwell': 0, 'm2Dwell': 0, 'm2NumPoints': 0,
+            'm3Start': 0.0, 
+            'm1Alternate': False, 'm3Step': 0.0}
 
     def test_init(self):
         base = ['prefix', 'uptime', 'block']
-        pvs = ['acquire', 'arrayCallbacks', 'arrayCounter', 'exposure',
-               'imageMode', 'numImages', 'period', 'portName']
+        pvs = ['progState', 'scanAbort', 'scanStart', 'm1Start', 'm1Step',
+               'm1NumPoints', 'm1Dwell', 'm1Alternate', 'm1Order',
+               'm1PointsDone', 'm1ScansDone', 'm2Start', 'm2Step',
+               'm2NumPoints', 'm2Dwell', 'm2Alternate', 'm2Order',
+               'm2PointsDone', 'm2ScansDone', 'm3Start', 'm3Step',
+               'm3NumPoints', 'm3Dwell', 'm3Alternate', 'm3Order',
+               'm3PointsDone', 'm3ScansDone']
         self.assertEqual(self.s.attributes.keys(), base + pvs)
         self.assertEqual(self.s.prefix, "PRE")
         for attr in pvs:
@@ -62,7 +73,7 @@ class SimDetectorTest(unittest.TestCase):
 
     def test_mismatch(self):
         self.set_configured()
-        Attribute.update(self.s.attributes["arrayCallbacks"], False)
+        Attribute.update(self.s.attributes["m1NumPoints"], 2)
         self.assertEqual(self.s.stateMachine.state, DState.Ready)
         self.assertEqual(self.s._sconfig.state, self.s._sconfig.SeqState.Done)
         cothread.Yield()
@@ -101,6 +112,7 @@ class SimDetectorTest(unittest.TestCase):
             self.s.attributes[attr]._value = self.send_params[attr]
         self.s.stateMachine.state = DState.Ready
         self.s._sconfig.stateMachine.state = self.s._sconfig.SeqState.Done
+        Attribute.update(self.s.attributes["progState"], "Idle")
 
     def test_run(self):
         self.set_configured()
@@ -109,9 +121,12 @@ class SimDetectorTest(unittest.TestCase):
         cothread.Yield()
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Running)
-        self.check_set("acquire", 1)
-        self.assertEqual(self.s.acquire, 1)
-        Attribute.update(self.s.attributes["acquire"], False)
+        self.check_set("scanStart", 1)
+        self.assertEqual(self.s.scanStart, 1)
+        Attribute.update(self.s.attributes["progState"], "Scanning")
+        cothread.Yield()
+        self.assertEqual(self.s.stateMachine.state, DState.Running)
+        Attribute.update(self.s.attributes["scanStart"], False)
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Idle)
         spawned.Wait(1)
@@ -123,14 +138,13 @@ class SimDetectorTest(unittest.TestCase):
         cothread.Yield()
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Running)
-        self.check_set("acquire", 1)
-        self.assertEqual(self.s.acquire, 1)
+        self.check_set("scanStart", 1)
+        self.assertEqual(self.s.scanStart, 1)
+        Attribute.update(self.s.attributes["progState"], "Scanning")
+        cothread.Yield()
+        self.assertEqual(self.s.stateMachine.state, DState.Running)
         aspawned = cothread.Spawn(self.s.abort)
         cothread.Yield()
-        cothread.Yield()
-        self.assertEqual(self.s.stateMachine.state, DState.Aborting)
-        self.check_set("acquire", 0)
-        Attribute.update(self.s.attributes["acquire"], False)
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Aborted)
         spawned.Wait(1)

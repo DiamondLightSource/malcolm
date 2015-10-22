@@ -147,20 +147,6 @@ class PositionPlugin(RunnableDevice):
             "Need idStart {} > 0".format(idStart)
         return super(PositionPlugin, self).validate(locals())
 
-    def do_reset(self):
-        """Check and attempt to clear any error state, arranging for a
-        callback doing self.post(DEvent.ResetSta, resetsta) when progress has
-        been made, where resetsta is any device specific reset status
-        """
-        self.post_resetsta(None)
-        return DState.Resetting, "Resetting started"
-
-    def do_resetsta(self, resetsta):
-        """Examine configsta for configuration progress, returning
-        DState.Resetting if still in progress, or DState.Idle if done.
-        """
-        return DState.Idle, "Resetting finished"
-
     def do_config(self, **config_params):
         """Start doing a configuration using config_params"""
         assert self._sconfig.state in self._sconfig.rest_states(), \
@@ -222,3 +208,18 @@ class PositionPlugin(RunnableDevice):
         else:
             # No change
             return None, None
+
+    def do_reset(self):
+        """Check and attempt to clear any error state, arranging for a
+        callback doing self.post(DEvent.ResetSta, resetsta) when progress has
+        been made, where resetsta is any device specific reset status
+        """
+        self.post_resetsta(None)
+        return DState.Resetting, "Resetting started"
+
+    def do_resetsta(self, resetsta):
+        """Examine configsta for configuration progress, returning
+        DState.Resetting if still in progress, or DState.Idle if done.
+        """
+        return DState.Idle, "Resetting finished"
+

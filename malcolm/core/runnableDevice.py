@@ -94,19 +94,6 @@ class RunnableDevice(Device):
         return DState.Fault, str(error)
 
     @abc.abstractmethod
-    def do_reset(self):
-        """Check and attempt to clear any error state, arranging for a
-        callback doing self.post_resetsta(resetsta) when progress has
-        been made, where resetsta is any device specific reset status
-        """
-
-    @abc.abstractmethod
-    def do_resetsta(self, resetsta):
-        """Examine configsta for configuration progress, returning
-        DState.Resetting if still in progress, or DState.Idle if done.
-        """
-
-    @abc.abstractmethod
     def do_config(self, **config_params):
         """Start doing a configuration using config_params, arranging for a
         callback doing self.post_configsta(configsta) when progress has
@@ -147,6 +134,19 @@ class RunnableDevice(Device):
         in progress or DState.Aborted if done.
         """
 
+    @abc.abstractmethod
+    def do_reset(self):
+        """Check and attempt to clear any error state, arranging for a
+        callback doing self.post_resetsta(resetsta) when progress has
+        been made, where resetsta is any device specific reset status
+        """
+
+    @abc.abstractmethod
+    def do_resetsta(self, resetsta):
+        """Examine configsta for configuration progress, returning
+        DState.Resetting if still in progress, or DState.Idle if done.
+        """
+
     def _get_default_times(self, funcname=None):
         # If we have a cached version, use this
         if not hasattr(self, "_default_times"):
@@ -177,36 +177,16 @@ class RunnableDevice(Device):
         # get rid of unrecognised keys
         for key in params.keys():
             if key not in self.configure.arguments and key not in times:
+                if "timeout" in key.lower():
+                    self.log_warning(
+                        "Possible mis-spelt keyword {}. Could be one of {}"
+                        .format(key, times.keys()))
                 params.pop(key)
         # add in default times
         for key, time in times.items():
             if key not in params:
                 params[key] = time
         return params
-
-    @wrap_method(only_in=DState.canAbort())
-    def abort(self, block=True):
-        """Abort configuration or abandon the current run whether it is
-        running or paused. It blocks until the device is in a rest state:
-         * Normally it will return a DState.Aborted Status
-         * If something goes wrong it will return a DState.Fault Status
-        """
-        self.post_abort()
-        if block:
-            timeout = self._get_default_times("abort")
-            self.wait_until(DState.rest(), timeout=timeout)
-
-    @wrap_method(only_in=DState.canReset())
-    def reset(self, block=True):
-        """Try and reset the device into DState.Idle. It blocks until the
-        device is in a rest state:
-         * Normally it will return a DState.Idle Status
-         * If something goes wrong it will return a DState.Fault Status
-        """
-        self.post_reset()
-        if block:
-            timeout = self._get_default_times("reset")
-            self.wait_until(DState.rest(), timeout=timeout)
 
     @wrap_method(only_in=DState.canConfig(), arguments_from=validate)
     def configure(self, block=True, **params):
@@ -243,4 +223,29 @@ class RunnableDevice(Device):
         self.post_run()
         if block:
             timeout = self._get_default_times("run")
+            self.wait_until(DState.rest(), timeout=timeout)
+            # TODO: timeout handling for paused
+
+    @wrap_method(only_in=DState.canAbort())
+    def abort(self, block=True):
+        """Abort configuration or abandon the current run whether it is
+        running or paused. It blocks until the device is in a rest state:
+         * Normally it will return a DState.Aborted Status
+         * If something goes wrong it will return a DState.Fault Status
+        """
+        self.post_abort()
+        if block:
+            timeout = self._get_default_times("abort")
+            self.wait_until(DState.rest(), timeout=timeout)
+
+    @wrap_method(only_in=DState.canReset())
+    def reset(self, block=True):
+        """Try and reset the device into DState.Idle. It blocks until the
+        device is in a rest state:
+         * Normally it will return a DState.Idle Status
+         * If something goes wrong it will return a DState.Fault Status
+        """
+        self.post_reset()
+        if block:
+            timeout = self._get_default_times("reset")
             self.wait_until(DState.rest(), timeout=timeout)

@@ -179,25 +179,7 @@ class Hdf5Writer(RunnableDevice):
             "File extension for {} should be supplied".format(fileName)
         if filePath[-1] != os.sep:
             filePath += os.sep
-        fullPath = filePath + fileName
-        assert not os.path.isfile(fullPath), \
-            "{} already exists".format(fullPath)
         return super(Hdf5Writer, self).validate(locals())
-
-    def do_reset(self):
-        """Check and attempt to clear any error state, arranging for a
-        callback doing self.post(DEvent.ResetSta, resetsta) when progress has
-        been made, where resetsta is any device specific reset status
-        """
-        self.capture = False
-        self.post_resetsta(None)
-        return DState.Resetting, "Resetting started"
-
-    def do_resetsta(self, resetsta):
-        """Examine configsta for configuration progress, returning
-        DState.Resetting if still in progress, or DState.Idle if done.
-        """
-        return DState.Idle, "Resetting finished"
 
     def _make_xml(self, config_params):
         root_el = ET.Element("hdf5_layout")
@@ -277,3 +259,19 @@ class Hdf5Writer(RunnableDevice):
         else:
             # No change
             return None, None
+
+    def do_reset(self):
+        """Check and attempt to clear any error state, arranging for a
+        callback doing self.post(DEvent.ResetSta, resetsta) when progress has
+        been made, where resetsta is any device specific reset status
+        """
+        self.capture = False
+        self.post_resetsta(None)
+        return DState.Resetting, "Resetting started"
+
+    def do_resetsta(self, resetsta):
+        """Examine configsta for configuration progress, returning
+        DState.Resetting if still in progress, or DState.Idle if done.
+        """
+        return DState.Idle, "Resetting finished"
+

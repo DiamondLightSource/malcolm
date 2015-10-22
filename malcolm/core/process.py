@@ -204,7 +204,8 @@ class Process(Device, multiprocessing.Process):
         try:
             ret = f(**args)
         except Exception as e:
-            self.log_exception("Error running {}({})".format(f, args))
+            self.log_exception("Error running {}.{}({})"
+                               .format(f.device.name, f.name, args))
             send(SType.Error, e)
         else:
             send(SType.Return, ret)

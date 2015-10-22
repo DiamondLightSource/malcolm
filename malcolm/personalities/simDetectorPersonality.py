@@ -222,6 +222,7 @@ class SimDetectorPersonality(PausableDevice):
         numImages = self._get_num_images(positions)
         sim_params = self.simDetector.validate(exposure, numImages, period)
         runTime = sim_params["runTime"]
+        runTimeout = sim_params["runTimeout"]
         period = sim_params["period"]
         # Validate position plugin
         self.positionPlugin.validate(positions)
@@ -229,43 +230,6 @@ class SimDetectorPersonality(PausableDevice):
         filePath, fileName = self._get_file_name_path(hdf5File)
         self.hdf5Writer.validate(filePath, fileName)
         return super(SimDetectorPersonality, self).validate(locals())
-
-    def do_reset(self):
-        """Check and attempt to clear any error state, arranging for a
-        callback doing self.post(DEvent.ResetSta, resetsta) when progress has
-        been made, where resetsta is any device specific reset status
-        """
-        action = False
-        for d in self.children:
-            if d.state not in DState.rest():
-                action = True
-                d.abort(block=False)
-        if not action:
-            # no abort action, trigger resetsta
-            self.post_resetsta(None)
-        self.wait_reset = True
-        return DState.Resetting, "Aborting devices"
-
-    def do_resetsta(self):
-        """Examine configsta for configuration progress, returning
-        DState.Resetting if still in progress, or DState.Idle if done.
-        """
-        child_states = [d.state for d in self.children]
-        rest = [s in DState.rest() for s in child_states]
-        if self.wait_reset and all(rest):
-            self.wait_reset = False
-            for d in self.children:
-                if d.state in DState.canReset():
-                    d.reset(block=False)
-            return DState.Resetting, "Resetting devices"
-        elif all(rest):
-            nofault = [s != DState.Fault for s in child_states]
-            assert all(nofault), \
-                "Expected all not in fault, got {}".format(child_states)
-            return DState.Idle, "Resetting done"
-        else:
-            todo = len(r for r in rest if not r)
-            return DState.Resetting, "Waiting for {} plugins".format(todo)
 
     def do_config(self, **config_params):
         """Start doing a configuration using config_params"""
@@ -363,6 +327,43 @@ class SimDetectorPersonality(PausableDevice):
             # No change
             return None, None
 
+    def do_reset(self):
+        """Check and attempt to clear any error state, arranging for a
+        callback doing self.post(DEvent.ResetSta, resetsta) when progress has
+        been made, where resetsta is any device specific reset status
+        """
+        action = False
+        for d in self.children:
+            if d.state not in DState.rest():
+                action = True
+                d.abort(block=False)
+        if not action:
+            # no abort action, trigger resetsta
+            self.post_resetsta(None)
+        self.wait_reset = True
+        return DState.Resetting, "Aborting devices"
+
+    def do_resetsta(self):
+        """Examine configsta for configuration progress, returning
+        DState.Resetting if still in progress, or DState.Idle if done.
+        """
+        child_states = [d.state for d in self.children]
+        rest = [s in DState.rest() for s in child_states]
+        if self.wait_reset and all(rest):
+            self.wait_reset = False
+            for d in self.children:
+                if d.state in DState.canReset():
+                    d.reset(block=False)
+            return DState.Resetting, "Resetting devices"
+        elif all(rest):
+            nofault = [s != DState.Fault for s in child_states]
+            assert all(nofault), \
+                "Expected all not in fault, got {}".format(child_states)
+            return DState.Idle, "Resetting done"
+        else:
+            todo = len(r for r in rest if not r)
+            return DState.Resetting, "Waiting for {} plugins".format(todo)
+
     def do_pause(self, steps):
         """Start a pause"""
         if self.state == DState.Running:
@@ -389,3 +390,4 @@ class SimDetectorPersonality(PausableDevice):
         else:
             state = DState.Pausing
         return state, message
+
