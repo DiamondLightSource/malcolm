@@ -29,6 +29,7 @@ class ZmqWrapper(object):
             self.sock = self.ctx.socket(zmq.DEALER)
             self.sock.connect(addr)
         self.sendsig_r, self.sendsig_w = os.pipe()
+        self.sendq = collections.deque()
         self.timeout = timeout
         self.outq = cothread.EventQueue()
         self.event_list = [(self.sock.fd, coselect.POLLIN),
@@ -42,7 +43,7 @@ class ZmqWrapper(object):
 
     def send_multipart(self, msg, timeout=None):
         # Tell our event loop to recheck recv
-        self.sock.send_multipart(msg)
+        self.sendq.append(msg)
         os.write(self.sendsig_w, "-")
 
     def recv_multipart(self, timeout=None):
@@ -64,7 +65,11 @@ class ZmqWrapper(object):
                             zmq.ETIMEDOUT, 'Timeout waiting for socket')
                     elif ready[0][0] == self.sendsig_r:
                         # clear send pipe
-                        os.read(self.sendsig_r, 1)
+                        if os.read(self.sendsig_r, 1) == "!":
+                            raise StopIteration
+                        else:
+                            # Send sent thing
+                            self.sock.send_multipart(self.sendq.popleft())
                 elif error.errno in [zmq.ENOTSOCK, zmq.ENOTSUP]:
                     raise StopIteration
                 else:
@@ -75,7 +80,7 @@ class ZmqWrapper(object):
                 return msg
 
     def close(self):
-        os.write(self.sendsig_w, "-")
+        os.write(self.sendsig_w, "!")
         self.sock.close()
         self.ctx.destroy()
 
@@ -105,7 +110,7 @@ class ZmqTestNew(unittest.TestCase):
         sp = cothread.Spawn(s.event_loop, raise_on_wait=True)
         c = ZmqWrapper("ipc:///tmp/sock.ipc", 0.1, bind=False)
         cp = cothread.Spawn(c.event_loop, raise_on_wait=True)
-        for i in range(1000):
+        for i in range(10000):
             c.send_multipart(["sub1"])
             c.send_multipart(["sub2"])
             cid, msg = self.fast_recv(s)
