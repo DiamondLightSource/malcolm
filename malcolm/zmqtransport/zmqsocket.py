@@ -1,8 +1,7 @@
 import abc
-from collections import OrderedDict
 import time
 import os
-import sys
+from collections import OrderedDict, deque
 
 import zmq
 
@@ -21,7 +20,7 @@ class ZmqSocket(ISocket):
 
     def send(self, msg):
         """Send the message to the socket"""
-        self.sock.send_multipart(msg)
+        self.sendq.append(msg)
         # sys.stdout.write("Sent message {}\n".format(msg))
         # sys.stdout.flush()
         # Tell our event loop to recheck recv
@@ -38,7 +37,7 @@ class ZmqSocket(ISocket):
             except zmq.ZMQError as error:
                 if error.errno == zmq.EAGAIN:
                     if timeout:
-                        t = start + self.timeout - time.time()
+                        t = start + timeout - time.time()
                     else:
                         t = None
                     ready = self.poll_list(self.event_list, t)
@@ -47,7 +46,11 @@ class ZmqSocket(ISocket):
                             zmq.ETIMEDOUT, 'Timeout waiting for socket')
                     elif ready[0][0] == self.sendsig_r:
                         # clear send pipe
-                        os.read(self.sendsig_r, 1)
+                        if os.read(self.sendsig_r, 1) == "!":
+                            raise StopIteration
+                        else:
+                            # Send sent thing
+                            self.sock.send_multipart(self.sendq.popleft())
                 elif error.errno in [zmq.ENOTSOCK, zmq.ENOTSUP]:
                     raise StopIteration
                 else:
@@ -103,11 +106,12 @@ class ZmqSocket(ISocket):
         self.context = zmq.Context()
         self.sock = self.make_zmq_sock(address)
         self.sendsig_r, self.sendsig_w = os.pipe()
+        self.sendq = deque()
         self.event_list = [(self.sock.fd, coselect.POLLIN),
                            (self.sendsig_r, coselect.POLLIN)]
 
     def close(self):
         """Close the socket"""
-        os.write(self.sendsig_w, "-")
+        os.write(self.sendsig_w, "!")
         self.sock.close()
         self.context.destroy()

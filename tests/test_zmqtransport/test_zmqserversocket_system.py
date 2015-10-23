@@ -1,6 +1,7 @@
 #!/bin/env dls-python
 from pkg_resources import require
 from collections import OrderedDict
+from zmq.error import ZMQError
 require("mock")
 require("pyzmq")
 require("cothread")
@@ -33,6 +34,11 @@ class ZmqServerSocketProcTest(unittest.TestCase):
 
     def test_send_func(self):
         self.cs.send(['{"type": "Call", "id": 0, "endpoint": "zebra.run"}'])
+        # This will do the actual send, then fail with timeout
+        try:
+            self.cs.recv(timeout=0.01)
+        except ZMQError:
+            pass        
         typ, args, kwargs = self.inq.Wait(timeout=0.1)
         self.assertEqual(typ, SType.Call)
         self.assertEqual(kwargs, OrderedDict(endpoint="zebra.run"))

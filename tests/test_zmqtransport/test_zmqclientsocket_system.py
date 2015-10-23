@@ -1,6 +1,7 @@
 #!/bin/env dls-python
 from pkg_resources import require
 from collections import OrderedDict
+from zmq.error import ZMQError
 require("mock")
 # print  require("pyzmq")
 # require("cothread")
@@ -46,6 +47,11 @@ class ZmqClientSocketProcTest(unittest.TestCase):
         self.cs.request(response, SType.Call, dict(endpoint="zebra1.run"))
         ss_msg = self.ss.recv()
         self.ss.send([ss_msg[0], '{"type": "Return", "id": 0, "value": 32}'])
+        # This will do the actual send, then fail with timeout
+        try:
+            self.ss.recv(timeout=0.01)
+        except ZMQError:
+            pass
         cothread.Sleep(0.2)
         response.assert_called_once_with(SType.Return, value=32)
 

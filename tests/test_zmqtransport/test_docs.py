@@ -116,36 +116,30 @@ class ZmqDocsTest(unittest.TestCase):
     @patch("malcolm.core.deviceclient.ValueQueue")
     def test_call_zebra_configure(self, mock_vq):
         self.zebraClient.do_call("configure", pcBitCap=1, pcTsPre="ms")
-        call_args = self.cs.sock.send_multipart.call_args
-        self.assertDocExample("call_zebra_configure", call_args[0][0][0])
+        self.assertDocExample("call_zebra_configure", self.cs.sendq.popleft()[0])
 
     @patch("malcolm.core.deviceclient.ValueQueue")
     def test_get_DirectoryService_Device_instances(self, mock_vq):
         self.dsClient.do_get("attributes.Device_instances.value")
-        call_args = self.cs.sock.send_multipart.call_args
         self.assertDocExample(
-            "get_DirectoryService_Device_instances", call_args[0][0][0])
+            "get_DirectoryService_Device_instances", self.cs.sendq.popleft()[0])
 
     @patch("malcolm.core.deviceclient.ValueQueue")
     def test_get_zebra_status(self, mock_vq):
         self.zebraClient.do_get("stateMachine")
-        call_args = self.cs.sock.send_multipart.call_args
-        self.assertDocExample("get_zebra_status", call_args[0][0][0])
+        self.assertDocExample("get_zebra_status", self.cs.sendq.popleft()[0])
 
     @patch("malcolm.core.deviceclient.ValueQueue")
     def test_get_zebra(self, mock_vq):
         self.zebraClient.do_get()
-        call_args = self.cs.sock.send_multipart.call_args
-        self.assertDocExample("get_zebra", call_args[0][0][0])
+        self.assertDocExample("get_zebra", self.cs.sendq.popleft()[0])
 
     def test_subscribe_zebra_status(self):
         el = self.zebraClient.do_subscribe(lambda: None, "stateMachine")
-        call_args = self.cs.sock.send_multipart.call_args
-        self.assertDocExample("subscribe_zebra_status", call_args[0][0][0])
+        self.assertDocExample("subscribe_zebra_status", self.cs.sendq.popleft()[0])
         el.loop_run()
         el.loop_stop()
-        call_args = self.cs.sock.send_multipart.call_args
-        self.assertDocExample("unsubscribe_zebra_status", call_args[0][0][0])
+        self.assertDocExample("unsubscribe_zebra_status", self.cs.sendq.popleft()[0])
 
     def test_value_zebra_status(self):
         send = self.ss.make_send_function(dict(zmq_id=1, id=0))
@@ -154,16 +148,14 @@ class ZmqDocsTest(unittest.TestCase):
         self.zebra.stateMachine.update(
             state=DState.Configuring, message="Configuring...", timeStamp=14419090000.2)
         send(*sub.inq.Signal.call_args[0][0][1])
-        call_args = self.ss.sock.send_multipart.call_args
-        self.assertDocExample("value_zebra_status", call_args[0][0][1])
+        self.assertDocExample("value_zebra_status", self.ss.sendq.popleft()[1])
 
     def test_return_zebra_status(self):
         send = self.ss.make_send_function(dict(zmq_id=1, id=0))
         self.zebra.stateMachine.update(
             state=DState.Configuring, message="Configuring...", timeStamp=14419090000.2)
         self.ds.do_get(send, "zebra1.stateMachine")
-        call_args = self.ss.sock.send_multipart.call_args
-        self.assertDocExample("return_zebra_status", call_args[0][0][1])
+        self.assertDocExample("return_zebra_status", self.ss.sendq.popleft()[1])
 
     def test_return_zebra(self):
         send = self.ss.make_send_function(dict(zmq_id=1, id=0))
@@ -171,16 +163,14 @@ class ZmqDocsTest(unittest.TestCase):
             state=DState.Configuring, message="Configuring...", timeStamp=14419090000.2)
         self.zebra.attributes["connected"].update(0, Alarm(AlarmSeverity.invalidAlarm, AlarmStatus.UDF, "Disconnected"), timeStamp=14419091000.2)
         self.ds.do_get(send, "zebra1")
-        call_args = self.ss.sock.send_multipart.call_args
-        self.assertDocExample("return_zebra", call_args[0][0][1])
+        self.assertDocExample("return_zebra", self.ss.sendq.popleft()[1])
 
     def test_return_DirectoryService_Device_instances(self):
         send = self.ss.make_send_function(dict(zmq_id=1, id=0))
         self.ds.do_get(
             send, "DirectoryService.attributes.instancesDevice.value")
-        call_args = self.ss.sock.send_multipart.call_args
         self.assertDocExample(
-            "return_DirectoryService_Device_instances", call_args[0][0][1])
+            "return_DirectoryService_Device_instances", self.ss.sendq.popleft()[1])
 
     # Mock out EventLoop so we don't log error
     @patch("malcolm.core.process.EventLoop")
@@ -190,8 +180,7 @@ class ZmqDocsTest(unittest.TestCase):
             self.ds.do_get(send, "foo.stateMachine")
         except Exception, e:
             self.ds.do_error(e, send)
-        call_args = self.ss.sock.send_multipart.call_args
-        self.assertDocExample("error_foo", call_args[0][0][1])
+        self.assertDocExample("error_foo", self.ss.sendq.popleft()[1])
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
