@@ -95,14 +95,14 @@ class AttributeTest(unittest.TestCase):
     def test_compare_vtables(self):
         a = Attribute(VTable, "Positions")
         a.notify_listeners = MagicMock()
-        t1 = [("x", VLong, numpy.arange(5)), ("y", VLong, numpy.arange(5) + 2)]
+        t1 = [("x", VLong, numpy.arange(5, dtype=numpy.int64)), ("y", VLong, numpy.arange(5, dtype=numpy.int64) + 2)]
         a.update(t1, None, 1.0)
         a.notify_listeners.assert_called_with(
             dict(value=t1, alarm=Alarm.ok(), timeStamp=1.0))
         a.update(t1, None, 1.0)
         a.notify_listeners.assert_called_with(dict())
-        t2 = [("x", VLong, numpy.arange(5) + 3),
-              ("y", VLong, numpy.arange(5) + 2)]
+        t2 = [("x", VLong, numpy.arange(5, dtype=numpy.int64) + 3),
+              ("y", VLong, numpy.arange(5, dtype=numpy.int64) + 2)]
         a.update(t2, None, 1.0)
         a.notify_listeners.assert_called_with(dict(value=t2))
 
