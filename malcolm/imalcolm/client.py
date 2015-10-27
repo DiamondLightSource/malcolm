@@ -52,8 +52,9 @@ def make_client():
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: %s' % args.log)
     logging.basicConfig(level=numeric_level)
-    ds_string = "zmq://tcp://{}".format(args.server)
-    client = Process([], "iMalcolmClient", ds_string=ds_string)
+    if "://" not in args.server:
+        args.server = "zmq://tcp://{}".format(args.server)
+    client = Process([], "iMalcolmClient", ds_string=args.server)
     client.DeviceClient = IDeviceClient
     return client
 

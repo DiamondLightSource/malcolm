@@ -7,7 +7,7 @@ import logging
 @not_process_creatable
 class IMalcolmServer(DirectoryService):
 
-    def __init__(self):
+    def __init__(self, prefix="zmq://tcp://"):
         args = self.parse_args()
         # assuming loglevel is bound to the string value obtained from the
         # command line argument. Convert to upper case to allow the user to
@@ -16,7 +16,8 @@ class IMalcolmServer(DirectoryService):
         if not isinstance(numeric_level, int):
             raise ValueError('Invalid log level: %s' % args.log)
         logging.basicConfig(level=numeric_level)
-        server_string = "zmq://tcp://0.0.0.0:{}".format(args.port)
+        server_string = "{}0.0.0.0:{}".format(prefix, args.port)
+        print server_string
         super(IMalcolmServer, self).__init__([server_string])
         self.run(block=False)
 
