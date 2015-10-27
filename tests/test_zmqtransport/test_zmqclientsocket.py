@@ -80,7 +80,7 @@ class ZmqClientSocketTest(unittest.TestCase):
 
     def test_creation(self):
         self.assertEqual(self.cs.name, "dzmq://ipc://frfes.ipc")
-        self.assertEqual(self.cs.address, "ipc://frfes.ipc")
+        self.assertEqual(self.cs.address, "dzmq://ipc://frfes.ipc")
 
     def tearDown(self):
         msgs = []

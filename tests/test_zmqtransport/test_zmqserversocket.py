@@ -84,7 +84,7 @@ class ZmqServerSocketTest(unittest.TestCase):
 
     def test_creation(self):
         self.assertEqual(self.ss.name, "dzmq://ipc://frfess.ipc")
-        self.assertEqual(self.ss.address, "ipc://frfess.ipc")
+        self.assertEqual(self.ss.address, "dzmq://ipc://frfess.ipc")
         self.assertEqual(self.ss.processq, self.inq)
 
     def tearDown(self):

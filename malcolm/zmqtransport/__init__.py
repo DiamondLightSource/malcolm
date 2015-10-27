@@ -1,2 +1,2 @@
-from malcolm.zmqtransport.zmqclientsocket import ZmqClientSocket
-from malcolm.zmqtransport.zmqserversocket import ZmqServerSocket
+from .zmqclientsocket import ZmqClientSocket
+from .zmqserversocket import ZmqServerSocket

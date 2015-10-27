@@ -92,6 +92,9 @@ class Method(Base):
         return args, default_d
 
     def describe(self, device, attributes):
+        # TODO:
+        # This is more elegant
+        # http://stackoverflow.com/questions/306130/python-decorator-makes-function-forget-that-it-belongs-to-a-class#307263
         self.attributes.update(attributes)
         self.device = weakref.proxy(device)
         # If arguments_from then get the arguments from another named member

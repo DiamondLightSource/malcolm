@@ -38,7 +38,7 @@ class ZmqServerSocketProcTest(unittest.TestCase):
         try:
             self.cs.recv(timeout=0.01)
         except ZMQError:
-            pass        
+            pass
         typ, args, kwargs = self.inq.Wait(timeout=0.1)
         self.assertEqual(typ, SType.Call)
         self.assertEqual(kwargs, OrderedDict(endpoint="zebra.run"))

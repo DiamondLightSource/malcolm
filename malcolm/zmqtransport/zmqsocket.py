@@ -104,7 +104,7 @@ class ZmqSocket(ISocket):
         self.cothread = cothread
         self.poll_list = coselect.poll_list
         self.context = zmq.Context()
-        self.sock = self.make_zmq_sock(address)
+        self.sock = self.make_zmq_sock(address[len("zmq://"):])
         self.sendsig_r, self.sendsig_w = os.pipe()
         self.sendq = deque()
         self.event_list = [(self.sock.fd, coselect.POLLIN),

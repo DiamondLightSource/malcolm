@@ -59,7 +59,6 @@ class ISocket(ILoop):
                 hostname = socket.getfqdn()
                 ip = socket.gethostbyname(hostname)
                 name = address.replace("0.0.0.0", ip)
-                address = address[len(prefix):]
                 return socket_cls(name, address, *args, **kwargs)
 
     def loop_event(self):
