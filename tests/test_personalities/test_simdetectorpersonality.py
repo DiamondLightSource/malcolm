@@ -31,8 +31,8 @@ class SimDetectorPersonalityTest(unittest.TestCase):
                                         self.positionPlugin, self.hdf5Writer)
         self.s.loop_run()
         self.positions = [
-            ("y", VDouble, numpy.repeat(numpy.arange(6, 9), 5) * 0.1),
-            ("x", VDouble, numpy.tile(numpy.arange(5), 3) * 0.1),
+            ("y", VDouble, numpy.repeat(numpy.arange(6, 9), 5) * 0.1, 'mm'),
+            ("x", VDouble, numpy.tile(numpy.arange(5), 3) * 0.1, 'mm'),
         ]
         self.in_params = dict(exposure=0.1, positions=self.positions,
                               hdf5File="/tmp/demo.hdf5")
@@ -104,7 +104,7 @@ class SimDetectorPersonalityTest(unittest.TestCase):
         self.s._sconfig.on_change(None, None)
         cothread.Yield()
         self.hdf5Writer.configure.assert_called_once_with(
-            '/tmp', 'demo.hdf5', 1, 'y_index', 'x_index', '', 3, 5, 1, arrayPort=self.positionPlugin.portName, block=False)
+            '/tmp', 'demo.hdf5', ['y_index', 'x_index'], [3, 5], ['mm', 'mm'], arrayPort=self.positionPlugin.portName, block=False)
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.message, "Wait for hdf5Writer to configure")
         # simulate hdfwriter configuring

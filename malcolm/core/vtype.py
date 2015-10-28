@@ -281,11 +281,12 @@ class VTable(VType):
         for column in value:
             assert type(column) in (list, tuple), \
                 "Expected list or tuple, got {}".format(column)
-            assert len(column) == 3, \
-                "Expected (name, typ, array_value), got {}".format(column)
+            assert len(column) in (3, 4), \
+                "Expected (name, typ, array_value, [units]), got {}" \
+                .format(column)
             name = column[0]
             assert isinstance(name, basestring), \
-                "Expected string, got {}".format(repr(name))
+                "Expected name=string, got {}".format(repr(name))
             typ = column[1]
             assert issubclass(typ, VType), \
                 "Expected VType subclass, got {}".format(typ)
@@ -297,7 +298,14 @@ class VTable(VType):
                 data = typ().array_validate(data)
             except Exception as e:
                 raise AssertionError("Cannot validate {}: {}".format(name, e))
-            cast.append((name, typ, data))
+            if len(column) == 4:
+                units = column[3]            
+                assert isinstance(units, basestring), \
+                    "Expected units=string, got {}".format(repr(units))
+            else:
+                units = ""
+            cast.append((name, typ, data, units))
+
         assert len(datalengths) == 1, \
             "Got mismatching column lengths: {}".format(datalengths)
         return cast
@@ -305,8 +313,8 @@ class VTable(VType):
     def value_equal(self, v1, v2):
         if len(v1) != len(v2):
             return False
-        for (n1, t1, d1), (n2, t2, d2) in zip(v1, v2):
-            if n1 != n2 or t1 != t2:
+        for (n1, t1, d1, u1), (n2, t2, d2, u2) in zip(v1, v2):
+            if n1 != n2 or t1 != t2 or u1 != u2:
                 return False
             if not t1().array_value_equal(d1, d2):
                 return False

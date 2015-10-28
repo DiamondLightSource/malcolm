@@ -3,7 +3,7 @@ from xml.etree import ElementTree as ET
 
 from malcolm.core import RunnableDevice, Attribute, PvAttribute, DState, \
     wrap_method, VString, VEnum, VInt, VBool, Sequence, \
-    SeqAttributeItem
+    SeqAttributeItem, VStringArray, VIntArray
 
 
 class Hdf5Writer(RunnableDevice):
@@ -20,6 +20,12 @@ class Hdf5Writer(RunnableDevice):
         p = self.prefix
         self.add_attributes(
             # Configure
+            dimNames=Attribute(
+                VStringArray, "List of names of dimensions to write"),
+            dimSizes=Attribute(
+                VIntArray, "List of sizes of dimensions"),
+            dimUnits=Attribute(
+                VStringArray, "List of units for dimensions (defaults to mm)"),
             enableCallbacks=PvAttribute(
                 p + "EnableCallbacks", VBool,
                 "Enable plugin to run when we get a new frame",
@@ -100,7 +106,7 @@ class Hdf5Writer(RunnableDevice):
             arrayPort=PvAttribute(
                 p + "NDArrayPort", VString,
                 "Port name of array producer",
-                rbv_suff="_RBV"),                            
+                rbv_suff="_RBV"),
             # Run
             capture=PvAttribute(
                 p + "Capture", VBool,
@@ -119,7 +125,7 @@ class Hdf5Writer(RunnableDevice):
                 long_string=True),
             portName=PvAttribute(
                 p + "PortName_RBV", VString,
-                "Port name of this plugin"),                            
+                "Port name of this plugin"),
         )
         self.add_listener(self.on_capture_change, "attributes.capture")
         self.add_listener(self.on_writestatus_change,
@@ -148,7 +154,11 @@ class Hdf5Writer(RunnableDevice):
             positionMode=True,
             dimAttDatasets=True,
             lazyOpen=True,
-            #xml=None,
+            xml=None,
+            numExtraDims=None,
+            posNameDimN=None, extraDimSizeN=None,
+            posNameDimX=None, extraDimSizeX=None,
+            posNameDimY=None, extraDimSizeY=None,
             # numCapture=0,
             **self.validate.arguments  # all the config params
         )
@@ -169,19 +179,28 @@ class Hdf5Writer(RunnableDevice):
             self.post_abortsta()
 
     @wrap_method()
-    def validate(self, filePath, fileName, numExtraDims=0,
-                 posNameDimN="n", posNameDimX="x", posNameDimY="y",
-                 extraDimSizeN=1, extraDimSizeX=1, extraDimSizeY=1,
-                 arrayPort=None):
+    def validate(self, filePath, fileName, dimNames, dimSizes,
+                 dimUnits=None, arrayPort=None):
         assert os.path.isdir(filePath), \
             "{} is not a directory".format(filePath)
         assert "." in fileName, \
             "File extension for {} should be supplied".format(fileName)
         if filePath[-1] != os.sep:
             filePath += os.sep
+        assert len(dimNames) == len(dimSizes), \
+            "Mismatch in sizes of dimNames {} and dimSizes {}" \
+            .format(dimNames, dimSizes)
+        if dimUnits is None:
+            dimUnits = ["mm" for x in dimNames]
+        else:
+            assert len(dimNames) == len(dimUnits), \
+                "Mismatch in sizes of dimNames {} and dimUnits {}" \
+                .format(dimNames, dimUnits)
+        assert len(dimNames) > 0, \
+            "Need >0 dimNames, got {}".format(dimNames)
         return super(Hdf5Writer, self).validate(locals())
 
-    def _make_xml(self, config_params):
+    def _make_xml(self, dimNames, dimUnits):
         root_el = ET.Element("hdf5_layout")
         entry_el = ET.SubElement(root_el, "group", name="entry")
         ET.SubElement(entry_el, "attribute", name="NX_class",
@@ -189,14 +208,42 @@ class Hdf5Writer(RunnableDevice):
         data_el = ET.SubElement(entry_el, "group", name="data")
         ET.SubElement(data_el, "attribute", name="signal", source="constant",
                       value="det1", type="string")
+        pad_dims = ['.'] * 5
+        for i, dim in enumerate(dimNames):
+            pad_dims[i] = "{}_demand".format(dim)
         ET.SubElement(data_el, "attribute", name="axes", source="constant",
-                      value="axis1_demand,axis2_demand,.,.,.", type="string")
+                      value=",".join(pad_dims), type="string")
         ET.SubElement(data_el, "attribute", name="NX_class", source="constant",
                       value="NXdata", type="string")
-        ET.SubElement(data_el, "attribute", name="axis1_demand_indices",
-                      source="constant", value="0", type="string")
-        ET.SubElement(data_el, "attribute", name="axis2_demand_indices",
-                      source="constant", value="1", type="string")
+        for i, dim in enumerate(dimNames):
+            ET.SubElement(data_el, "attribute",
+                          name="{}_demand_indices".format(dim),
+                          source="constant", value=str(i), type="string")
+        det1_el = ET.SubElement(data_el, "dataset", name="det1",
+                                source="detector", det_default="true")
+        ET.SubElement(det1_el, "attribute", name="NX_class",
+                      source="constant", value="SDS", type="string")
+        for dim, units in zip(dimNames, dimUnits):
+            axis_el = ET.SubElement(
+                data_el, "dataset", name="{}_demand".format(dim),
+                source="ndattribute", ndattribute=dim)
+            ET.SubElement(axis_el, "attribute", name="units",
+                          source="constant", value=units, type="string")
+        sum_el = ET.SubElement(entry_el, "group", name="sum")
+        ET.SubElement(sum_el, "attribute", name="signal", source="constant",
+                      value="sum", type="string")
+        ET.SubElement(sum_el, "attribute", name="NX_class", source="constant",
+                      value="NXdata", type="string")
+        ET.SubElement(sum_el, "dataset", name="sum", source="ndattribute",
+                      ndattribute="StatsTotal")
+        for dim in dimNames:
+            ET.SubElement(sum_el, "hardlink", name="{}_demand".format(dim),
+                          target="/entry/data/{}_demand".format(dim))
+        NDAttributes_el = ET.SubElement(entry_el, "group", name="NDAttributes")
+        ET.SubElement(NDAttributes_el, "attribute", name="NX_class",
+                      source="constant", value="NXcollection", type="string")
+        xml = ET.tostring(root_el)
+        return xml
 
     def do_config(self, **config_params):
         """Start doing a configuration using config_params"""
@@ -204,7 +251,20 @@ class Hdf5Writer(RunnableDevice):
             "Can't configure sub-state machine in {} state" \
             .format(self._sconfig.state)
         self.capture = False
-        # config_params.update(xml=self._make_xml(config_params))
+        dimNames = config_params["dimNames"]
+        dimSizes = config_params["dimSizes"]
+        config_params.update(
+            xml=self._make_xml(dimNames, config_params["dimUnits"]),
+            numExtraDims=len(dimNames) - 1
+        )
+        # pad dimNames and sizes
+        dimNames = list(dimNames) + [''] * (3 - len(dimNames))
+        dimSizes = list(dimSizes) + [1] * (3 - len(dimSizes))
+        config_params.update(
+            posNameDimN=dimNames[0], extraDimSizeN=dimSizes[0],
+            posNameDimX=dimNames[1], extraDimSizeX=dimSizes[1],
+            posNameDimY=dimNames[2], extraDimSizeY=dimSizes[2],
+        )
         self._sconfig.start(config_params)
         return DState.Configuring, "Started configuring"
 
@@ -274,4 +334,3 @@ class Hdf5Writer(RunnableDevice):
         DState.Resetting if still in progress, or DState.Idle if done.
         """
         return DState.Idle, "Resetting finished"
-

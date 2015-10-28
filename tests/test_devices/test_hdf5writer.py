@@ -2,6 +2,8 @@
 from pkg_resources import require
 from malcolm.core.runnabledevice import DState
 import time
+from xml.dom import minidom
+import difflib
 require("mock")
 require("pyzmq")
 import unittest
@@ -32,50 +34,67 @@ class HdfWriterTest(unittest.TestCase):
     def setUp(self):
         self.s = Hdf5Writer("S", "PRE")
         self.s.loop_run()
-        self.in_params = dict(filePath="/tmp", fileName="demo.hdf5")
+        self.in_params = dict(filePath="/tmp", fileName="demo.hdf5",
+                              dimNames=["x", "y"], dimSizes=[5, 3])
         self.valid_params = dict(
-            filePath="/tmp/", fileName="demo.hdf5", numExtraDims=0,
-            posNameDimN="n", posNameDimX="x", posNameDimY="y",
-            extraDimSizeN=1, extraDimSizeX=1, extraDimSizeY=1,
+            filePath="/tmp/", fileName="demo.hdf5",
+            dimNames=["x", "y"], dimSizes=[5, 3], dimUnits=["mm", "mm"],
             resetTimeout=1, runTime=None, runTimeout=1,
             abortTimeout=1, configureTimeout=1, arrayPort=None)
         self.send_params = {
-            'ndAttributeChunk': True, 'swmrMode': True, 'extraDimSizeX': 1,
-            'extraDimSizeY': 1, 'filePath': '/tmp/', 'posNameDimN': 'n',
-            'fileWriteMode': 'Stream', 'numExtraDims': 0,
-            'extraDimSizeN': 1, 'enableCallbacks': True,
+            'ndAttributeChunk': True, 'swmrMode': True, 'extraDimSizeX': 3,
+            'extraDimSizeY': 1, 'filePath': '/tmp/', 'posNameDimN': 'x',
+            'fileWriteMode': 'Stream', 'numExtraDims': 1,
+            'extraDimSizeN': 5, 'enableCallbacks': True,
             'dimAttDatasets': True, 'lazyOpen': True, 'positionMode': True,
             'fileTemplate': '%s%s', 'fileName': 'demo.hdf5',
-            'posNameDimX': 'x', 'posNameDimY': 'y', 
+            'posNameDimX': 'y', 'posNameDimY': '', 'xml': 'something'
             #"numCapture": 0
-            }
+        }
 
     def test_init(self):
         base = ['prefix', 'uptime', 'block']
-        pvs = ['arrayPort','capture', 'dimAttDatasets', 'enableCallbacks', 'extraDimSizeN',
+        pvs = ['arrayPort', 'capture', 'dimAttDatasets',
+               'dimNames', 'dimSizes', 'dimUnits',
+               'enableCallbacks', 'extraDimSizeN',
                'extraDimSizeX', 'extraDimSizeY', 'fileName', 'filePath',
                'fileTemplate', 'fileWriteMode', 'lazyOpen', 'ndAttributeChunk',
                'numCapture', 'numExtraDims', 'portName', 'posNameDimN', 'posNameDimX',
-               'posNameDimY', 'positionMode', 'swmrMode', 'uniqueId', 
+               'posNameDimY', 'positionMode', 'swmrMode', 'uniqueId',
                'writeMessage', 'writeStatus', 'xml']
         self.assertEqual(self.s.attributes.keys(), base + pvs)
         self.assertEqual(self.s.prefix, "PRE")
         for attr in pvs:
             self.assertEqual(self.s.attributes[attr].value, None)
-            self.assertEqual(self.s.attributes[attr].pv.call_args, None)
+            if hasattr(self.s.attributes[attr], "pv"):
+                self.assertEqual(self.s.attributes[attr].pv.call_args, None)
 
     def test_validate(self):
         actual = self.s.validate(**self.in_params)
-        self.assertEqual(actual, self.valid_params)
+        for param in set(list(self.valid_params) + list(actual)):
+            equal = actual[param] == self.valid_params[param]
+            if hasattr(equal, "all"):
+                equal = equal.all()
+            self.assertTrue(equal, param)
 
     def check_set(self, attr, expected):
         self.assertEqual(self.s.attributes[attr].pv.caput.call_count, 1)
         call_args = self.s.attributes[attr].pv.caput.call_args
         val = call_args[0][0]
-        self.assertEquals(
-            val, expected, "{}: expected {} got {}".format(attr, expected, val))
+        if attr != "xml":
+            self.assertEquals(
+                val, expected, "{}: expected {} got {}".format(attr, expected, val))
         Attribute.update(self.s.attributes[attr], val)
         self.s.attributes[attr].pv.reset_mock()
+
+    def assert_xml(self, xml, expected):
+        pretty = minidom.parseString(xml).toprettyxml(indent="  ")
+        if expected != pretty:
+            print
+            print pretty
+            message = ''.join(difflib.unified_diff(
+                expected.splitlines(True), pretty.splitlines(True)))
+            self.fail("Output doesn't match expected: %s\n" % message)
 
     def test_configure(self):
         spawned = cothread.Spawn(self.s.configure, **self.in_params)
@@ -89,6 +108,40 @@ class HdfWriterTest(unittest.TestCase):
         for attr in sorted(self.send_params):
             self.check_set(attr, self.send_params[attr])
         spawned.Wait(1)
+        expected = """<?xml version="1.0" ?>
+<hdf5_layout>
+  <group name="entry">
+    <attribute name="NX_class" source="constant" type="string" value="NXentry"/>
+    <group name="data">
+      <attribute name="signal" source="constant" type="string" value="det1"/>
+      <attribute name="axes" source="constant" type="string" value="x_demand,y_demand,.,.,."/>
+      <attribute name="NX_class" source="constant" type="string" value="NXdata"/>
+      <attribute name="x_demand_indices" source="constant" type="string" value="0"/>
+      <attribute name="y_demand_indices" source="constant" type="string" value="1"/>
+      <dataset det_default="true" name="det1" source="detector">
+        <attribute name="NX_class" source="constant" type="string" value="SDS"/>
+      </dataset>
+      <dataset name="x_demand" ndattribute="x" source="ndattribute">
+        <attribute name="units" source="constant" type="string" value="mm"/>
+      </dataset>
+      <dataset name="y_demand" ndattribute="y" source="ndattribute">
+        <attribute name="units" source="constant" type="string" value="mm"/>
+      </dataset>
+    </group>
+    <group name="sum">
+      <attribute name="signal" source="constant" type="string" value="sum"/>
+      <attribute name="NX_class" source="constant" type="string" value="NXdata"/>
+      <dataset name="sum" ndattribute="StatsTotal" source="ndattribute"/>
+      <hardlink name="x_demand" target="/entry/data/x_demand"/>
+      <hardlink name="y_demand" target="/entry/data/y_demand"/>
+    </group>
+    <group name="NDAttributes">
+      <attribute name="NX_class" source="constant" type="string" value="NXcollection"/>
+    </group>
+  </group>
+</hdf5_layout>
+"""
+        self.assert_xml(self.s.xml, expected)
         self.assertEqual(self.s.stateMachine.state, DState.Ready)
 
     def set_configured(self):

@@ -183,8 +183,8 @@ class SimDetectorPersonality(PausableDevice):
     def _configure_positionPlugin(self):
         if self.last_done > 0:
             positions = []
-            for n, t, d in self.positions:
-                positions.append([n, t, d[self.last_done:]])
+            for n, t, d, u in self.positions:
+                positions.append([n, t, d[self.last_done:], u])
         else:
             positions = self.positions
         self.positionPlugin.configure(
@@ -196,24 +196,27 @@ class SimDetectorPersonality(PausableDevice):
             "Position plugin isn't ready"
         filePath, fileName = self._get_file_name_path(self.hdf5File)
         numExtraDims = len(self.positions)
-        posNames = ["", "", ""]
-        extraDimSizes = [1, 1, 1]
         if numExtraDims == len(self.positionPlugin.dimensions):
             # This is a non-sparse scan so put in place
-            for i, (name, _, _) in enumerate(self.positions):
-                posNames[i] = name + "_index"
-                extraDimSizes[i] = self.positionPlugin.dimensions[i]
+            dimNames = []
+            dimSizes = []
+            dimUnits = []
+            for i, (name, _, _, unit) in enumerate(self.positions):
+                dimNames.append(name + "_index")
+                dimSizes.append(self.positionPlugin.dimensions[i])
+                dimUnits.append(unit)
         elif [self.totalSteps] == self.positionPlugin.dimensions:
             # This is a sparse, so unroll to series of points
-            posNames[0] = "n"
-            extraDimSizes[0] = self.totalSteps
+            dimNames = ["n"]
+            dimSizes = [self.totalSteps]
+            dimUnits = [""]
         else:
             raise AssertionError(
                 "Can't unify position number of columns {} with "
                 "positionPlugin dimensions {}"
                 .format(numExtraDims, self.positionPlugin.dimensions))
         self.hdf5Writer.configure(
-            filePath, fileName,  numExtraDims - 1, *posNames + extraDimSizes,
+            filePath, fileName,  dimNames, dimSizes, dimUnits,
             arrayPort=self.positionPlugin.portName, block=False)
 
     @wrap_method()

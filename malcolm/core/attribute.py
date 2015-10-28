@@ -117,16 +117,24 @@ class Attribute(Base):
     def __repr__(self):
         return "<Attribute: {}={}>".format(self.name, repr(self.value))
 
+    def value_equal(self, value):
+        if value is None:
+            if self.value is None:
+                return True
+            else:
+                return False
+        else:
+            if self.value is None:
+                return False
+            else:
+                return self.typ.value_equal(value, self.value)
+
     def update(self, value, alarm=None, timeStamp=None):
         changes = {}
         # Assert type
         if value is not None:
             value = self.typ.validate(value)
-            if self.value is None:
-                equal = False
-            else:
-                equal = self.typ.value_equal(value, self.value)
-            if not equal:
+            if not self.value_equal(value):
                 changes.update(value=value)
                 self._value = value
         # Check alarm

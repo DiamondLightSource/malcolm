@@ -83,7 +83,7 @@ class SeqAttributeItem(SeqItem):
             .format(prefixes)
         attr = prefixes.pop()
         if attr in self.match_attrs and \
-                self.check_params[attr] == self.attributes[attr].value:
+                self.attributes[attr].value_equal(self.check_params[attr]):
             self.match_attrs[attr] = True
         is_done = all(self.match_attrs.values())
         return is_done
@@ -257,8 +257,7 @@ class Sequence(Device):
             self.stateMachine.post(SeqEvent.Changes, is_done=True)
 
     def on_change(self, value, changes):
-        if self.state != self.SeqState.Idle:
-            self.stateMachine.post(SeqEvent.Changes, changes=changes)
+        self.stateMachine.post(SeqEvent.Changes, changes=changes)
 
     def do_check(self, changes=None, is_done=False):
         if not is_done:

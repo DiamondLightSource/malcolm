@@ -70,7 +70,7 @@ class AttributeTest(unittest.TestCase):
         data = [
             ("Name", VString, ["A", "B", "C"]),
             ("Index", VInt, [1, 2, 3]),
-            ("Value", VDouble, [3.14, 1.25, -0.1]),
+            ("Value", VDouble, [3.14, 1.25, -0.1], "mm"),
         ]
         out = VTable().validate(data)
         self.assertEqual(len(out), len(data))
@@ -81,6 +81,8 @@ class AttributeTest(unittest.TestCase):
                 self.assertEqual(type(o[2][0]), str)
             else:
                 self.assertEqual(i[1]().numpy_type(), o[2].dtype.type)
+            if len(i) > 3:
+                self.assertEqual(i[3], o[3])
 
     def test_ragged_vtable(self):
         data = [

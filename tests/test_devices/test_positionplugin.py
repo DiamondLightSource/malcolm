@@ -38,8 +38,8 @@ class PositionPluginTest(unittest.TestCase):
         self.s = PositionPlugin("S", "PRE")
         self.s.loop_run()
         self.positions = [
-            ("y", VDouble, np.repeat(np.arange(6, 9), 5) * 0.1),
-            ("x", VDouble, np.tile(np.arange(5), 3) * 0.1),
+            ("y", VDouble, np.repeat(np.arange(6, 9), 5) * 0.1, 'mm'),
+            ("x", VDouble, np.tile(np.arange(5), 3) * 0.1, 'mm'),
         ]
         self.in_params = dict(positions=self.positions)
         self.valid_params = dict(
@@ -226,8 +226,8 @@ class PositionPluginTest(unittest.TestCase):
         # pylab.show()
         # make a table of positions from it
         positions = [
-            ("x", VDouble, xs),
-            ("y", VDouble, ys),
+            ("x", VDouble, xs, 'mm'),
+            ("y", VDouble, ys, 'mm'),
         ]
         xml = self.s._make_xml(positions)
         self.assertEqual(self.s.dimensions, len(xs))

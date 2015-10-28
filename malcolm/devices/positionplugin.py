@@ -68,7 +68,7 @@ class PositionPlugin(RunnableDevice):
 
     def _make_xml(self, positions):
         # Now calculate dimensionality
-        uniq = [sorted(set(data)) for _, _, data in positions]
+        uniq = [sorted(set(data)) for _, _, data, _ in positions]
         dims = [len(pts) for pts in uniq]
         npts = len(positions[0][2])
         if numpy.prod(dims) == npts:
@@ -138,7 +138,7 @@ class PositionPlugin(RunnableDevice):
     def validate(self, positions, idStart=1, arrayPort=None):
         assert len(positions) in range(1, 4), \
             "Can only do 1..3 position attributes"
-        for name, typ, data in positions:
+        for name, typ, data, units in positions:
             assert issubclass(typ, VNumber), \
                 "Only Number attributes can be stored. Got {}".format(typ)
             assert len(data) > 0, \
@@ -222,4 +222,3 @@ class PositionPlugin(RunnableDevice):
         DState.Resetting if still in progress, or DState.Idle if done.
         """
         return DState.Idle, "Resetting finished"
-
