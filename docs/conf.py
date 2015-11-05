@@ -94,16 +94,22 @@ if not which("plantuml"):
     # download plantuml
     import urllib
     here = os.path.abspath(os.path.dirname(__file__))
-    down = os.path.join(here, "plantuml_downloaded.jar")
-    urllib.urlretrieve("http://downloads.sourceforge.net/project/plantuml/plantuml.8031.jar?r=http%3A%2F%2Fplantuml.com%2Fdownload.html&ts=1446734489&use_mirror=kent", down)
-    plantuml = 'java -jar %s' % down
-    print which("java")
+    here_plantuml = os.path.join(here, "plantuml_downloaded.jar")
+    urllib.urlretrieve("http://downloads.sourceforge.net/project/plantuml/plantuml.8031.jar?r=http%3A%2F%2Fplantuml.com%2Fdownload.html&ts=1446734489&use_mirror=kent", here_plantuml)
+    # download java
+    here_jre_tar = os.path.join(here, "jre.tar.gz")
+    urllib.urlretrieve("http://download.oracle.com/otn-pub/java/jdk/8u65-b17/jre-8u65-linux-x64.tar.gz", here_jre)
+    # unzip java
+    import subprocess
+    here_jre = os.path.join(here, "jre")
+    subprocess.call(["/bin/tar", "-xvzf", here_jre_tar, here_jre])
+    print os.listdir(here_jre)
+    os.environ["JAVA_HOME"] = here_jre
+    plantuml = '%s/bin/java -jar %s' % (here_jre, here_plantuml)
     print os.listdir("/usr/bin")
     print os.listdir("/bin")
+    print os.listdir("/opt")
     print os.listdir(here)
-    import platform
-    print platform.linux_distribution()
-    
 
 autodoc_member_order = 'bysource'
 
