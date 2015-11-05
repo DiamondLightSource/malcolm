@@ -28,10 +28,21 @@ try:
 except:
     pass
 else:
-    require("pyzmq")
+    require("mock")
     require("sphinxcontrib-plantuml")
-    require("numpy")
 sys.path.insert(0, os.path.abspath(os.path.join(__file__, '..', '..')))
+
+from mock import MagicMock
+
+
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+            return Mock()
+
+MOCK_MODULES = ['numpy']
+sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+
 
 # -- General configuration ------------------------------------------------
 
