@@ -74,7 +74,7 @@ det.configure(exposure=0.1, nframes=10)
 det.run()
 """.format(self.ds_string, all_devices)
     import numpy
-    from malcolm.gui import QDevice as gui
+    from malcolm import QDevice as gui
     try:
         import IPython
     except ImportError:

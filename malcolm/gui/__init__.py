@@ -1,1 +1,0 @@
-from qdevice import QDevice

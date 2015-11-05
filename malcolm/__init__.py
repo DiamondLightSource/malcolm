@@ -4,7 +4,7 @@ except ImportError:
     print "No zmq available"
     pass
 try:
-    from malcolm import gui
+    from malcolm.gui.qdevice import QDevice
 except:
     print "No Qt available"
 import malcolm.devices
