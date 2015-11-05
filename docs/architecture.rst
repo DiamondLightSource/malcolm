@@ -14,7 +14,7 @@ ConfigurableDevice
 
 .. uml::
 
-    !include ./docs/stateMachineDefs.iuml
+    !include docs/stateMachineDefs.iuml
 
     state canAbort {
         Configuring --> Idle : Changes [done]        
@@ -25,7 +25,7 @@ RunnableDevice
 
 .. uml::
 
-    !include ./docs/stateMachineDefs.iuml
+    !include docs/stateMachineDefs.iuml
 
     state canAbort {
         Configuring --> Ready : Changes [done]
@@ -47,7 +47,7 @@ PausableDevice
 
 .. uml::
     
-    !include ./docs/stateMachineDefs.iuml
+    !include docs/stateMachineDefs.iuml
 
     state canAbort {
         Configuring --> Ready : Changes [done]
