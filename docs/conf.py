@@ -98,7 +98,7 @@ if not which("plantuml"):
     urllib.urlretrieve("http://downloads.sourceforge.net/project/plantuml/plantuml.8031.jar?r=http%3A%2F%2Fplantuml.com%2Fdownload.html&ts=1446734489&use_mirror=kent", here_plantuml)
     # download java
     here_jre_tar = os.path.join(here, "jre.tar.gz")
-    urllib.urlretrieve("http://download.oracle.com/otn-pub/java/jdk/8u65-b17/jre-8u65-linux-x64.tar.gz", here_jre)
+    urllib.urlretrieve("http://download.oracle.com/otn-pub/java/jdk/8u65-b17/jre-8u65-linux-x64.tar.gz", here_jre_tar)
     # unzip java
     import subprocess
     here_jre = os.path.join(here, "jre")
