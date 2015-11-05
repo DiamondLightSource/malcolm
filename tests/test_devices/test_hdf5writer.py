@@ -43,12 +43,12 @@ class HdfWriterTest(unittest.TestCase):
             abortTimeout=1, configureTimeout=1, arrayPort=None)
         self.send_params = {
             'ndAttributeChunk': True, 'swmrMode': True, 'extraDimSizeX': 3,
-            'extraDimSizeY': 1, 'filePath': '/tmp/', 'posNameDimN': 'x',
+            'extraDimSizeY': 1, 'filePath': '/tmp/', 'posNameDimN': 'x_index',
             'fileWriteMode': 'Stream', 'numExtraDims': 1,
             'extraDimSizeN': 5, 'enableCallbacks': True,
             'dimAttDatasets': True, 'lazyOpen': True,
             'fileTemplate': '%s%s', 'fileName': 'demo.hdf5',
-            'posNameDimX': 'y', 'posNameDimY': '', 'xml': 'something',
+            'posNameDimX': 'y_index', 'posNameDimY': '', 'xml': 'something',
             "numCapture": 0
         }
 

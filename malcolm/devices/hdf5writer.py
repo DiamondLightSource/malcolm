@@ -206,9 +206,8 @@ class Hdf5Writer(HasConfigSequence, RunnableDevice):
                                     source="detector", det_default="true")
             ET.SubElement(det1_el, "attribute", name="NX_class",
                           source="constant", value="SDS", type="string")
-            merit = "sum"
+            merit = "NDArrayUniqueId"
         # Now add some figure of merit
-        """
         merit_el = ET.SubElement(entry_el, "group", name=merit)
         ET.SubElement(merit_el, "attribute", name="signal", source="constant",
                       value=merit, type="string")
@@ -219,7 +218,6 @@ class Hdf5Writer(HasConfigSequence, RunnableDevice):
         for dim in dimNames:
             ET.SubElement(merit_el, "hardlink", name="{}_demand".format(dim),
                           target="/entry/data/{}_demand".format(dim))
-        """
         NDAttributes_el = ET.SubElement(entry_el, "group", name="NDAttributes",
                                         ndattr_default="true")
         ET.SubElement(NDAttributes_el, "attribute", name="NX_class",
@@ -241,7 +239,8 @@ class Hdf5Writer(HasConfigSequence, RunnableDevice):
             numExtraDims=len(dimNames) - 1
         )
         # pad dimNames and sizes
-        dimNames = list(dimNames) + [''] * (3 - len(dimNames))
+        dimNames = [x + "_index" for x in dimNames]
+        dimNames += [''] * (3 - len(dimNames))
         dimSizes = list(dimSizes) + [1] * (3 - len(dimSizes))
         config_params.update(
             posNameDimN=dimNames[0], extraDimSizeN=dimSizes[0],

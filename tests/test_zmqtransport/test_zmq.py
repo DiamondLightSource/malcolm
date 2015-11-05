@@ -73,7 +73,7 @@ class ZmqTest(unittest.TestCase):
             else:
                 self.fail("Didn't get right exception")
             end = time.time()
-            self.assertLess(end - start, 0.05)
+            self.assertLess(end - start, 0.07)
 
     def fast_recv(self, s):
         start = time.time()

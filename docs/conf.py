@@ -6,16 +6,19 @@ import os
 import re
 import sys
 
+
 def get_version():
     """
     Extracts the version number from the version.py file.
     """
     VERSION_FILE = '../malcolm/version.py'
-    mo = re.search(r'^__version__ = [\'"]([^\'"]*)[\'"]', open(VERSION_FILE, 'rt').read(), re.M)
+    mo = re.search(
+        r'^__version__ = [\'"]([^\'"]*)[\'"]', open(VERSION_FILE, 'rt').read(), re.M)
     if mo:
         return mo.group(1)
     else:
-        raise RuntimeError('Unable to find version string in {0}.'.format(VERSION_FILE))
+        raise RuntimeError(
+            'Unable to find version string in {0}.'.format(VERSION_FILE))
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -35,9 +38,56 @@ sys.path.insert(0, os.path.abspath(os.path.join(__file__, '..', '..')))
 extensions = [
     'sphinx.ext.autodoc',
     'sphinxcontrib.plantuml',
-#    'sphinx.ext.intersphinx',
+    #    'sphinx.ext.intersphinx',
     'sphinx.ext.viewcode',
 ]
+
+# http://twistedmatrix.com/trac/browser/tags/releases/twisted-8.2.0/twisted/python/procutils.py?format=txt
+import os
+
+def which(name, flags=os.X_OK):
+    """Search PATH for executable files with the given name.
+
+    On newer versions of MS-Windows, the PATHEXT environment variable will be
+    set to the list of file extensions for files considered executable. This
+    will normally include things like ".EXE". This fuction will also find files
+    with the given name ending with any of these extensions.
+
+    On MS-Windows the only flag that has any meaning is os.F_OK. Any other
+    flags will be ignored.
+
+    @type name: C{str}
+    @param name: The name for which to search.
+
+    @type flags: C{int}
+    @param flags: Arguments to L{os.access}.
+
+    @rtype: C{list}
+    @param: A list of the full paths to files found, in the
+    order in which they were found.
+    """
+    result = []
+    exts = filter(None, os.environ.get('PATHEXT', '').split(os.pathsep))
+    path = os.environ.get('PATH', None)
+    if path is None:
+        return []
+    for p in os.environ.get('PATH', '').split(os.pathsep):
+        p = os.path.join(p, name)
+        if os.access(p, flags):
+            result.append(p)
+        for e in exts:
+            pext = p + e
+            if os.access(pext, flags):
+                result.append(pext)
+    return result
+
+if not which("plantuml"):
+    # download plantuml
+    import urllib
+    here = os.path.abspath(os.path.dirname(__file__))
+    down = os.path.join(here, "plantuml_downloaded.jar")
+    urllib.urlretrieve("http://downloads.sourceforge.net/project/plantuml/plantuml.8031.jar?r=http%3A%2F%2Fplantuml.com%2Fdownload.html&ts=1446734489&use_mirror=kent", down)
+    plantuml = 'java -jar %s' % down
 
 autodoc_member_order = 'bysource'
 
@@ -64,7 +114,7 @@ exclude_patterns = ['_build']
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
 
-#intersphinx_mapping = {
+# intersphinx_mapping = {
 #    'python': ('http://python.readthedocs.org/en/v2.7.2/', None),
 #}
 
@@ -100,22 +150,22 @@ htmlhelp_basename = 'malcolmdoc'
 # -- Options for LaTeX output ---------------------------------------------
 
 latex_elements = {
-# The paper size ('letterpaper' or 'a4paper').
-#'papersize': 'letterpaper',
+    # The paper size ('letterpaper' or 'a4paper').
+    #'papersize': 'letterpaper',
 
-# The font size ('10pt', '11pt' or '12pt').
-#'pointsize': '10pt',
+    # The font size ('10pt', '11pt' or '12pt').
+    #'pointsize': '10pt',
 
-# Additional stuff for the LaTeX preamble.
-#'preamble': '',
+    # Additional stuff for the LaTeX preamble.
+    #'preamble': '',
 }
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  ('index', 'malcolm.tex', u'malcolm Documentation',
-   u'Tom Cobb', 'manual'),
+    ('index', 'malcolm.tex', u'malcolm Documentation',
+     u'Tom Cobb', 'manual'),
 ]
 
 # -- Options for manual page output ---------------------------------------
@@ -133,7 +183,7 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'malcolm', u'malcolm Documentation',
-   u'Tom Cobb', 'malcolm', 'A short description',
-   'Miscellaneous'),
+    ('index', 'malcolm', u'malcolm Documentation',
+     u'Tom Cobb', 'malcolm', 'A short description',
+     'Miscellaneous'),
 ]

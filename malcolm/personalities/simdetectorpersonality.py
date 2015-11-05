@@ -59,7 +59,7 @@ class SimDetectorPersonality(PausableDevice):
             dimSizes = []
             dimUnits = []
             for i, (name, _, _, unit) in enumerate(positions):
-                dimNames.append(name + "_index")
+                dimNames.append(name)
                 dimSizes.append(dimensions[i])
                 dimUnits.append(unit)
         elif [totalSteps] == dimensions:
