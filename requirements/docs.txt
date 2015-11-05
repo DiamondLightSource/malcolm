@@ -1,2 +1,3 @@
 pyzmq
 sphinxcontrib-plantuml
+numpy

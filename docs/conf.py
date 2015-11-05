@@ -43,8 +43,6 @@ extensions = [
 ]
 
 # http://twistedmatrix.com/trac/browser/tags/releases/twisted-8.2.0/twisted/python/procutils.py?format=txt
-import os
-
 def which(name, flags=os.X_OK):
     """Search PATH for executable files with the given name.
 
