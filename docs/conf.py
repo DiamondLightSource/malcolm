@@ -101,6 +101,9 @@ if not which("plantuml"):
     print os.listdir("/usr/bin")
     print os.listdir("/bin")
     print os.listdir(here)
+    import platform
+    print platform.linux_distribution()
+    
 
 autodoc_member_order = 'bysource'
 
