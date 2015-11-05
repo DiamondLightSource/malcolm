@@ -79,7 +79,7 @@ class ZmqSystemTest(unittest.TestCase):
         self.assertAlmostEqual(self.c.getCount(), start + 20, delta=3)
         self.assertEqual(s.Wait(), "long world")
         # Long hello takes about 50 ticks from send
-        self.assertAlmostEqual(self.c.getCount(), start + 60, delta=5)
+        self.assertAlmostEqual(self.c.getCount(), start + 60, delta=8)
         s.Wait()
 
     def tearDown(self):

@@ -90,7 +90,8 @@ def which(name, flags=os.X_OK):
                 result.append(pext)
     return result
 
-if True:
+if not which("plantuml"):
+#if True:
     # download plantuml
     import urllib
     here = os.path.abspath(os.path.dirname(__file__))
@@ -112,6 +113,7 @@ if True:
     print os.listdir("/bin")
     print os.listdir("/opt")
     print os.listdir(here)
+    print here
 
 autodoc_member_order = 'bysource'
 
