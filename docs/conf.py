@@ -97,6 +97,8 @@ if not which("plantuml"):
     down = os.path.join(here, "plantuml_downloaded.jar")
     urllib.urlretrieve("http://downloads.sourceforge.net/project/plantuml/plantuml.8031.jar?r=http%3A%2F%2Fplantuml.com%2Fdownload.html&ts=1446734489&use_mirror=kent", down)
     plantuml = 'java -jar %s' % down
+    print which("java")
+    print os.listdir(here)
 
 autodoc_member_order = 'bysource'
 
