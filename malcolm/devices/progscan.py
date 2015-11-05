@@ -1,16 +1,15 @@
 from malcolm.core import RunnableDevice, Attribute, PvAttribute, DState, \
     wrap_method, VString, VEnum, VBool, VInt, VDouble, SeqAttributeItem, \
-    Sequence
+    Sequence, HasConfigSequence
 
 
-class ProgScan(RunnableDevice):
+class ProgScan(HasConfigSequence, RunnableDevice):
     class_attributes = dict(
         prefix=Attribute(VString, "PV Prefix for device"))
 
     def __init__(self, name, prefix, timeout=None):
         self.prefix = prefix
         super(ProgScan, self).__init__(name, timeout)
-        self._make_sconfig()
 
     def add_all_attributes(self):
         super(ProgScan, self).add_all_attributes()
@@ -83,35 +82,7 @@ class ProgScan(RunnableDevice):
                 PvAttribute(
                     p + "SCAN", VInt,
                     "How many complete scans of this dimension are done"))
-        self.add_listener(self.on_runsta_change, "attributes.progState")
-        self.add_listener(self.on_runsta_change, "attributes.scanStart")
-
-    def on_runsta_change(self, runsta, changes):
-        if self.state == DState.Running:
-            self.post_runsta()
-        elif self.state == DState.Aborting:
-            self.post_abortsta()
-
-    def _make_sconfig(self):
-        # make some sequences for config
-        s1 = SeqAttributeItem(
-            "Configuring parameters", self.attributes,
-            **self.validate.arguments  # all the config params
-        )
-        # Add a configuring object
-        self._sconfig = Sequence(self.name + ".Config", s1)
-        self.add_listener(self._sconfig.on_change, "attributes")
-        self._sconfig.add_listener(self.on_sconfig_change, "stateMachine")
-        self.add_loop(self._sconfig)
-
-    def on_sconfig_change(self, sm, changes):
-        if self.state == DState.Configuring:
-            self.post_configsta(sm.state, sm.message)
-        elif self.state == DState.Ready and \
-                sm.state != self._sconfig.SeqState.Done:
-            self.post_error(sm.message)
-        elif self.state == DState.Aborting:
-            self.post_abortsta()
+        self.add_listener(self.post_changes, "attributes")
 
     @wrap_method()
     def validate(self, m1Start, m1Step, m1NumPoints, m1Dwell,
@@ -120,40 +91,45 @@ class ProgScan(RunnableDevice):
                  m2Alternate=False, m2Order=2,
                  m3Start=0, m3Step=0, m3NumPoints=0, m3Dwell=0,
                  m3Alternate=False, m3Order=1):
+        """Check whether a set of configuration parameters is valid or not. Each
+        parameter name must match one of the names in self.attributes. This set
+        of parameters should be checked in isolation, no device state should be
+        taken into account. It is allowed from any DState and raises an error
+        if the set of configuration parameters is invalid. It should return
+        some metrics on the set of parameters as well as the actual parameters
+        that should be used, e.g.
+        {"runTime": 1.5, arg1=2, arg2="arg2default"}
+        """
         # TODO: movetime is estimated at 1s here, this is wrong...
         runTime = m1NumPoints * (m1Dwell * 0.001 + 1)
         runTime += m2NumPoints * (m2Dwell * 0.001 + 1)
         runTime += m3NumPoints * (m3Dwell * 0.001 + 1)
         return super(ProgScan, self).validate(locals())
 
-    def do_config(self, **config_params):
-        """Start doing a configuration using config_params"""
-        assert self._sconfig.state in self._sconfig.rest_states(), \
-            "Can't configure sub-state machine in {} state" \
-            .format(self._sconfig.state)
-        self._sconfig.start(config_params)
-        return DState.Configuring, "Started configuring"
-
-    def do_configsta(self, state, message):
-        """Do the next param in self.config_params, returning
-        DState.Configuring if still in progress, or DState.Ready if done.
-        """
-        if state in self._sconfig.rest_states():
-            assert state == self._sconfig.SeqState.Done, \
-                "Configuring failed: {}".format(message)
-            state = DState.Ready
-        else:
-            state = DState.Configuring
-        return state, message
+    def make_config_sequence(self, **config_params):
+        """Return a Sequence object that can be used for configuring"""
+        # Add a configuring object
+        sconfig = Sequence(
+            self.name + ".SConfig",
+            SeqAttributeItem(
+                "Configuring parameters", self.attributes,
+                **config_params
+            )
+        )
+        return sconfig
 
     def do_run(self):
-        """Start doing a run, stopping when it calls back
+        """Start doing a run.
+        Return DState.Running, message when started
         """
         self.scanStart = True
         return DState.Running, "Running started"
 
-    def do_runsta(self):
-        """If acquiring then return
+    def do_running(self, value, changes):
+        """Work out if the changes mean running is complete.
+        Return None, message if it isn't.
+        Return DState.Idle, message if it is and we are all done
+        Return DState.Ready, message if it is and we are partially done
         """
         if self.scanStart and self.progState == "Scanning":
             # No change
@@ -165,28 +141,40 @@ class ProgScan(RunnableDevice):
             return DState.Idle, "Running finished"
 
     def do_abort(self):
-        """Stop acquisition
+        """Start doing an abort.
+        Return DState.Aborting, message when started
         """
-        self.scanAbort = True
-        self.post_abortsta()
+        if self.state == DState.Configuring:
+            # Abort configure
+            self._sconfig.abort()
+        elif self.state == DState.Running:
+            # Abort run
+            self.scanAbort = True
+            self.post_changes(None, None)
         return DState.Aborting, "Aborting started"
 
-    def do_abortsta(self):
-        """Check we finished
+    def do_aborting(self, value, changes):
+        """Work out if the changes mean aborting is complete.
+        Return None, message if it isn't.
+        Return DState.Aborted, message if it is.
         """
-        return DState.Aborted, "Aborting finished"
+        if self.progState != "Scanning" and not self._sconfig.running:
+            return DState.Aborted, "Aborting finished"
+        else:
+            # No change
+            return None, None
 
     def do_reset(self):
-        """Check and attempt to clear any error state, arranging for a
-        callback doing self.post(DEvent.ResetSta, resetsta) when progress has
-        been made, where resetsta is any device specific reset status
+        """Start doing a reset from aborted or fault state.
+        Return DState.Resetting, message when started
         """
         self.scanAbort = True
-        self.post_resetsta()
+        self.post_resetting(None, None)
         return DState.Resetting, "Resetting started"
 
-    def do_resetsta(self):
-        """Examine configsta for configuration progress, returning
-        DState.Resetting if still in progress, or DState.Idle if done.
+    def do_resetting(self, value, changes):
+        """Work out if the changes mean resetting is complete.
+        Return None, message if it isn't.
+        Return DState.Idle, message if it is.
         """
         return DState.Idle, "Resetting finished"

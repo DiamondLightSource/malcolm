@@ -22,15 +22,19 @@ def get_version():
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 try:
     from pkg_resources import require
-    require("pyzmq")
 except:
     pass
+else:
+    require("pyzmq")
+    require("sphinxcontrib-plantuml")
+    require("numpy")
 sys.path.insert(0, os.path.abspath(os.path.join(__file__, '..', '..')))
 
 # -- General configuration ------------------------------------------------
 
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinxcontrib.plantuml',
 #    'sphinx.ext.intersphinx',
     'sphinx.ext.viewcode',
 ]

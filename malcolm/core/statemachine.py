@@ -72,6 +72,7 @@ class StateMachine(EventLoop):
             assert state in self.states, \
                 "State {} should be one of {}".format(state, self.states)
             changes.update(state=state)
+            self.log_debug("Transition to {} {}".format(state, message))
             self.state = state
         if message is not None and message != self.message:
             message = str(message)
@@ -117,7 +118,7 @@ class StateMachine(EventLoop):
 
     def do_error(self, error):
         """Handle an error"""
-        return (self.error_state, str(error))
+        return self.error_state, str(error)
 
     def error_handler(self, error, *args, **kwargs):
         """Called if an event handler raises an error"""

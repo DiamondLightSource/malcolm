@@ -8,6 +8,7 @@
         "tags": [
           "instance:DummyZebra", 
           "instance:RunnableDevice", 
+          "instance:ConfigurableDevice", 
           "instance:Device"
         ], 
         "methods": {
@@ -21,16 +22,16 @@
                   "name": "VBool", 
                   "version": "2"
                 }, 
-                "descriptor": "Whether to wait for a function to complete"
+                "descriptor": "Wait for function to complete?"
               }
             }, 
             "validStates": [
+              "Idle", 
               "Configuring", 
               "Ready", 
               "Running", 
-              "Pausing", 
-              "Paused", 
-              "Resetting"
+              "Rewinding", 
+              "Paused"
             ]
           }, 
           "configure": {
@@ -63,7 +64,7 @@
                   "name": "VBool", 
                   "version": "2"
                 }, 
-                "descriptor": "Whether to wait for a function to complete"
+                "descriptor": "Wait for function to complete?"
               }
             }, 
             "validStates": [
@@ -85,7 +86,7 @@
                   "name": "VBool", 
                   "version": "2"
                 }, 
-                "descriptor": "Whether to wait for a function to complete"
+                "descriptor": "Wait for function to complete?"
               }
             }, 
             "validStates": [
@@ -103,7 +104,7 @@
                   "name": "VBool", 
                   "version": "2"
                 }, 
-                "descriptor": "Whether to wait for a function to complete"
+                "descriptor": "Wait for function to complete?"
               }
             }, 
             "validStates": [
@@ -144,12 +145,12 @@
           "states": [
             "Idle", 
             "Fault", 
-            "Resetting", 
             "Configuring", 
             "Ready", 
-            "Running", 
             "Aborting", 
-            "Aborted"
+            "Aborted", 
+            "Resetting", 
+            "Running"
           ], 
           "timeStamp": {
             "secondsPastEpoch": 14419090000, 
@@ -164,19 +165,6 @@
               "version": "2"
             }, 
             "descriptor": "Seconds since device was created"
-          }, 
-          "block": {
-            "type": {
-              "name": "VBool", 
-              "version": "2"
-            }, 
-            "tags": [
-              "method:abort", 
-              "method:configure", 
-              "method:reset", 
-              "method:run"
-            ], 
-            "descriptor": "Whether to wait for a function to complete"
           }, 
           "connected": {
             "value": 0, 

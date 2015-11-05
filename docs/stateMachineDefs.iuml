@@ -1,0 +1,44 @@
+skinparam state {
+  BackgroundColor #99CFCF
+  BackgroundColor<<Rest>> #AAE7AA
+  BackgroundColor<<Abort>> #FFBE89
+  BackgroundColor<<Fault>> #F03232
+  BorderColor Gray
+  ArrowColor Black
+  FontSize 18
+}
+
+state canError {
+
+    state canAbort {
+        [*] -right-> Idle
+        
+        state Idle <<Rest>>
+        Idle --> Idle : Changes
+        Idle --> Configuring : Config        
+        
+        Configuring --> Configuring : Changes [not done]        
+    }
+    
+    canAbort --> Aborting : Abort
+
+    state Aborting <<Abort>>
+    Aborting --> Aborting : Changes [not done]
+    Aborting --> Aborted : Changes [done]
+    
+    state Aborted <<Abort>>
+    Aborted --> Aborted : Changes
+    Aborted --> Resetting : Reset
+
+    Resetting --> Resetting : Changes [not done]
+    Resetting --> Idle : Changes [done]
+
+}
+
+canError --> Fault : Error
+
+state Fault <<Fault>>
+Fault --> Fault : Changes [not done]
+Fault --> Idle : Changes [done]
+Fault --> Resetting : Reset
+

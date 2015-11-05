@@ -9,12 +9,12 @@
         "states": [
           "Idle", 
           "Fault", 
-          "Resetting", 
           "Configuring", 
           "Ready", 
-          "Running", 
           "Aborting", 
-          "Aborted"
+          "Aborted", 
+          "Resetting", 
+          "Running"
         ], 
         "timeStamp": {
           "secondsPastEpoch": 14419090000, 

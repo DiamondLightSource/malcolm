@@ -2,8 +2,11 @@ import inspect
 import functools
 from collections import OrderedDict
 
+
+from enum import Enum
+
 from .attribute import HasAttributes, Attribute
-from malcolm.core.statemachine import HasStateMachine
+from .statemachine import HasStateMachine
 from .method import HasMethods, wrap_method
 from .loop import HasLoops, TimerLoop
 from .base import weak_method
@@ -13,6 +16,49 @@ from .vtype import VInt
 def not_process_creatable(cls):
     cls.not_process_creatable.append(cls)
     return cls
+
+
+class DState(Enum):
+    # These are the states that our machine supports
+    Fault, Idle, Configuring, Ready, Running, Rewinding, Paused, Aborting,\
+        Aborted, Resetting = range(10)
+
+    @classmethod
+    def rest(cls):
+        return [cls.Fault, cls.Idle, cls.Ready, cls.Aborted]
+
+    @classmethod
+    def canAbort(cls):
+        return [cls.Idle, cls.Configuring, cls.Ready, cls.Running,
+                cls.Rewinding, cls.Paused]
+
+    @classmethod
+    def canConfig(cls):
+        return [cls.Idle, cls.Ready]
+
+    @classmethod
+    def canRun(cls):
+        return [cls.Ready, cls.Paused]
+
+    @classmethod
+    def canReset(cls):
+        return [cls.Fault, cls.Aborted]
+
+    @classmethod
+    def doneRewind(cls):
+        return [cls.Fault, cls.Aborted, cls.Paused, cls.Ready]
+
+    @classmethod
+    def doneResume(cls):
+        return [cls.Fault, cls.Running]
+
+    def to_dict(self):
+        return self.name
+
+
+class DEvent(Enum):
+    # These are the events that we will respond to
+    Config, Run, Abort, Rewind, Reset, Changes = range(6)
 
 
 @not_process_creatable
@@ -25,6 +71,7 @@ class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops):
         super(Device, self).__init__(name)
         # TODO: delete this?
         self.timeout = timeout
+        self.add_stateMachine_transitions()
         self.add_all_attributes()
         self.add_methods()
         self.add_loop(TimerLoop("{}.uptime".format(self.name),
@@ -35,6 +82,9 @@ class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops):
         if self.attributes["uptime"].value is None:
             self.uptime = 0
         self.uptime += 1
+
+    def add_stateMachine_transitions(self):
+        pass
 
     def add_all_attributes(self):
         """Add all attributes to a device. Make sure you super() call this in
@@ -79,7 +129,7 @@ class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops):
 
     def add_post_methods(self, events):
         for event in events:
-            f = functools.partial(self.stateMachine.post, event)
+            f = functools.partial(weak_method(self.stateMachine.post), event)
             setattr(self, "post_{}".format(event.name.lower()), f)
 
     def shortcuts(self, s, e):

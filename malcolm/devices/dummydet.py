@@ -40,7 +40,7 @@ class DummyDetSim(StateMachine, HasListeners, HasLoops):
         self.exposure = exposure
         if configureSleep > 0:
             self.add_loop(TimerLoop(
-                "ConfigTimer", self.config_done, timeout=configureSleep, 
+                "ConfigTimer", self.config_done, timeout=configureSleep,
                 retrigger=False))
             return SState.Configuring, "Configuring"
         else:
@@ -82,7 +82,7 @@ class DummyDet(PausableDevice):
         super(DummyDet, self).__init__(name, timeout=timeout)
         self.single = single
         self.sim = DummyDetSim(name + "Sim")
-        self.sim.add_listener(weak_method(self.on_status))
+        self.sim.add_listener(self.post_changes)
         self.add_loop(self.sim)
         self.sim_post = self.sim.post
 
@@ -92,71 +92,71 @@ class DummyDet(PausableDevice):
         self.add_attributes(
             nframes=Attribute(VInt, "Number of frames"),
             exposure=Attribute(VDouble, "Detector exposure"),
-            configureSleep=Attribute(VDouble, "Time to sleep to simulate configure"),
+            configureSleep=Attribute(
+                VDouble, "Time to sleep to simulate configure"),
         )
 
     @wrap_method()
     def validate(self, nframes, exposure, configureSleep=0.0):
-        """Check whether the configuration parameters are valid or not. This set
-        of parameters are checked in isolation, no device state is taken into
-        account. It raises an error if the set of configuration parameters is
-        invalid.
+        """Check whether a set of configuration parameters is valid or not. Each
+        parameter name must match one of the names in self.attributes. This set
+        of parameters should be checked in isolation, no device state should be
+        taken into account. It is allowed from any DState and raises an error
+        if the set of configuration parameters is invalid. It should return
+        some metrics on the set of parameters as well as the actual parameters
+        that should be used, e.g.
+        {"runTime": 1.5, arg1=2, arg2="arg2default"}
         """
         assert nframes > 0, "nframes {} should be > 0".format(nframes)
         assert exposure > 0.0, "exposure {} should be > 0.0".format(exposure)
         runTime = nframes * exposure
         return super(DummyDet, self).validate(locals())
 
-    def on_status(self, status, changes):
-        """Respond to status updates from the sim sim_state machine"""
-        sim_state = status.state
-        if self.state == DState.Configuring and sim_state == SState.Ready:
-            self.post_configsta("finished")
-        elif self.state == DState.Running and sim_state == SState.Acquiring:
-            self.post_runsta(self.sim.nframes)
-        elif self.state == DState.Running and sim_state == SState.Idle:
-            self.post_runsta("finished")
-        elif self.state == DState.Pausing and sim_state == SState.Acquiring:
-            self.post_pausesta("finishing")
-        elif self.state == DState.Pausing and sim_state == SState.Idle:
-            self.post_pausesta("finished")
-        elif self.state == DState.Pausing and sim_state == SState.Ready:
-            self.post_pausesta("configured")
-        elif self.state == DState.Aborting and sim_state == SState.Acquiring:
-            self.post_abortsta("finishing")
-        elif self.state == DState.Aborting and sim_state == SState.Idle:
-            self.post_abortsta("finished")
-        else:
-            print "Unhandled", status
-
     def do_config(self, **config_params):
-        """Check config params and send them to sim state machine"""
+        """Start doing a configuration using config_params.
+        Return DState.Configuring, message when started
+        """
         for param, value in config_params.items():
             self.attributes[param].update(value)
         self.sim_post(
             SEvent.Config, self.nframes, self.exposure, self.configureSleep)
         return DState.Configuring, "Configuring started"
 
-    def do_configsta(self, configsta):
-        """Receive configuration events and move to next state when finished"""
-        assert configsta == "finished", "What is this '{}'".format(configsta)
-        return DState.Ready, "Configuring finished"
+    def do_configuring(self, status, changes):
+        """Work out if the changes mean configuring is complete.
+        Return None, message if it isn't.
+        Return self.ConfigDoneState, message if it is.
+        """
+        if status.state == SState.Ready:
+            return DState.Ready, "Configuring finished"
+        else:
+            return None, None
 
     def do_run(self):
-        """Start a run"""
+        """Start doing a run.
+        Return DState.Running, message when started
+        """
         self.sim_post(SEvent.Start)
         return DState.Running, "Starting run"
 
-    def do_runsta(self, runsta):
-        """Receive run status events and move to next state when finished"""
-        if runsta == "finished":
+    def do_running(self, status, changes):
+        """Work out if the changes mean running is complete.
+        Return None, message if it isn't.
+        Return DState.Idle, message if it is and we are all done
+        Return DState.Ready, message if it is and we are partially done
+        """
+        if status.state == SState.Acquiring:
+            percent = (self.nframes - self.sim.nframes) * 100 / self.nframes
+            return None, "Running in progress {}% done".format(percent)
+        elif status.state == SState.Idle:
             return DState.Idle, "Running in progress 100% done"
         else:
-            percent = (self.nframes - runsta) * 100 / self.nframes
-            return None, "Running in progress {}% done".format(percent)
+            raise Exception("Can't handle: {}".format(status.state))
 
-    def do_pause(self, steps):
-        """Start a pause"""
+    def do_rewind(self, steps=None):
+        """Start doing an pause with a rewind of steps.
+        Return DState.Rewinding, message when started
+        """
         if self.stateMachine.state == DState.Running:
             self.sim_post(SEvent.Abort)
             self.frames_to_do = self.sim.nframes
@@ -168,52 +168,64 @@ class DummyDet(PausableDevice):
             self.frames_to_do += steps
             self.post_pausesta("finished")
             message = "Retracing started"
-        return DState.Pausing, message
+        return DState.Rewinding, message
 
-    def do_pausesta(self, pausesta):
-        """Receive run status events and move to next state when finished"""
+    def do_rewinding(self, status, changes):
+        """Work out if the changes mean rewind is complete.
+        Return None, message if it isn't.
+        Return DState.Paused, message if it is, and we were Paused before
+        Return DState.Ready, message if it is, and we were Ready before
+        """
         state, message = None, None
-        if pausesta == "finishing":
+        if status.state == SState.Acquiring:
             # detector still doing the last frame
             message = "Waiting for detector to stop"
-        elif pausesta == "finished":
+        elif status.state == SState.Idle:
             # detector done, reconfigure it
-            self.sim_post(SEvent.Config, self.frames_to_do, self.exposure, 
+            self.sim_post(SEvent.Config, self.frames_to_do, self.exposure,
                           self.configureSleep)
             message = "Reconfiguring detector for {} frames".format(
                 self.frames_to_do)
-        elif pausesta == "configured":
+        elif status.state == SState.Ready:
             # detector reconfigured, done
             state, message = DState.Paused, "Pausing finished"
         else:
-            raise Exception("What is: {}".format(pausesta))
+            raise Exception("Can't handle: {}".format(status.state))
         return state, message
 
     def do_abort(self):
-        """Abort the machine"""
+        """Start doing an abort.
+        Return DState.Aborting, message when started
+        """
         if self.sim.state == SState.Acquiring:
             self.sim_post(SEvent.Abort)
         else:
-            self.post_abortsta("finished")
+            self.post_changes(self.sim.stateMachine, None)
         return DState.Aborting, "Aborting"
 
-    def do_abortsta(self, abortsta):
-        if abortsta == "finishing":
+    def do_aborting(self, status, changes):
+        """Work out if the changes mean aborting is complete.
+        Return None, message if it isn't.
+        Return DState.Aborted, message if it is.
+        """
+        if status.state == SState.Acquiring:
             # detector still doing the last frame
             return DState.Aborting, "Waiting for detector to stop"
-        elif abortsta == "finished":
+        elif status.state == SState.Idle:
             return DState.Aborted, "Aborted"
         else:
-            raise Exception("What is: {}".format(abortsta))
+            raise Exception("Can't handle: {}".format(status.state))
 
     def do_reset(self):
-        """Reset the underlying device"""
-        self.post_resetsta("finished")
+        """Start doing a reset from aborted or fault state.
+        Return DState.Resetting, message when started
+        """
+        self.post_changes(self.sim.stateMachine, None)
         return DState.Resetting, "Resetting..."
 
-    def do_resetsta(self, resetsta):
-        if resetsta == "finished":
-            return DState.Idle, "Reset complete"
-        else:
-            return DState.Fault, "Unhandled reset message {}".format(resetsta)
-
+    def do_resetting(self, status, changes):
+        """Work out if the changes mean resetting is complete.
+        Return None, message if it isn't.
+        Return DState.Idle, message if it is.
+        """
+        return DState.Idle, "Reset complete"

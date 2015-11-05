@@ -86,13 +86,14 @@ class PvAttribute(Attribute, ILoop):
     def update(self, value, alarm=None, timeStamp=None):
         assert alarm is None, "Can't set alarm on a PvAttribute"
         assert timeStamp is None, "Can't set timeStamp on a PvAttribute"
-        self.log_debug("caput({}, {})".format(self.pv.name, repr(value)))
+        self.log_debug("caput {} {}".format(self.pv.name, repr(value)))
         # Convert value for some VTypes
         if isinstance(self.typ, VBool):
             value = bool(value)
         if self.put_callback:
             assert self.put_callbacks == 0, \
-                "Cannot run put callback when another is active"
+                "Cannot run put callback on {} when another is active" \
+                .format(self.name)
             self.put_callbacks = 1
             self.pv.caput(value, callback=self.on_put_callback, timeout=None)
         else:

@@ -1,8 +1,8 @@
 import os
 
 from malcolm.core import PausableDevice, DState, InstanceAttribute, \
-    wrap_method, Attribute, VDouble, VString, VTable, SeqStateItem, \
-    SeqFunctionItem, Sequence, SeqAttributeReadItem
+    wrap_method, Attribute, VDouble, VString, VTable, \
+    SeqFunctionItem, Sequence, SeqTransitionItem, VIntArray
 from malcolm.devices import SimDetector, Hdf5Writer, PositionPlugin
 
 
@@ -21,15 +21,17 @@ class SimDetectorPersonality(PausableDevice):
         self.positionPlugin = positionPlugin
         self.hdf5Writer = hdf5Writer
         self.children = [simDetector, positionPlugin, hdf5Writer]
-        self._make_sconfig()
-        self._make_srun()
-        self._make_spause()
+        # Child state machine listeners
+        for c in self.children:
+            c.add_listener(self.post_changes, "stateMachine")
+        self.child_statemachines = [c.stateMachine for c in self.children]
+        # Run monitors
         hdf5Writer.add_listener(
-            self.on_uid_change, "attributes.uniqueId.value")
-
-    def on_uid_change(self, value, changes):
-        if self.state == DState.Running:
-            self.currentStep = value
+            self.post_changes, "attributes.uniqueId")
+        hdf5Writer.add_listener(
+            self.post_changes, "attributes.capture")
+        positionPlugin.add_listener(
+            self.post_changes, "attributes.running")
 
     def add_all_attributes(self):
         super(SimDetectorPersonality, self).add_all_attributes()
@@ -42,281 +44,218 @@ class SimDetectorPersonality(PausableDevice):
                 "Position table, column headings are dimension names, " \
                 "slowest changing first"),
             hdf5File=Attribute(VString, "HDF5 full file path to write"),
+            # Monitor
+            dimensions=Attribute(
+                VIntArray, "Detected dimensionality of positions"),
         )
 
-    def _make_sconfig(self):
+    def _validate_hdf5Writer(self, hdf5File, positions, dimensions,
+                             totalSteps):
+        filePath, fileName = os.path.split(hdf5File)
+        numExtraDims = len(positions)
+        if numExtraDims == len(dimensions):
+            # This is a non-sparse scan so put in place
+            dimNames = []
+            dimSizes = []
+            dimUnits = []
+            for i, (name, _, _, unit) in enumerate(positions):
+                dimNames.append(name + "_index")
+                dimSizes.append(dimensions[i])
+                dimUnits.append(unit)
+        elif [totalSteps] == dimensions:
+            # This is a sparse, so unroll to series of points
+            dimNames = ["n"]
+            dimSizes = [totalSteps]
+            dimUnits = [""]
+        else:
+            raise AssertionError(
+                "Can't unify position number of columns {} with "
+                "dimensions {}".format(numExtraDims, dimensions))
+        return self.hdf5Writer.validate(
+            filePath, fileName,  dimNames, dimSizes, dimUnits)
+
+    @wrap_method()
+    def validate(self, exposure, positions, hdf5File, period=None):
+        # Validate simDetector
+        totalSteps = len(positions[0][2])
+        sim_params = self.simDetector.validate(exposure, totalSteps, period)
+        runTime = sim_params["runTime"]
+        runTimeout = sim_params["runTimeout"]
+        period = sim_params["period"]
+        # Validate position plugin
+        dimensions = self.positionPlugin.validate(positions)["dimensions"]
+        # Validate hdf writer
+        self._validate_hdf5Writer(hdf5File, positions, dimensions, totalSteps)
+        return super(SimDetectorPersonality, self).validate(locals())
+
+    def _configure_simDetector(self):
+        self.simDetector.configure(
+            self.exposure, self.totalSteps - self.currentStep, self.period,
+            self.currentStep, block=False)
+
+    def _configure_positionPlugin(self):
+        if self.currentStep > 0:
+            positions = []
+            for n, t, d, u in self.positions:
+                positions.append([n, t, d[self.currentStep:], u])
+        else:
+            positions = self.positions
+        assert self.simDetector.portName is not None, \
+            "Expected simDetector.portName != None"
+        self.positionPlugin.configure(
+            positions, self.currentStep + 1, self.simDetector.portName,
+            block=False)
+
+    def _configure_hdf5Writer(self):
+        params = self._validate_hdf5Writer(self.hdf5File, self.positions,
+                                           self.dimensions, self.totalSteps)
+        params = {k: v for k, v in params.items()
+                  if k in self.hdf5Writer.configure.arguments}
+        assert self.positionPlugin.portName is not None, \
+            "Expected positionPlugin.portName != None"
+        params.update(arrayPort=self.positionPlugin.portName, block=False)
+        self.hdf5Writer.configure(**params)
+
+    def do_config(self, **config_params):
+        """Start doing a configuration using config_params.
+        Return DState.Configuring, message when started
+        """
+        for d in self.children:
+            assert d.state in DState.canConfig(), \
+                "Child device {} in state {} is not configurable"\
+                .format(d, d.state)
+        # Setup self
+        for name, value in config_params.items():
+            setattr(self, name, value)
+        self.stepsPerRun = 1
+        self.currentStep = 0
         # make some sequences for config
-        seqItems = [
+        self._sconfig = Sequence(
+            self.name + ".SConfig",
             SeqFunctionItem(
                 "Configuring simDetector", self._configure_simDetector),
             SeqFunctionItem(
                 "Configuring positionPlugin", self._configure_positionPlugin),
-            SeqStateItem(
-                "Wait for positionPlugin to configure", self.positionPlugin,
-                DState.Ready, DState.rest()),
             SeqFunctionItem(
                 "Configuring hdf5Writer", self._configure_hdf5Writer),
-            SeqStateItem(
-                "Wait for simDetector to configure", self.simDetector,
+            SeqTransitionItem(
+                "Wait for plugins to configure", self.child_statemachines,
                 DState.Ready, DState.rest()),
-            SeqStateItem(
-                "Wait for hdf5Writer to configure", self.hdf5Writer,
-                DState.Ready, DState.rest()),
-        ]
-        # Add a configuring object
-        self._sconfig = Sequence(
-            self.name + ".SConfig", *seqItems)
-        for c in self.children:
-            c.add_listener(self._sconfig.on_change, "stateMachine.state")
-        self._sconfig.add_listener(self.on_sconfig_change, "stateMachine")
-        self.add_loop(self._sconfig)
+        )
+        item_done, msg = self._sconfig.start()
+        if item_done:
+            # Arrange for a callback to process the next item
+            self.post_changes(None, None)
+        return DState.Configuring, msg
 
-    def on_sconfig_change(self, sm, changes):
-        if self.state == DState.Configuring:
-            self.post_configsta(sm.state, sm.message)
-        elif self.state == DState.Ready and \
-                sm.state != self._sconfig.SeqState.Done:
-            self.post_error(sm.message)
-        elif self.state == DState.Aborting:
-            self.post_abortsta()
+    def do_configuring(self, value, changes):
+        """Work out if the changes mean configuring is complete.
+        Return None, message if it isn't.
+        Return self.ConfigDoneState, message if it is.
+        """
+        running, item_done, msg = self._sconfig.process(value, changes)
+        if running is False:
+            # Finished
+            return DState.Ready, "Configuring done"
+        elif item_done:
+            # Arrange for a callback to process the next item
+            self.post_changes(None, None)
+        # Still going
+        return DState.Configuring, msg
 
-    def _make_srun(self):
-        # make some sequences for config
-        seqItems = [
-            SeqFunctionItem(
-                "Running hdf5Writer", self.hdf5Writer.run,
-                block=False),
+    def do_ready(self, value, changes):
+        """Work out if the changes mean we are still ready for run.
+        Return None, message if it is still ready.
+        Return DState.Idle, message if it isn't still ready.
+        """
+        mismatches = self._sconfig.mismatches()
+        if mismatches:
+            return DState.Idle, "Unconfigured: {}".format(mismatches)
+        else:
+            return None, None
+
+    def do_run(self):
+        """Start doing a run.
+        Return DState.Running, message when started
+        """
+        plugins = [self.simDetector.stateMachine,
+                   self.positionPlugin.stateMachine]
+        for d in plugins:
+            assert d.state in DState.canRun(), \
+                "Child device {} in state {} is not canRun"\
+                .format(d.name, d.state)
+        seq_items = [
             SeqFunctionItem(
                 "Running positionPlugin", self.positionPlugin.run,
-                block=False),
-            SeqAttributeReadItem(
-                "Wait for hdf5Writer to run",
-                self.hdf5Writer.attributes["capture"], True),
-            SeqAttributeReadItem(
+                block=False)]
+        # If hdf writer is not already running then run it
+        if self.hdf5Writer.state != DState.Running:
+            seq_items += [
+                SeqFunctionItem(
+                    "Running hdf5Writer", self.hdf5Writer.run,
+                    block=False),
+                SeqTransitionItem(
+                    "Wait for hdf5Writer to run",
+                    self.hdf5Writer.attributes["capture"], True),
+            ]
+        # Now add the rest
+        seq_items += [
+            SeqTransitionItem(
                 "Wait for positionPlugin to run",
                 self.positionPlugin.attributes["running"], True),
             SeqFunctionItem(
                 "Running simDetector", self.simDetector.run,
                 block=False),
-            # TODO: need to wait for all of these...
-            SeqStateItem(
-                "Wait for simDetector to finish", self.simDetector,
-                DState.Idle, DState.rest()),
-            SeqStateItem(
-                "Wait for positionPlugin to finish", self.positionPlugin,
-                DState.Idle, DState.rest()),
-            SeqStateItem(
-                "Wait for hdf5Writer to finish", self.hdf5Writer,
+            SeqTransitionItem(
+                "Wait for run to finish", self.child_statemachines,
                 DState.Idle, DState.rest()),
         ]
         # Add a configuring object
-        self._srun = Sequence(
-            self.name + ".SRun", *seqItems)
-        for c in self.children:
-            c.add_listener(self._srun.on_change, "stateMachine.state")
-        self.hdf5Writer.add_listener(
-            self._srun.on_change, "attributes.capture")
-        self.positionPlugin.add_listener(
-            self._srun.on_change, "attributes.running")
-        self._srun.add_listener(self.on_srun_change, "stateMachine")
-        self.add_loop(self._srun)
-
-    def on_srun_change(self, sm, changes):
-        if self.state == DState.Running:
-            self.post_runsta(sm.state, sm.message)
-        elif self.state == DState.Aborting:
-            self.post_abortsta()
-
-    def _make_spause(self):
-        # make some sequences for config
-        seqItems = [
-            SeqFunctionItem(
-                "Stopping simDetector", self.simDetector.abort,
-                block=False),
-            SeqFunctionItem(
-                "Stopping positionPlugin", self.positionPlugin.abort,
-                block=False),
-            SeqStateItem(
-                "Wait for simDetector to stop", self.simDetector,
-                DState.Aborted, DState.rest()),
-            SeqStateItem(
-                "Wait for positionPlugin to stop", self.positionPlugin,
-                DState.Aborted, DState.rest()),
-            SeqFunctionItem(
-                "Configuring positionPlugin", self._configure_positionPlugin),
-            SeqFunctionItem(
-                "Configuring simDetector", self._configure_simDetector),
-            SeqStateItem(
-                "Wait for positionPlugin to configure", self.positionPlugin,
-                DState.Ready, DState.rest()),
-            SeqStateItem(
-                "Wait for simDetector to configure", self.simDetector,
-                DState.Ready, DState.rest()),
-        ]
-        # Add a configuring object
-        self._spause = Sequence(
-            self.name + ".SPause", *seqItems)
-        for c in self.children:
-            c.add_listener(self._spause.on_change, "stateMachine.state")
-        self._spause.add_listener(self.on_spause_change, "stateMachine")
-        self.add_loop(self._spause)
-
-    def on_spause_change(self, sm, changes):
-        if self.state == DState.Pausing:
-            self.post_pausesta(sm.state, sm.message)
-        elif self.state == DState.Aborting:
-            self.post_abortsta()
-
-    def _get_num_images(self, positions):
-        # Get the length of the first column of positions
-        return len(positions[0][2])
-
-    def _get_file_name_path(self, hdf5File):
-        # Get the file name and path from the hdfFile
-        return os.path.split(hdf5File)
-
-    def _configure_simDetector(self):
-        self.simDetector.configure(
-            self.exposure, self.totalSteps - self.last_done, self.period,
-            self.last_done, block=False)
-
-    def _configure_positionPlugin(self):
-        if self.last_done > 0:
-            positions = []
-            for n, t, d, u in self.positions:
-                positions.append([n, t, d[self.last_done:], u])
-        else:
-            positions = self.positions
-        self.positionPlugin.configure(
-            positions, self.last_done + 1, self.simDetector.portName,
-            block=False)
-
-    def _configure_hdf5Writer(self):
-        assert self.positionPlugin.state == DState.Ready, \
-            "Position plugin isn't ready"
-        filePath, fileName = self._get_file_name_path(self.hdf5File)
-        numExtraDims = len(self.positions)
-        if numExtraDims == len(self.positionPlugin.dimensions):
-            # This is a non-sparse scan so put in place
-            dimNames = []
-            dimSizes = []
-            dimUnits = []
-            for i, (name, _, _, unit) in enumerate(self.positions):
-                dimNames.append(name + "_index")
-                dimSizes.append(self.positionPlugin.dimensions[i])
-                dimUnits.append(unit)
-        elif [self.totalSteps] == self.positionPlugin.dimensions:
-            # This is a sparse, so unroll to series of points
-            dimNames = ["n"]
-            dimSizes = [self.totalSteps]
-            dimUnits = [""]
-        else:
-            raise AssertionError(
-                "Can't unify position number of columns {} with "
-                "positionPlugin dimensions {}"
-                .format(numExtraDims, self.positionPlugin.dimensions))
-        self.hdf5Writer.configure(
-            filePath, fileName,  dimNames, dimSizes, dimUnits,
-            arrayPort=self.positionPlugin.portName, block=False)
-
-    @wrap_method()
-    def validate(self, exposure, positions, hdf5File, period=None):
-        # Validate simDetector
-        numImages = self._get_num_images(positions)
-        sim_params = self.simDetector.validate(exposure, numImages, period)
-        runTime = sim_params["runTime"]
-        runTimeout = sim_params["runTimeout"]
-        period = sim_params["period"]
-        # Validate position plugin
-        self.positionPlugin.validate(positions)
-        # Validate hdf writer
-        filePath, fileName = self._get_file_name_path(hdf5File)
-        self.hdf5Writer.validate(filePath, fileName)
-        return super(SimDetectorPersonality, self).validate(locals())
-
-    def do_config(self, **config_params):
-        """Start doing a configuration using config_params"""
-        for d in self.children:
-            assert d.state in DState.canConfig(), \
-                "Child device {} in state {} is not configurable"\
-                .format(d, d.state)
-        assert self._sconfig.state in self._sconfig.rest_states(), \
-            "Can't configure sub-state machine in {} state" \
-            .format(self._sconfig.state)
-        # Setup self
-        for name, value in config_params.items():
-            setattr(self, name, value)
-        self.totalSteps = self._get_num_images(self.positions)
-        self.stepsPerRun = 1
-        self.currentStep = 0
-        self.last_done = 0
+        self._srun = Sequence(self.name + ".SRun", *seq_items)
         # Start the sequence
-        self._sconfig.start(config_params)
-        return DState.Configuring, "Started configuring"
+        item_done, msg = self._srun.start()
+        if item_done:
+            # Arrange for a callback to process the next item
+            self.post_changes(None, None)
+        return DState.Running, msg
 
-    def do_configsta(self, state, message):
-        """Do the next param in self.config_params, returning
-        DState.Configuring if still in progress, or DState.Ready if done.
+    def do_running(self, value, changes):
+        """Work out if the changes mean running is complete.
+        Return None, message if it isn't.
+        Return DState.Idle, message if it is and we are all done
+        Return DState.Ready, message if it is and we are partially done
         """
-        if state in self._sconfig.rest_states():
-            assert state == self._sconfig.SeqState.Done, \
-                "Configuring failed: {}".format(message)
-            state = DState.Ready
-        else:
-            state = DState.Configuring
-        return state, message
-
-    def do_run(self):
-        """Start doing a run, stopping when it calls back
-        """
-        for d in self.children:
-            assert d.state in DState.canRun(), \
-                "Child device {} in state {} is not canRun"\
-                .format(d, d.state)
-        assert self._srun.state in self._srun.rest_states(), \
-            "Can't configure sub-state machine in {} state" \
-            .format(self._srun.state)
-        # Start the sequence
-        self._srun.start()
-        return DState.Running, "Starting running"
-
-    def do_runsta(self, state, message):
-        """If acquiring then return
-        """
-        if state in self._srun.rest_states():
-            assert state == self._srun.SeqState.Done, \
-                "Running failed: {}".format(message)
-            state = DState.Idle
-        else:
-            state = DState.Running
-        return state, message
+        # Update progress
+        if value == self.hdf5Writer.attributes["uniqueId"]:
+            self.currentStep = value.value
+        running, item_done, msg = self._srun.process(value, changes)
+        if running is False:
+            # Finished
+            return DState.Idle, "Running done"
+        elif item_done:
+            # Arrange for a callback to process the next item
+            self.post_changes(None, None)
+        # Still going
+        return DState.Running, msg
 
     def do_abort(self):
         """Stop acquisition
         """
         if self.state == DState.Configuring:
-            if self._sconfig.state not in self._sconfig.rest_states():
-                # Abort configure
-                self._sconfig.abort()
-            else:
-                # Statemachine already done, nothing to do
-                self.post_abortsta()
+            self._sconfig.abort()
         elif self.state == DState.Running:
-            # Abort run
             self._srun.abort()
-            for d in self.children:
-                if d.state in DState.canAbort():
-                    d.abort(block=False)
-        elif self.state == DState.Pausing:
-            # Abort pause
+        elif self.state == DState.Rewinding:
             self._spause.abort()
-            for d in self.children:
-                if d.state in DState.canAbort():
-                    d.abort(block=False)
+        for d in self.children:
+            if d.state in DState.canAbort():
+                d.abort(block=False)
         return DState.Aborting, "Aborting started"
 
-    def do_abortsta(self):
-        """Check we finished
+    def do_aborting(self, value, changes):
+        """Work out if the changes mean aborting is complete.
+        Return None, message if it isn't.
+        Return DState.Aborted, message if it is.
         """
         child_states = [c.state for c in self.children]
         rest = [s in DState.rest() for s in child_states]
@@ -331,66 +270,127 @@ class SimDetectorPersonality(PausableDevice):
             return None, None
 
     def do_reset(self):
-        """Check and attempt to clear any error state, arranging for a
-        callback doing self.post(DEvent.ResetSta, resetsta) when progress has
-        been made, where resetsta is any device specific reset status
+        """Start doing a reset from aborted or fault state.
+        Return DState.Resetting, message when started
         """
-        action = False
+        # Abort any items that need to be aborted
         for d in self.children:
             if d.state not in DState.rest():
-                action = True
                 d.abort(block=False)
-        if not action:
-            # no abort action, trigger resetsta
-            self.post_resetsta(None)
-        self.wait_reset = True
-        return DState.Resetting, "Aborting devices"
+        # Add a resetting object
+        self._sreset = Sequence(
+            self.name + ".SReset",
+            SeqTransitionItem(
+                "Wait for plugins to be at rest", self.children,
+                DState.rest()),
+            SeqFunctionItem(
+                "Reset hdf5Writer", self.hdf5Writer.reset,
+                block=False),
+            SeqFunctionItem(
+                "Reset simDetector", self.simDetector.reset,
+                block=False),
+            SeqFunctionItem(
+                "Reset positionPlugin", self.positionPlugin.reset,
+                block=False),
+            SeqTransitionItem(
+                "Wait for plugins to be at rest", self.children,
+                DState.rest()),
+        )
+        # Start the sequence
+        item_done, msg = self._sreset.start()
+        if item_done:
+            # Arrange for a callback to process the next item
+            self.post_changes(None, None)
+        return DState.Resetting, msg
 
-    def do_resetsta(self):
-        """Examine configsta for configuration progress, returning
-        DState.Resetting if still in progress, or DState.Idle if done.
+    def do_resetting(self, value, changes):
+        """Work out if the changes mean resetting is complete.
+        Return None, message if it isn't.
+        Return DState.Idle, message if it is.
         """
-        child_states = [d.state for d in self.children]
-        rest = [s in DState.rest() for s in child_states]
-        if self.wait_reset and all(rest):
-            self.wait_reset = False
-            for d in self.children:
-                if d.state in DState.canReset():
-                    d.reset(block=False)
-            return DState.Resetting, "Resetting devices"
-        elif all(rest):
+        running, item_done, msg = self._sreset.process(value, changes)
+        if running is False:
+            # Finished
+            child_states = [d.state for d in self.children]
             nofault = [s != DState.Fault for s in child_states]
             assert all(nofault), \
                 "Expected all not in fault, got {}".format(child_states)
             return DState.Idle, "Resetting done"
-        else:
-            todo = len(r for r in rest if not r)
-            return DState.Resetting, "Waiting for {} plugins".format(todo)
+        elif item_done:
+            # Arrange for a callback to process the next item
+            self.post_changes(None, None)
+        # Still going
+        return DState.Resetting, msg
 
-    def do_pause(self, steps):
+    def do_rewind(self, steps=None):
         """Start a pause"""
-        if self.state == DState.Running:
-            # Check how many frames we've produced
-            self.last_done = self.hdf5Writer.uniqueId
-            message = "Pausing started"
+        # make some sequences for config
+        plugins = [self.simDetector.stateMachine,
+                   self.positionPlugin.stateMachine]
+        for d in plugins:
+            assert d.state in DState.canAbort(), \
+                "Child device {} in state {} is not abortable"\
+                .format(d, d.state)
+        seq_items = []
+        # if we need to abort
+        if self.simDetector.state not in DState.canConfig() or \
+                self.positionPlugin.state not in DState.canConfig():
+            seq_items += [
+                SeqFunctionItem(
+                    "Stopping simDetector", self.simDetector.abort,
+                    block=False),
+                SeqFunctionItem(
+                    "Stopping positionPlugin", self.positionPlugin.abort,
+                    block=False),
+                SeqTransitionItem(
+                    "Wait for plugins to stop", plugins,
+                    DState.Aborted, DState.rest()),
+                SeqFunctionItem(
+                    "Reset simDetector", self.simDetector.reset,
+                    block=False),
+                SeqFunctionItem(
+                    "Reset positionPlugin", self.positionPlugin.reset,
+                    block=False),
+                SeqTransitionItem(
+                    "Wait for plugins to reset", plugins,
+                    DState.Idle, DState.rest())
+            ]
+        # Add the config stages
+        seq_items += [
+            SeqFunctionItem(
+                "Configuring positionPlugin", self._configure_positionPlugin),
+            SeqFunctionItem(
+                "Configuring simDetector", self._configure_simDetector),
+            SeqTransitionItem(
+                "Wait for plugins to configure", plugins,
+                DState.Ready, DState.rest()),
+        ]
+        # Add a configuring object
+        self._spause = Sequence(self.name + ".SPause", *seq_items)
+        if self.state == DState.Ready:
+            self._post_rewind_state = DState.Ready
         else:
-            assert self.last_done - steps > 0, \
+            self._post_rewind_state = DState.Paused
+        if steps is not None:
+            assert self.currentStep - steps > 0, \
                 "Cannot retrace {} steps as we are only on step {}".format(
-                    steps, self.last_done)
-            self.last_done -= steps
-            message = "Retracing started"
-        self.currentStep = self.last_done
-        # Start sequence
-        self._spause.start()
-        return DState.Pausing, message
+                    steps, self.currentStep)
+            self.currentStep -= steps
+        # Start the sequence
+        item_done, msg = self._spause.start()
+        if item_done:
+            # Arrange for a callback to process the next item
+            self.post_changes(None, None)
+        return DState.Rewinding, msg
 
-    def do_pausesta(self, state, message):
+    def do_rewinding(self, value, changes):
         """Receive run status events and move to next state when finished"""
-        if state in self._spause.rest_states():
-            assert state == self._spause.SeqState.Done, \
-                "Pausing failed: {}".format(message)
-            state = DState.Paused
-        else:
-            state = DState.Pausing
-        return state, message
-
+        running, item_done, msg = self._spause.process(value, changes)
+        if running is False:
+            # Finished
+            return self._post_rewind_state, "Rewinding done"
+        elif item_done:
+            # Arrange for a callback to process the next item
+            self.post_changes(None, None)
+        # Still going
+        return None, msg

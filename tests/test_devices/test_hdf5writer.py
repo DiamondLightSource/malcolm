@@ -13,7 +13,7 @@ import cothread
 
 import logging
 logging.basicConfig()
-# logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 from mock import MagicMock, patch
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -46,16 +46,16 @@ class HdfWriterTest(unittest.TestCase):
             'extraDimSizeY': 1, 'filePath': '/tmp/', 'posNameDimN': 'x',
             'fileWriteMode': 'Stream', 'numExtraDims': 1,
             'extraDimSizeN': 5, 'enableCallbacks': True,
-            'dimAttDatasets': True, 'lazyOpen': True, 'positionMode': True,
+            'dimAttDatasets': True, 'lazyOpen': True,
             'fileTemplate': '%s%s', 'fileName': 'demo.hdf5',
-            'posNameDimX': 'y', 'posNameDimY': '', 'xml': 'something'
-            #"numCapture": 0
+            'posNameDimX': 'y', 'posNameDimY': '', 'xml': 'something',
+            "numCapture": 0
         }
 
     def test_init(self):
-        base = ['prefix', 'uptime', 'block']
+        base = ['prefix', 'readbacks', 'uptime']
         pvs = ['arrayPort', 'capture', 'dimAttDatasets',
-               'dimNames', 'dimSizes', 'dimUnits',
+               'dimNames', 'dimSizes', 'dimUnits', 
                'enableCallbacks', 'extraDimSizeN',
                'extraDimSizeX', 'extraDimSizeY', 'fileName', 'filePath',
                'fileTemplate', 'fileWriteMode', 'lazyOpen', 'ndAttributeChunk',
@@ -78,7 +78,7 @@ class HdfWriterTest(unittest.TestCase):
             self.assertTrue(equal, param)
 
     def check_set(self, attr, expected):
-        self.assertEqual(self.s.attributes[attr].pv.caput.call_count, 1)
+        self.assertEqual(self.s.attributes[attr].pv.caput.call_count, 1, attr)
         call_args = self.s.attributes[attr].pv.caput.call_args
         val = call_args[0][0]
         if attr != "xml":
@@ -105,6 +105,9 @@ class HdfWriterTest(unittest.TestCase):
         cothread.Yield()
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Configuring)
+        self.check_set("positionMode", True)
+        cothread.Yield()
+        self.assertEqual(self.s.stateMachine.message, "Configuring parameters")
         for attr in sorted(self.send_params):
             self.check_set(attr, self.send_params[attr])
         spawned.Wait(1)
@@ -118,40 +121,46 @@ class HdfWriterTest(unittest.TestCase):
       <attribute name="NX_class" source="constant" type="string" value="NXdata"/>
       <attribute name="x_demand_indices" source="constant" type="string" value="0"/>
       <attribute name="y_demand_indices" source="constant" type="string" value="1"/>
-      <dataset det_default="true" name="det1" source="detector">
-        <attribute name="NX_class" source="constant" type="string" value="SDS"/>
-      </dataset>
       <dataset name="x_demand" ndattribute="x" source="ndattribute">
         <attribute name="units" source="constant" type="string" value="mm"/>
       </dataset>
       <dataset name="y_demand" ndattribute="y" source="ndattribute">
         <attribute name="units" source="constant" type="string" value="mm"/>
       </dataset>
+      <dataset det_default="true" name="det1" source="detector">
+        <attribute name="NX_class" source="constant" type="string" value="SDS"/>
+      </dataset>
     </group>
-    <group name="sum">
-      <attribute name="signal" source="constant" type="string" value="sum"/>
-      <attribute name="NX_class" source="constant" type="string" value="NXdata"/>
-      <dataset name="sum" ndattribute="StatsTotal" source="ndattribute"/>
-      <hardlink name="x_demand" target="/entry/data/x_demand"/>
-      <hardlink name="y_demand" target="/entry/data/y_demand"/>
-    </group>
-    <group name="NDAttributes">
+    <group name="NDAttributes" ndattr_default="true">
       <attribute name="NX_class" source="constant" type="string" value="NXcollection"/>
     </group>
   </group>
 </hdf5_layout>
 """
+        """
+    <group name="sum">
+      <attribute name="signal" source="constant" type="string" value="sum"/>
+      <attribute name="NX_class" source="constant" type="string" value="NXdata"/>
+      <dataset name="sum" ndattribute="sum" source="ndattribute"/>
+      <hardlink name="x_demand" target="/entry/data/x_demand"/>
+      <hardlink name="y_demand" target="/entry/data/y_demand"/>
+    </group>
+        """
+
         self.assert_xml(self.s.xml, expected)
+        # check that it validates
         self.assertEqual(self.s.stateMachine.state, DState.Ready)
 
     def set_configured(self):
         # Set all the pvs to the right value
-        for seq_item in self.s._sconfig.seq_items.values():
-            seq_item.check_params = self.send_params.copy()
         for attr in sorted(self.send_params):
             self.s.attributes[attr]._value = self.send_params[attr]
-        self.s.stateMachine.state = DState.Ready
-        self.s._sconfig.stateMachine.state = self.s._sconfig.SeqState.Done
+        self.s.configure(block=False, **self.in_params)
+        cothread.Yield()
+        self.check_set("positionMode", True)
+        Attribute.update(self.s.attributes["xml"], self.s._sconfig.seq_items[1].seq_params["xml"])
+        cothread.Yield()
+        self.assertEqual(self.s.state, DState.Ready)
 
     def test_run(self):
         self.set_configured()
@@ -172,11 +181,8 @@ class HdfWriterTest(unittest.TestCase):
         self.set_configured()
         Attribute.update(self.s.attributes["extraDimSizeN"], 2)
         self.assertEqual(self.s.stateMachine.state, DState.Ready)
-        self.assertEqual(self.s._sconfig.state, self.s._sconfig.SeqState.Done)
         cothread.Yield()
-        self.assertEqual(self.s._sconfig.state, self.s._sconfig.SeqState.Idle)
-        cothread.Yield()
-        self.assertEqual(self.s.stateMachine.state, DState.Fault)
+        self.assertEqual(self.s.stateMachine.state, DState.Idle)
 
     def test_abort(self):
         self.set_configured()
@@ -191,7 +197,6 @@ class HdfWriterTest(unittest.TestCase):
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Aborting)
         self.check_set("capture", 0)
-        Attribute.update(self.s.attributes["capture"], False)
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Aborted)
         spawned.Wait(1)

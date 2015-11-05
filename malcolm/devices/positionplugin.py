@@ -4,17 +4,16 @@ import numpy
 
 from malcolm.core import RunnableDevice, Attribute, wrap_method, PvAttribute, \
     VString, VInt, VBool, DState, VTable, VIntArray, VNumber, Sequence, \
-    SeqAttributeItem
+    SeqAttributeItem, HasConfigSequence
 
 
-class PositionPlugin(RunnableDevice):
+class PositionPlugin(HasConfigSequence, RunnableDevice):
     class_attributes = dict(
         prefix=Attribute(VString, "PV Prefix for device"))
 
     def __init__(self, name, prefix, timeout=None):
         self.prefix = prefix
         super(PositionPlugin, self).__init__(name, timeout)
-        self._make_sconfig()
 
     def add_all_attributes(self):
         super(PositionPlugin, self).add_all_attributes()
@@ -58,29 +57,26 @@ class PositionPlugin(RunnableDevice):
                 p + "PortName_RBV", VString,
                 "Port name of this plugin"),
         )
-        self.add_listener(self.on_running_change, "attributes.running")
+        self.add_listener(self.post_changes, "attributes")
 
-    def on_running_change(self, running, changes):
-        if self.state == DState.Running:
-            self.post_runsta()
-        elif self.state == DState.Aborting:
-            self.post_abortsta()
-
-    def _make_xml(self, positions):
-        # Now calculate dimensionality
+    def _make_dimensions_indexes(self, positions):
         uniq = [sorted(set(data)) for _, _, data, _ in positions]
         dims = [len(pts) for pts in uniq]
         npts = len(positions[0][2])
         if numpy.prod(dims) == npts:
             # If the product of dimensions is the length of the points, we can
             # assume this is a square scan and write it as such
-            self.dimensions = dims
+            dimensions = dims
             indexes = uniq
         else:
             # Non square scan, should be written as long list
-            self.dimensions = [npts]
+            dimensions = [npts]
             indexes = None
+        return dimensions, indexes
+
+    def _make_xml(self, positions):
         # Make xml
+        indexes = self._make_dimensions_indexes(positions)[1]
         root_el = ET.Element("pos_layout")
         dimensions_el = ET.SubElement(root_el, "dimensions")
         names = [column[0] for column in positions]
@@ -88,137 +84,116 @@ class PositionPlugin(RunnableDevice):
             ET.SubElement(dimensions_el, "dimension", name=name)
             if indexes:
                 ET.SubElement(dimensions_el, "dimension", name=name + "_index")
-        ET.SubElement(dimensions_el, "dimension", name="filePluginClose")
+        ET.SubElement(dimensions_el, "dimension", name="FilePluginClose")
         positions_el = ET.SubElement(root_el, "positions")
         data = [column[2] for column in positions]
         for d in zip(*data):
-            attribs = dict(filePluginClose="0")
+            attribs = dict(FilePluginClose="0")
             for n, v in zip(names, d):
                 attribs[n] = str(v)
             if indexes:
                 for i, n, v in zip(indexes, names, d):
                     attribs[n + "_index"] = str(i.index(v))
             last = ET.SubElement(positions_el, "position", **attribs)
-        last.attrib["filePluginClose"] = "1"
+        last.attrib["FilePluginClose"] = "1"
         xml = ET.tostring(root_el)
         return xml
 
-    def _make_sconfig(self):
-        # make some sequences for config
-        s1 = SeqAttributeItem(
-            "Deleting old positions", self.attributes,
-            delete=True,
-        )
-        s1.set_extra(always=["delete"])
-        s2 = SeqAttributeItem(
-            "Configuring positions", self.attributes,
-            xml=None,
-            enableCallbacks=True,
-            **self.validate.arguments  # all the config params
-        )
-        s2.set_extra(always=["xml"])
-        # Add a configuring object
-        self._sconfig = Sequence(self.name + ".Config", s1, s2)
-        self.add_listener(self._sconfig.on_change, "attributes")
-        self._sconfig.add_listener(self.on_sconfig_change, "stateMachine")
-        self.add_loop(self._sconfig)
-
-    def on_sconfig_change(self, sm, changes):
-        if self.state == DState.Configuring:
-            self.post_configsta(sm.state, sm.message)
-        elif self.state == DState.Ready and \
-                sm.state != self._sconfig.SeqState.Done:
-            # TODO: this is unsafe as we might be behind in the queue
-            # should post a "check" instead
-            self.post_error(sm.message)
-        elif self.state == DState.Aborting:
-            self.post_abortsta()
-
-    @wrap_method()
-    def validate(self, positions, idStart=1, arrayPort=None):
+    def _validate_positions(self, positions):
         assert len(positions) in range(1, 4), \
             "Can only do 1..3 position attributes"
-        for name, typ, data, units in positions:
+        for _, typ, data, _ in positions:
             assert issubclass(typ, VNumber), \
                 "Only Number attributes can be stored. Got {}".format(typ)
             assert len(data) > 0, \
                 "Must have at least one position"
-        assert idStart > 0, \
-            "Need idStart {} > 0".format(idStart)
+
+    @wrap_method()
+    def validate(self, positions, idStart=1, arrayPort=None):
+        """Check whether a set of configuration parameters is valid or not. Each
+        parameter name must match one of the names in self.attributes. This set
+        of parameters should be checked in isolation, no device state should be
+        taken into account. It is allowed from any DState and raises an error
+        if the set of configuration parameters is invalid. It should return
+        some metrics on the set of parameters as well as the actual parameters
+        that should be used, e.g.
+        {"runTime": 1.5, arg1=2, arg2="arg2default"}
+        """
+        self._validate_positions(positions)
+        assert idStart > 0, "Need idStart {} > 0".format(idStart)
+        dimensions = self._make_dimensions_indexes(positions)[0]
         return super(PositionPlugin, self).validate(locals())
 
-    def do_config(self, **config_params):
-        """Start doing a configuration using config_params"""
-        assert self._sconfig.state in self._sconfig.rest_states(), \
-            "Can't configure sub-state machine in {} state" \
-            .format(self._sconfig.state)
-        positions = config_params["positions"]
-        config_params.update(xml=self._make_xml(positions))
-        self._sconfig.start(config_params)
-        return DState.Configuring, "Started configuring"
-
-    def do_configsta(self, state, message):
-        """Do the next param in self.config_params, returning
-        DState.Configuring if still in progress, or DState.Ready if done.
-        """
-        if state in self._sconfig.rest_states():
-            assert state == self._sconfig.SeqState.Done, \
-                "Configuring failed: {}".format(message)
-            state = DState.Ready
-        else:
-            state = DState.Configuring
-        return state, message
+    def make_config_sequence(self, **valid_params):
+        """Return a Sequence object that can be used for configuring"""
+        # Add a configuring object
+        sconfig = Sequence(
+            self.name + ".SConfig",
+            SeqAttributeItem(
+                "Deleting old positions", self.attributes,
+                delete=True,
+            ).always_set(["delete"]),
+            SeqAttributeItem(
+                "Configuring positions", self.attributes,
+                enableCallbacks=True,
+                xml=self._make_xml(valid_params["positions"]),
+                **valid_params
+            ).always_set(["xml"])
+        )
+        return sconfig
 
     def do_run(self):
-        """Start doing a run, stopping when it calls back
+        """Start doing a run.
+        Return DState.Running, message when started
         """
         self.running = True
         return DState.Running, "Running started"
 
-    def do_runsta(self):
-        """If acquiring then return
+    def do_running(self, value, changes):
+        """Work out if the changes mean running is complete.
+        Return None, message if it isn't.
+        Return DState.Idle, message if it is and we are all done
+        Return DState.Ready, message if it is and we are partially done
         """
-        if self.running:
+        if "running.value" in changes and not self.running:
+            return DState.Idle, "Running finished"
+        else:
             # No change
             return None, None
-        else:
-            return DState.Idle, "Running finished"
 
     def do_abort(self):
-        """Stop acquisition
+        """Start doing an abort.
+        Return DState.Aborting, message when started
         """
         if self.state == DState.Configuring:
-            if self._sconfig.state not in self._sconfig.rest_states():
-                # Abort configure
-                self._sconfig.abort()
-            else:
-                # Statemachine already done, nothing to do
-                self.post_abortsta()
-        else:
+            # Abort configure
+            self._sconfig.abort()
+        elif self.state == DState.Running:
             # Abort run
             self.running = False
         return DState.Aborting, "Aborting started"
 
-    def do_abortsta(self):
-        """Check we finished
+    def do_aborting(self, value, changes):
+        """Work out if the changes mean aborting is complete.
+        Return None, message if it isn't.
+        Return DState.Aborted, message if it is.
         """
-        if not self.running and \
-                self._sconfig.state in self._sconfig.rest_states():
+        if not self.running and not self._sconfig.running:
             return DState.Aborted, "Aborting finished"
         else:
             # No change
             return None, None
 
     def do_reset(self):
-        """Check and attempt to clear any error state, arranging for a
-        callback doing self.post(DEvent.ResetSta, resetsta) when progress has
-        been made, where resetsta is any device specific reset status
+        """Start doing a reset from aborted or fault state.
+        Return DState.Resetting, message when started
         """
-        self.post_resetsta(None)
+        self.post_resetting(None, None)
         return DState.Resetting, "Resetting started"
 
-    def do_resetsta(self, resetsta):
-        """Examine configsta for configuration progress, returning
-        DState.Resetting if still in progress, or DState.Idle if done.
+    def do_resetting(self, value, changes):
+        """Work out if the changes mean resetting is complete.
+        Return None, message if it isn't.
+        Return DState.Idle, message if it is.
         """
         return DState.Idle, "Resetting finished"

@@ -45,14 +45,15 @@ class PositionPluginTest(unittest.TestCase):
         self.valid_params = dict(
             positions=self.positions, idStart=1,
             resetTimeout=1, runTime=None, runTimeout=1,
-            abortTimeout=1, configureTimeout=1, arrayPort=None)
+            abortTimeout=1, configureTimeout=1, arrayPort=None,
+            dimensions = [3, 5])
         self.send_params = dict(
             enableCallbacks=1,
             idStart=1, xml="something")
-        self.maxDiff = 1000
+        self.maxDiff = 3000
 
     def test_init(self):
-        base = ['prefix', 'uptime', 'block']
+        base = ['prefix', 'uptime']
         pvs = ['arrayPort','delete', 'dimensions', 'enableCallbacks', 'idStart', 'portName','positions',
                'running', 'uniqueId', 'xml']
         self.assertEqual(self.s.attributes.keys(), base + pvs)
@@ -65,6 +66,17 @@ class PositionPluginTest(unittest.TestCase):
     def test_validate(self):
         actual = self.s.validate(**self.in_params)
         self.assertEqual(actual, self.valid_params)
+
+    def set_configured(self):
+        # Set all the pvs to the right value
+        for attr in sorted(self.send_params):
+            self.s.attributes[attr]._value = self.send_params[attr]
+        self.s.configure(block=False, **self.in_params)
+        Attribute.update(self.s.attributes["delete"], True)
+        cothread.Yield()
+        Attribute.update(self.s.attributes["xml"], self.s._sconfig.seq_items[1].seq_params["xml"])
+        cothread.Yield()
+        self.assertEqual(self.s.state, DState.Ready)
 
     def check_set(self, attr, expected):
         self.assertEqual(self.s.attributes[attr].pv.caput.call_count, 1, attr)
@@ -81,19 +93,13 @@ class PositionPluginTest(unittest.TestCase):
         # Yield to let configure run
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Idle)
-        # Yield to let do_config and first do_configsta run
+        # Yield to let do_config run
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Configuring)
-        # Yield to let Config state machine process
-        cothread.Yield()
-        self.assertEqual(self.s._sconfig.state, self.s._sconfig.SeqState.SeqItem1)
-        # Yield to let main stateMachine process
-        cothread.Yield()
         self.assertEqual(self.s.stateMachine.message, "Deleting old positions")
         self.check_set("delete", True)
         # Yield to let this post and then once to let the sm process
         cothread.Yield()
-        self.assertEqual(self.s._sconfig.state, self.s._sconfig.SeqState.SeqItem2)
         for attr in sorted(self.send_params):
             self.check_set(attr, self.send_params[attr])
         spawned.Wait(1)
@@ -104,29 +110,28 @@ class PositionPluginTest(unittest.TestCase):
     <dimension name="y_index"/>
     <dimension name="x"/>
     <dimension name="x_index"/>
-    <dimension name="filePluginClose"/>
+    <dimension name="FilePluginClose"/>
   </dimensions>
   <positions>
-    <position filePluginClose="0" x="0.0" x_index="0" y="0.6" y_index="0"/>
-    <position filePluginClose="0" x="0.1" x_index="1" y="0.6" y_index="0"/>
-    <position filePluginClose="0" x="0.2" x_index="2" y="0.6" y_index="0"/>
-    <position filePluginClose="0" x="0.3" x_index="3" y="0.6" y_index="0"/>
-    <position filePluginClose="0" x="0.4" x_index="4" y="0.6" y_index="0"/>
-    <position filePluginClose="0" x="0.0" x_index="0" y="0.7" y_index="1"/>
-    <position filePluginClose="0" x="0.1" x_index="1" y="0.7" y_index="1"/>
-    <position filePluginClose="0" x="0.2" x_index="2" y="0.7" y_index="1"/>
-    <position filePluginClose="0" x="0.3" x_index="3" y="0.7" y_index="1"/>
-    <position filePluginClose="0" x="0.4" x_index="4" y="0.7" y_index="1"/>
-    <position filePluginClose="0" x="0.0" x_index="0" y="0.8" y_index="2"/>
-    <position filePluginClose="0" x="0.1" x_index="1" y="0.8" y_index="2"/>
-    <position filePluginClose="0" x="0.2" x_index="2" y="0.8" y_index="2"/>
-    <position filePluginClose="0" x="0.3" x_index="3" y="0.8" y_index="2"/>
-    <position filePluginClose="1" x="0.4" x_index="4" y="0.8" y_index="2"/>
+    <position FilePluginClose="0" x="0.0" x_index="0" y="0.6" y_index="0"/>
+    <position FilePluginClose="0" x="0.1" x_index="1" y="0.6" y_index="0"/>
+    <position FilePluginClose="0" x="0.2" x_index="2" y="0.6" y_index="0"/>
+    <position FilePluginClose="0" x="0.3" x_index="3" y="0.6" y_index="0"/>
+    <position FilePluginClose="0" x="0.4" x_index="4" y="0.6" y_index="0"/>
+    <position FilePluginClose="0" x="0.0" x_index="0" y="0.7" y_index="1"/>
+    <position FilePluginClose="0" x="0.1" x_index="1" y="0.7" y_index="1"/>
+    <position FilePluginClose="0" x="0.2" x_index="2" y="0.7" y_index="1"/>
+    <position FilePluginClose="0" x="0.3" x_index="3" y="0.7" y_index="1"/>
+    <position FilePluginClose="0" x="0.4" x_index="4" y="0.7" y_index="1"/>
+    <position FilePluginClose="0" x="0.0" x_index="0" y="0.8" y_index="2"/>
+    <position FilePluginClose="0" x="0.1" x_index="1" y="0.8" y_index="2"/>
+    <position FilePluginClose="0" x="0.2" x_index="2" y="0.8" y_index="2"/>
+    <position FilePluginClose="0" x="0.3" x_index="3" y="0.8" y_index="2"/>
+    <position FilePluginClose="1" x="0.4" x_index="4" y="0.8" y_index="2"/>
   </positions>
 </pos_layout>
 """
         self.assert_xml(self.s.xml, expected)
-        self.assertEqual(self.s._sconfig.state, self.s._sconfig.SeqState.Done)
         self.assertEqual(self.s.stateMachine.state, DState.Ready)
         self.assertTrue(all(self.s.dimensions == [3, 5]))
 
@@ -138,15 +143,6 @@ class PositionPluginTest(unittest.TestCase):
             message = ''.join(difflib.unified_diff(
                 expected.splitlines(True), pretty.splitlines(True)))
             self.fail("Output doesn't match expected: %s\n" % message)
-
-    def set_configured(self):
-        # Set all the pvs to the right value
-        for seq_item in self.s._sconfig.seq_items.values():
-            seq_item.check_params = self.send_params.copy()
-        for attr in sorted(self.send_params):
-            self.s.attributes[attr]._value = self.send_params[attr]
-        self.s.stateMachine.state = DState.Ready
-        self.s._sconfig.stateMachine.state = self.s._sconfig.SeqState.Done
 
     def test_run(self):
         self.set_configured()
@@ -167,11 +163,8 @@ class PositionPluginTest(unittest.TestCase):
         self.set_configured()
         Attribute.update(self.s.attributes["enableCallbacks"], False)
         self.assertEqual(self.s.stateMachine.state, DState.Ready)
-        self.assertEqual(self.s._sconfig.state, self.s._sconfig.SeqState.Done)
         cothread.Yield()
-        self.assertEqual(self.s._sconfig.state, self.s._sconfig.SeqState.Idle)
-        cothread.Yield()
-        self.assertEqual(self.s.stateMachine.state, DState.Fault)
+        self.assertEqual(self.s.stateMachine.state, DState.Idle)
 
     def test_abort(self):
         self.set_configured()
@@ -230,45 +223,46 @@ class PositionPluginTest(unittest.TestCase):
             ("y", VDouble, ys, 'mm'),
         ]
         xml = self.s._make_xml(positions)
-        self.assertEqual(self.s.dimensions, len(xs))
+        dimensions = self.s._make_dimensions_indexes(positions)[0]
+        self.assertEqual(dimensions, [len(xs)])
         expected = """<?xml version="1.0" ?>
 <pos_layout>
   <dimensions>
     <dimension name="x"/>
     <dimension name="y"/>
-    <dimension name="filePluginClose"/>
+    <dimension name="FilePluginClose"/>
   </dimensions>
   <positions>
-    <position filePluginClose="0" x="6.0" y="-4.40872847693e-15"/>
-    <position filePluginClose="0" x="5.56947863188" y="-1.92845174521"/>
-    <position filePluginClose="0" x="4.525500695" y="-3.6050366395"/>
-    <position filePluginClose="0" x="2.97859060897" y="-4.83149156225"/>
-    <position filePluginClose="0" x="1.10582592989" y="-5.45268765837"/>
-    <position filePluginClose="0" x="-0.864850809899" y="-5.38019888777"/>
-    <position filePluginClose="0" x="-2.67917049232" y="-4.61052723651"/>
-    <position filePluginClose="0" x="-4.08827862096" y="-3.23448718721"/>
-    <position filePluginClose="0" x="-4.88460514111" y="-1.43465532069"/>
-    <position filePluginClose="0" x="-4.93738839002" y="0.531222219213"/>
-    <position filePluginClose="0" x="-4.22223426636" y="2.36134163529"/>
-    <position filePluginClose="0" x="-2.8384907795" y="3.7536974523"/>
-    <position filePluginClose="0" x="-1.00848655147" y="4.4581710746"/>
-    <position filePluginClose="0" x="0.945855846735" y="4.32941686101"/>
-    <position filePluginClose="0" x="2.65060608551" y="3.3704864242"/>
-    <position filePluginClose="0" x="3.74872171667" y="1.75550008515"/>
-    <position filePluginClose="0" x="3.98154214242" y="-0.180084848187"/>
-    <position filePluginClose="0" x="3.26763577747" y="-1.98995948875"/>
-    <position filePluginClose="0" x="1.75778060225" y="-3.20967887567"/>
-    <position filePluginClose="0" x="-0.158493951645" y="-3.48191539698"/>
-    <position filePluginClose="0" x="-1.91717711416" y="-2.68949947839"/>
-    <position filePluginClose="0" x="-2.92583905984" y="-1.05468159941"/>
-    <position filePluginClose="0" x="-2.77815591363" y="0.85052730623"/>
-    <position filePluginClose="0" x="-1.48415333532" y="2.23910853466"/>
-    <position filePluginClose="0" x="0.388215253431" y="2.41837337579"/>
-    <position filePluginClose="0" x="1.81306792059" y="1.22733126801"/>
-    <position filePluginClose="0" x="1.80321424653" y="-0.594376954658"/>
-    <position filePluginClose="0" x="0.309071746704" y="-1.53249072941"/>
-    <position filePluginClose="0" x="-1.01982033588" y="-0.544614506768"/>
-    <position filePluginClose="1" x="-0.196997591065" y="0.572540665964"/>
+    <position FilePluginClose="0" x="6.0" y="-4.40872847693e-15"/>
+    <position FilePluginClose="0" x="5.56947863188" y="-1.92845174521"/>
+    <position FilePluginClose="0" x="4.525500695" y="-3.6050366395"/>
+    <position FilePluginClose="0" x="2.97859060897" y="-4.83149156225"/>
+    <position FilePluginClose="0" x="1.10582592989" y="-5.45268765837"/>
+    <position FilePluginClose="0" x="-0.864850809899" y="-5.38019888777"/>
+    <position FilePluginClose="0" x="-2.67917049232" y="-4.61052723651"/>
+    <position FilePluginClose="0" x="-4.08827862096" y="-3.23448718721"/>
+    <position FilePluginClose="0" x="-4.88460514111" y="-1.43465532069"/>
+    <position FilePluginClose="0" x="-4.93738839002" y="0.531222219213"/>
+    <position FilePluginClose="0" x="-4.22223426636" y="2.36134163529"/>
+    <position FilePluginClose="0" x="-2.8384907795" y="3.7536974523"/>
+    <position FilePluginClose="0" x="-1.00848655147" y="4.4581710746"/>
+    <position FilePluginClose="0" x="0.945855846735" y="4.32941686101"/>
+    <position FilePluginClose="0" x="2.65060608551" y="3.3704864242"/>
+    <position FilePluginClose="0" x="3.74872171667" y="1.75550008515"/>
+    <position FilePluginClose="0" x="3.98154214242" y="-0.180084848187"/>
+    <position FilePluginClose="0" x="3.26763577747" y="-1.98995948875"/>
+    <position FilePluginClose="0" x="1.75778060225" y="-3.20967887567"/>
+    <position FilePluginClose="0" x="-0.158493951645" y="-3.48191539698"/>
+    <position FilePluginClose="0" x="-1.91717711416" y="-2.68949947839"/>
+    <position FilePluginClose="0" x="-2.92583905984" y="-1.05468159941"/>
+    <position FilePluginClose="0" x="-2.77815591363" y="0.85052730623"/>
+    <position FilePluginClose="0" x="-1.48415333532" y="2.23910853466"/>
+    <position FilePluginClose="0" x="0.388215253431" y="2.41837337579"/>
+    <position FilePluginClose="0" x="1.81306792059" y="1.22733126801"/>
+    <position FilePluginClose="0" x="1.80321424653" y="-0.594376954658"/>
+    <position FilePluginClose="0" x="0.309071746704" y="-1.53249072941"/>
+    <position FilePluginClose="0" x="-1.01982033588" y="-0.544614506768"/>
+    <position FilePluginClose="1" x="-0.196997591065" y="0.572540665964"/>
   </positions>
 </pos_layout>
 """

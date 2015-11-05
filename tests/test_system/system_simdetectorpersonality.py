@@ -47,11 +47,16 @@ class SimDetectorPersonalityTest(unittest.TestCase):
         self.p.loop_run()
         self.h = Hdf5Writer("H", pre + "HDF5:")
         self.h.loop_run()
+        # Wait for things to get their portName
+        cothread.Sleep(0.5)
+        self.assertNotEqual(self.s.portName, None)
+        self.assertNotEqual(self.p.portName, None)
+        self.assertNotEqual(self.h.portName, None)
         self.sp = SimDetectorPersonality("SP", self.s, self.p, self.h)
         self.sp.loop_run()
         self.positions = [
-            ("y", VDouble, numpy.repeat(numpy.arange(6, 9), 5) * 0.1),
-            ("x", VDouble, numpy.tile(numpy.arange(5), 3) * 0.1),
+            ("y", VDouble, numpy.repeat(numpy.arange(6, 9), 5) * 0.1, 'mm'),
+            ("x", VDouble, numpy.tile(numpy.arange(5), 3) * 0.1, 'mm'),
         ]
         self.in_params = dict(exposure=0.1, positions=self.positions, 
                               hdf5File="/tmp/demo2.hdf5")
@@ -60,18 +65,15 @@ class SimDetectorPersonalityTest(unittest.TestCase):
 
     def test_100_sequences(self):
         for i in range(100):
+            print i
             self.do_sequence()
             cothread.Sleep(random.random())
 
     def do_sequence(self):
-        try:
-            os.remove(self.in_params["hdf5File"])
-        except OSError:
-            pass
         start = time.time()
         self.sp.configure(**self.in_params)
         end = time.time()
-        self.assertAlmostEqual(end - start, 0.0, delta=0.08)
+        self.assertAlmostEqual(end - start, 0.0, delta=0.2)
         self.assertEqual(self.sp.state, DState.Ready)
         self.assertEqual(self.s.state, DState.Ready)
         self.assertEqual(self.p.state, DState.Ready)

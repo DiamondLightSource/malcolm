@@ -53,7 +53,7 @@ class ProgScanTest(unittest.TestCase):
             'm1Alternate': False, 'm3Step': 0.0}
 
     def test_init(self):
-        base = ['prefix', 'uptime', 'block']
+        base = ['prefix', 'uptime']
         pvs = ['progState', 'scanAbort', 'scanStart', 'm1Start', 'm1Step',
                'm1NumPoints', 'm1Dwell', 'm1Alternate', 'm1Order',
                'm1PointsDone', 'm1ScansDone', 'm2Start', 'm2Step',
@@ -70,16 +70,6 @@ class ProgScanTest(unittest.TestCase):
     def test_validate(self):
         actual = self.s.validate(**self.in_params)
         self.assertEqual(actual, self.valid_params)
-
-    def test_mismatch(self):
-        self.set_configured()
-        Attribute.update(self.s.attributes["m1NumPoints"], 2)
-        self.assertEqual(self.s.stateMachine.state, DState.Ready)
-        self.assertEqual(self.s._sconfig.state, self.s._sconfig.SeqState.Done)
-        cothread.Yield()
-        self.assertEqual(self.s._sconfig.state, self.s._sconfig.SeqState.Idle)
-        cothread.Yield()
-        self.assertEqual(self.s.stateMachine.state, DState.Fault)
 
     def check_set(self, attr, expected):
         self.assertEqual(self.s.attributes[attr].pv.caput.call_count, 1)
@@ -106,13 +96,18 @@ class ProgScanTest(unittest.TestCase):
 
     def set_configured(self):
         # Set all the pvs to the right value
-        for seq_item in self.s._sconfig.seq_items.values():
-            seq_item.check_params = self.send_params.copy()
         for attr in sorted(self.send_params):
             self.s.attributes[attr]._value = self.send_params[attr]
-        self.s.stateMachine.state = DState.Ready
-        self.s._sconfig.stateMachine.state = self.s._sconfig.SeqState.Done
-        Attribute.update(self.s.attributes["progState"], "Idle")
+        self.s.configure(block=False, **self.in_params)
+        cothread.Yield()
+        self.assertEqual(self.s.state, DState.Ready)
+
+    def test_mismatch(self):
+        self.set_configured()
+        Attribute.update(self.s.attributes["m1NumPoints"], 2)
+        self.assertEqual(self.s.stateMachine.state, DState.Ready)
+        cothread.Yield()
+        self.assertEqual(self.s.stateMachine.state, DState.Idle)
 
     def test_run(self):
         self.set_configured()
@@ -145,6 +140,7 @@ class ProgScanTest(unittest.TestCase):
         self.assertEqual(self.s.stateMachine.state, DState.Running)
         aspawned = cothread.Spawn(self.s.abort)
         cothread.Yield()
+        Attribute.update(self.s.attributes["progState"], "Idle")
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Aborted)
         spawned.Wait(1)

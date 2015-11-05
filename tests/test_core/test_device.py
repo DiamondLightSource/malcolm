@@ -9,7 +9,7 @@ import time
 import cothread
 import logging
 from mock import MagicMock
-#logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 
 logging.basicConfig()
 # Module import
@@ -80,7 +80,7 @@ class DeviceTest(unittest.TestCase):
         self.d.add_listener(self.callback, "stateMachine")
 
         def pause():
-            cothread.Sleep((npause+0.5)*exposure)
+            cothread.Sleep((npause + 0.5) * exposure)
             pstart = time.time()
             self.d.pause()
             self.ptime = time.time() - pstart
@@ -97,24 +97,25 @@ class DeviceTest(unittest.TestCase):
         start = time.time()
         self.d.run()
         end = time.time()
-        self.assertAlmostEqual(end - start, exposure*(nframes+1) + rdelay, delta=exposure/2)
+        self.assertAlmostEqual(
+            end - start, exposure * (nframes + 1) + rdelay, delta=exposure / 2)
         # let the pause and resumetask finish
         t.Wait()
         self.assertLess(self.ptime, exposure)
         self.assertEqual(self.pstate, DState.Paused)
         self.assertEqual(self.pframes, nframes - npause)
-        self.assertLess(self.rtime, exposure/2)
+        self.assertLess(self.rtime, exposure / 2)
         self.assertEqual(self.rstate, DState.Running)
-        self.assertEqual(self.rframes, nframes-npause)
+        self.assertEqual(self.rframes, nframes - npause)
         expected = [DState.Running] * (npause + 2) + \
-            [DState.Pausing] * 3 + [DState.Paused] + \
+            [DState.Rewinding] * 3 + [DState.Paused] + \
             [DState.Running] * (self.rframes + 1) + [DState.Idle]
         self.assertEqual(self.states, expected)
-        expected = ["Starting run"] + ["Running in progress {}% done".format(i * 100 / nframes) for i in range(npause+1)] + \
+        expected = ["Starting run"] + ["Running in progress {}% done".format(i * 100 / nframes) for i in range(npause + 1)] + \
             ["Pausing started", "Waiting for detector to stop",
                 "Reconfiguring detector for {} frames".format(self.rframes), "Pausing finished"] + ["Starting run"] + \
             ["Running in progress {}% done".format(
-                i * 100 / nframes) for i in range(self.rframes-1, nframes+1)]
+                i * 100 / nframes) for i in range(self.rframes - 1, nframes + 1)]
         self.assertEqual(self.messages, expected)
         self.assertEqual(self.d.sim.nframes, 0)
 
@@ -165,10 +166,11 @@ class DeviceTest(unittest.TestCase):
 
     def test_class_attributes(self):
         self.d.nframes = 3
-        self.assertEqual(len(self.d.attributes), 10)
+        expected = [('single', False), ('uptime', None), ('currentStep', None),
+                    ('stepsPerRun', None), ('totalSteps', None), ('configureSleep', None), ('exposure', None), ('nframes', 3)]
+#        self.assertEqual(len(self.d.attributes), len(expected))
         items = [(k, v.value) for k, v in self.d.attributes.items()]
-        self.assertEqual(items, [('single', False), ('uptime', None), ('block', None), ('currentStep', None), (
-            'retraceSteps', None), ('stepsPerRun', None), ('totalSteps', None), ('configureSleep', None), ('exposure', None), ('nframes', 3)])
+        self.assertEqual(items, expected)
 
     def test_uptime(self):
         self.assertEqual(self.d.uptime, None)
@@ -176,8 +178,10 @@ class DeviceTest(unittest.TestCase):
         self.assertEqual(self.d.uptime, 1)
 
     def test_error_message(self):
-        self.assertRaisesRegexp(AssertionError, "Arguments not supplied: \['exposure'\]", self.d.configure, nframes=10)
-        self.assertRaisesRegexp(AssertionError, "Unknown arguments supplied: \['foo'\]", self.d.configure, nframes=10, exposure=0.1, foo="bar")        
+        self.assertRaisesRegexp(
+            AssertionError, "Arguments not supplied: \['exposure'\]", self.d.configure, nframes=10)
+        self.assertRaisesRegexp(
+            AssertionError, "Unknown arguments supplied: \['foo'\]", self.d.configure, nframes=10, exposure=0.1, foo="bar")
 
     def test_del_called_when_out_of_scope(self):
         exc = MagicMock()

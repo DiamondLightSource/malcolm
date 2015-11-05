@@ -3,17 +3,19 @@ from xml.etree import ElementTree as ET
 
 from malcolm.core import RunnableDevice, Attribute, PvAttribute, DState, \
     wrap_method, VString, VEnum, VInt, VBool, Sequence, \
-    SeqAttributeItem, VStringArray, VIntArray
+    SeqAttributeItem, VStringArray, VIntArray, HasConfigSequence
 
 
-class Hdf5Writer(RunnableDevice):
+class Hdf5Writer(HasConfigSequence, RunnableDevice):
     class_attributes = dict(
-        prefix=Attribute(VString, "PV Prefix for device"))
+        prefix=Attribute(VString, "PV Prefix for device"),
+        readbacks=Attribute(VBool, "Whether this detector produces position "
+                            "readbacks rather than data"))
 
-    def __init__(self, name, prefix, timeout=None):
+    def __init__(self, name, prefix, readbacks=False, timeout=None):
         self.prefix = prefix
+        self.readbacks = readbacks
         super(Hdf5Writer, self).__init__(name, timeout)
-        self._make_sconfig()
 
     def add_all_attributes(self):
         super(Hdf5Writer, self).add_all_attributes()
@@ -127,60 +129,20 @@ class Hdf5Writer(RunnableDevice):
                 p + "PortName_RBV", VString,
                 "Port name of this plugin"),
         )
-        self.add_listener(self.on_capture_change, "attributes.capture")
-        self.add_listener(self.on_writestatus_change,
-                          "attributes.writeStatus.value")
-
-    def on_capture_change(self, capture, changes):
-        if self.state == DState.Running:
-            self.post_runsta()
-        elif self.state == DState.Aborting:
-            self.post_abortsta()
-
-    def on_writestatus_change(self, writestatus, changes):
-        if writestatus == "Error" and self.state not in DState.rest():
-            print "**post error"
-            self.post_error(self.writeMessage)
-
-    def _make_sconfig(self):
-        # make some sequences for config
-        s1 = SeqAttributeItem(
-            "Configuring parameters", self.attributes,
-            enableCallbacks=True,
-            fileWriteMode="Stream",
-            fileTemplate="%s%s",
-            ndAttributeChunk=True,
-            swmrMode=True,
-            positionMode=True,
-            dimAttDatasets=True,
-            lazyOpen=True,
-            xml=None,
-            numExtraDims=None,
-            posNameDimN=None, extraDimSizeN=None,
-            posNameDimX=None, extraDimSizeX=None,
-            posNameDimY=None, extraDimSizeY=None,
-            # numCapture=0,
-            **self.validate.arguments  # all the config params
-        )
-        s1.set_extra(always=["capture"])
-        # Add a configuring object
-        self._sconfig = Sequence(self.name + ".Config", s1)
-        self.add_listener(self._sconfig.on_change, "attributes")
-        self._sconfig.add_listener(self.on_sconfig_change, "stateMachine")
-        self.add_loop(self._sconfig)
-
-    def on_sconfig_change(self, sm, changes):
-        if self.state == DState.Configuring:
-            self.post_configsta(sm.state, sm.message)
-        elif self.state == DState.Ready and \
-                sm.state != self._sconfig.SeqState.Done:
-            self.post_error(sm.message)
-        elif self.state == DState.Aborting:
-            self.post_abortsta()
+        self.add_listener(self.post_changes, "attributes")
 
     @wrap_method()
     def validate(self, filePath, fileName, dimNames, dimSizes,
                  dimUnits=None, arrayPort=None):
+        """Check whether a set of configuration parameters is valid or not. Each
+        parameter name must match one of the names in self.attributes. This set
+        of parameters should be checked in isolation, no device state should be
+        taken into account. It is allowed from any DState and raises an error
+        if the set of configuration parameters is invalid. It should return
+        some metrics on the set of parameters as well as the actual parameters
+        that should be used, e.g.
+        {"runTime": 1.5, arg1=2, arg2="arg2default"}
+        """
         assert os.path.isdir(filePath), \
             "{} is not a directory".format(filePath)
         assert "." in fileName, \
@@ -205,6 +167,7 @@ class Hdf5Writer(RunnableDevice):
         entry_el = ET.SubElement(root_el, "group", name="entry")
         ET.SubElement(entry_el, "attribute", name="NX_class",
                       source="constant", value="NXentry", type="string")
+        # Make a dataset for the data
         data_el = ET.SubElement(entry_el, "group", name="data")
         ET.SubElement(data_el, "attribute", name="signal", source="constant",
                       value="det1", type="string")
@@ -215,46 +178,66 @@ class Hdf5Writer(RunnableDevice):
                       value=",".join(pad_dims), type="string")
         ET.SubElement(data_el, "attribute", name="NX_class", source="constant",
                       value="NXdata", type="string")
+        # Add in the indices into the dimensions array that our axes refer to
         for i, dim in enumerate(dimNames):
             ET.SubElement(data_el, "attribute",
                           name="{}_demand_indices".format(dim),
                           source="constant", value=str(i), type="string")
-        det1_el = ET.SubElement(data_el, "dataset", name="det1",
-                                source="detector", det_default="true")
-        ET.SubElement(det1_el, "attribute", name="NX_class",
-                      source="constant", value="SDS", type="string")
+        # Add in our demand positions
         for dim, units in zip(dimNames, dimUnits):
             axis_el = ET.SubElement(
                 data_el, "dataset", name="{}_demand".format(dim),
                 source="ndattribute", ndattribute=dim)
             ET.SubElement(axis_el, "attribute", name="units",
                           source="constant", value=units, type="string")
-        sum_el = ET.SubElement(entry_el, "group", name="sum")
-        ET.SubElement(sum_el, "attribute", name="signal", source="constant",
-                      value="sum", type="string")
-        ET.SubElement(sum_el, "attribute", name="NX_class", source="constant",
-                      value="NXdata", type="string")
-        ET.SubElement(sum_el, "dataset", name="sum", source="ndattribute",
-                      ndattribute="StatsTotal")
+        if self.readbacks:
+            # Add in our readback values
+            for dim, units in zip(dimNames, dimUnits):
+                axis_el = ET.SubElement(
+                    data_el, "dataset", name="{}_readback".format(dim),
+                    source="ndattribute", ndattribute="{}_rbv".format(dim))
+                ET.SubElement(axis_el, "attribute", name="units",
+                              source="constant", value=units, type="string")
+            # Our figure of merit is the delta
+            merit = "delta"
+        else:
+            # Add in the actual data array
+            det1_el = ET.SubElement(data_el, "dataset", name="det1",
+                                    source="detector", det_default="true")
+            ET.SubElement(det1_el, "attribute", name="NX_class",
+                          source="constant", value="SDS", type="string")
+            merit = "sum"
+        # Now add some figure of merit
+        """
+        merit_el = ET.SubElement(entry_el, "group", name=merit)
+        ET.SubElement(merit_el, "attribute", name="signal", source="constant",
+                      value=merit, type="string")
+        ET.SubElement(merit_el, "attribute", name="NX_class",
+                      source="constant", value="NXdata", type="string")
+        ET.SubElement(merit_el, "dataset", name=merit, source="ndattribute",
+                      ndattribute=merit)
         for dim in dimNames:
-            ET.SubElement(sum_el, "hardlink", name="{}_demand".format(dim),
+            ET.SubElement(merit_el, "hardlink", name="{}_demand".format(dim),
                           target="/entry/data/{}_demand".format(dim))
-        NDAttributes_el = ET.SubElement(entry_el, "group", name="NDAttributes")
+        """
+        NDAttributes_el = ET.SubElement(entry_el, "group", name="NDAttributes",
+                                        ndattr_default="true")
         ET.SubElement(NDAttributes_el, "attribute", name="NX_class",
                       source="constant", value="NXcollection", type="string")
-        xml = ET.tostring(root_el)
+        xml = '<?xml version="1.0" ?>' + ET.tostring(root_el)
         return xml
 
-    def do_config(self, **config_params):
-        """Start doing a configuration using config_params"""
-        assert self._sconfig.state in self._sconfig.rest_states(), \
-            "Can't configure sub-state machine in {} state" \
-            .format(self._sconfig.state)
-        self.capture = False
+    def make_config_sequence(self, **config_params):
+        """Return a Sequence object that can be used for configuring"""
+        # Make sure we aren't capturing
+        if self.capture:
+            self.capture = False
+        # Calculate posNames
         dimNames = config_params["dimNames"]
         dimSizes = config_params["dimSizes"]
+        dimUnits = config_params["dimUnits"]
         config_params.update(
-            xml=self._make_xml(dimNames, config_params["dimUnits"]),
+            xml=self._make_xml(dimNames, dimUnits),
             numExtraDims=len(dimNames) - 1
         )
         # pad dimNames and sizes
@@ -265,72 +248,82 @@ class Hdf5Writer(RunnableDevice):
             posNameDimX=dimNames[1], extraDimSizeX=dimSizes[1],
             posNameDimY=dimNames[2], extraDimSizeY=dimSizes[2],
         )
-        self._sconfig.start(config_params)
-        return DState.Configuring, "Started configuring"
-
-    def do_configsta(self, state, message):
-        """Do the next param in self.config_params, returning
-        DState.Configuring if still in progress, or DState.Ready if done.
-        """
-        if state in self._sconfig.rest_states():
-            assert state == self._sconfig.SeqState.Done, \
-                "Configuring failed: {}".format(message)
-            state = DState.Ready
-        else:
-            state = DState.Configuring
-        return state, message
+        # make some sequences for config
+        # Add a configuring object
+        sconfig = Sequence(
+            self.name + ".SConfig",
+            SeqAttributeItem(
+                "Configuring positional placement", self.attributes,
+                positionMode=True,
+            ),
+            SeqAttributeItem(
+                "Configuring parameters", self.attributes,
+                enableCallbacks=True,
+                fileWriteMode="Stream",
+                fileTemplate="%s%s",
+                ndAttributeChunk=True,
+                swmrMode=True,
+                dimAttDatasets=True,
+                lazyOpen=True,
+                numCapture=0,
+                **config_params
+            ),
+        )
+        return sconfig
 
     def do_run(self):
-        """Start doing a run, stopping when it calls back
+        """Start doing a run.
+        Return DState.Running, message when started
         """
         self.capture = True
         return DState.Running, "Running started"
 
-    def do_runsta(self):
-        """If acquiring then return
+    def do_running(self, value, changes):
+        """Work out if the changes mean running is complete.
+        Return None, message if it isn't.
+        Return DState.Idle, message if it is and we are all done
+        Return DState.Ready, message if it is and we are partially done
         """
-        if self.capture:
+        if "capture.value" in changes and not self.capture:
+            return DState.Idle, "Running finished"
+        else:
             # No change
             return None, None
-        else:
-            return DState.Idle, "Running finished"
 
     def do_abort(self):
-        """Stop acquisition
+        """Start doing an abort.
+        Return DState.Aborting, message when started
         """
         if self.state == DState.Configuring:
-            if self._sconfig.state not in self._sconfig.rest_states():
-                # Abort configure
-                self._sconfig.abort()
-            else:
-                # Statemachine already done, nothing to do
-                self.post_abortsta()
-        else:
+            # Abort configure
+            self._sconfig.abort()
+        elif self.state == DState.Running:
             # Abort run
             self.capture = False
         return DState.Aborting, "Aborting started"
 
-    def do_abortsta(self):
-        """Check we finished
+    def do_aborting(self, value, changes):
+        """Work out if the changes mean aborting is complete.
+        Return None, message if it isn't.
+        Return DState.Aborted, message if it is.
         """
-        if not self.capture and \
-                self._sconfig.state in self._sconfig.rest_states():
+        if not self.capture and not self._sconfig.running:
             return DState.Aborted, "Aborting finished"
         else:
             # No change
             return None, None
 
     def do_reset(self):
-        """Check and attempt to clear any error state, arranging for a
-        callback doing self.post(DEvent.ResetSta, resetsta) when progress has
-        been made, where resetsta is any device specific reset status
+        """Start doing a reset from aborted or fault state.
+        Return DState.Resetting, message when started
         """
         self.capture = False
-        self.post_resetsta(None)
+        self.post_resetting(None, None)
         return DState.Resetting, "Resetting started"
 
-    def do_resetsta(self, resetsta):
-        """Examine configsta for configuration progress, returning
-        DState.Resetting if still in progress, or DState.Idle if done.
+    def do_resetting(self, value, changes):
+        """Work out if the changes mean resetting is complete.
+        Return None, message if it isn't.
+        Return DState.Idle, message if it is.
         """
         return DState.Idle, "Resetting finished"

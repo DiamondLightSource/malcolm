@@ -49,7 +49,7 @@ class SimDetectorTest(unittest.TestCase):
         start = time.time()
         self.s.configure(**self.in_params)
         end = time.time()
-        self.assertAlmostEqual(end - start, 0.05, delta=0.05)
+        self.assertAlmostEqual(end - start, 0, delta=0.05)
         for attr, val in self.send_params.items():
             actual = self.s.attributes[attr].value
             self.assertEqual(actual, val, "Attr {} = {} not {}".format(attr, actual, val))

@@ -1,4 +1,10 @@
 #!/bin/env dls-python
+import os
+import subprocess
+os.environ["EPICS_CA_SERVER_PORT"] = "6064"
+ioc = "/dls_sw/work/R3.14.12.3/support/mapping/iocs/TS-EA-IOC-02/bin/linux-x86_64/stTS-EA-IOC-02.sh"
+ioc = subprocess.Popen([ioc, "512", "512"], stdin=subprocess.PIPE)
+
 import sys
 sys.path.append(
     "/home/tmc43/common/python/cothread/prefix/lib/python2.7/site-packages")

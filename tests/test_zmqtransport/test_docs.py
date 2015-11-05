@@ -64,25 +64,25 @@ class DummyZebra(RunnableDevice):
     def do_abort(self):
         pass
 
-    def do_abortsta(self):
+    def do_aborting(self):
         pass
 
     def do_config(self):
         pass
 
-    def do_configsta(self):
+    def do_configuring(self):
         pass
 
     def do_reset(self):
         pass
 
-    def do_resetsta(self):
+    def do_resetting(self):
         pass
 
     def do_run(self):
         pass
 
-    def do_runsta(self):
+    def do_running(self):
         pass
 
 

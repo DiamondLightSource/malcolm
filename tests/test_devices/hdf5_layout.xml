@@ -1,0 +1,32 @@
+<?xml version="1.0" ?>
+<hdf5_layout>
+  <group name="entry">
+    <attribute name="NX_class" source="constant" type="string" value="NXentry"/>
+    <group name="data">
+      <attribute name="signal" source="constant" type="string" value="det1"/>
+      <attribute name="axes" source="constant" type="string" value="x_demand,y_demand,.,.,."/>
+      <attribute name="NX_class" source="constant" type="string" value="NXdata"/>
+      <attribute name="x_demand_indices" source="constant" type="string" value="0"/>
+      <attribute name="y_demand_indices" source="constant" type="string" value="1"/>
+      <dataset det_default="true" name="det1" source="detector">
+        <attribute name="NX_class" source="constant" type="string" value="SDS"/>
+      </dataset>
+      <dataset name="x_demand" ndattribute="x" source="ndattribute">
+        <attribute name="units" source="constant" type="string" value="mm"/>
+      </dataset>
+      <dataset name="y_demand" ndattribute="y" source="ndattribute">
+        <attribute name="units" source="constant" type="string" value="mm"/>
+      </dataset>
+    </group>
+    <group name="merit">
+      <attribute name="signal" source="constant" type="string" value="merit"/>
+      <attribute name="NX_class" source="constant" type="string" value="NXdata"/>
+      <dataset name="merit" ndattribute="FigureOfMerit" source="ndattribute"/>
+      <hardlink name="x_demand" target="/entry/data/x_demand"/>
+      <hardlink name="y_demand" target="/entry/data/y_demand"/>
+    </group>
+    <group name="NDAttributes">
+      <attribute name="NX_class" source="constant" type="string" value="NXcollection"/>
+    </group>
+  </group>
+</hdf5_layout>

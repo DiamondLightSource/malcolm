@@ -47,7 +47,7 @@ class SimDetectorTest(unittest.TestCase):
                             'period': 0.1, 'numImages': 2}
 
     def test_init(self):
-        base = ['prefix', 'uptime', 'block']
+        base = ['prefix', 'uptime']
         pvs = ['acquire', 'arrayCallbacks', 'arrayCounter', 'exposure',
                'imageMode', 'numImages', 'period', 'portName']
         self.assertEqual(self.s.attributes.keys(), base + pvs)
@@ -60,15 +60,19 @@ class SimDetectorTest(unittest.TestCase):
         actual = self.s.validate(**self.in_params)
         self.assertEqual(actual, self.valid_params)
 
+    def set_configured(self):
+        # Set all the pvs to the right value
+        for attr in sorted(self.send_params):
+            self.s.attributes[attr]._value = self.send_params[attr]
+        self.s.configure(**self.in_params)
+        self.assertEqual(self.s.state, DState.Ready)
+
     def test_mismatch(self):
         self.set_configured()
         Attribute.update(self.s.attributes["arrayCallbacks"], False)
-        self.assertEqual(self.s.stateMachine.state, DState.Ready)
-        self.assertEqual(self.s._sconfig.state, self.s._sconfig.SeqState.Done)
+        self.assertEqual(self.s.state, DState.Ready)
         cothread.Yield()
-        self.assertEqual(self.s._sconfig.state, self.s._sconfig.SeqState.Idle)
-        cothread.Yield()
-        self.assertEqual(self.s.stateMachine.state, DState.Fault)
+        self.assertEqual(self.s.state, DState.Idle)
 
     def check_set(self, attr, expected):
         self.assertEqual(self.s.attributes[attr].pv.caput.call_count, 1)
@@ -83,32 +87,24 @@ class SimDetectorTest(unittest.TestCase):
         spawned = cothread.Spawn(self.s.configure, **self.in_params)
         # Yield to let configure run
         cothread.Yield()
-        self.assertEqual(self.s.stateMachine.state, DState.Idle)
-        # Yield to let do_config and first do_configsta run
+        self.assertEqual(self.s.state, DState.Idle)
+        # Yield to let do_config run
         cothread.Yield()
-        cothread.Yield()
-        self.assertEqual(self.s.stateMachine.state, DState.Configuring)
+        self.assertEqual(self.s.state, DState.Configuring)
         for attr in sorted(self.send_params):
             self.check_set(attr, self.send_params[attr])
         spawned.Wait(1)
         self.assertEqual(self.s.stateMachine.state, DState.Ready)
 
-    def set_configured(self):
-        # Set all the pvs to the right value
-        for seq_item in self.s._sconfig.seq_items.values():
-            seq_item.check_params = self.send_params.copy()
-        for attr in sorted(self.send_params):
-            self.s.attributes[attr]._value = self.send_params[attr]
-        self.s.stateMachine.state = DState.Ready
-        self.s._sconfig.stateMachine.state = self.s._sconfig.SeqState.Done
-
     def test_run(self):
         self.set_configured()
-        # Do a run
         spawned = cothread.Spawn(self.s.run)
+        # Yield to let run run
         cothread.Yield()
+        self.assertEqual(self.s.state, DState.Ready)
+        # Yield to let do_run run
         cothread.Yield()
-        self.assertEqual(self.s.stateMachine.state, DState.Running)
+        self.assertEqual(self.s.state, DState.Running)
         self.check_set("acquire", 1)
         self.assertEqual(self.s.acquire, 1)
         Attribute.update(self.s.attributes["acquire"], False)
