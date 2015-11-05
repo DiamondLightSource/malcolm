@@ -89,7 +89,7 @@ class SimDetectorPersonalityTest(unittest.TestCase):
             0.1, self.numImages, None)
         self.positionPlugin.validate.assert_called_once_with(self.positions)
         self.hdf5Writer.validate.assert_called_once_with(
-            '/tmp', 'demo.hdf5', ['y_index', 'x_index'], [3, 5], ['mm', 'mm'])
+            '/tmp', 'demo.hdf5', ['y', 'x'], [3, 5], ['mm', 'mm'])
 
     def set_state(self, child, state):
         child.state = state

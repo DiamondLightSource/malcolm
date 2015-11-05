@@ -131,21 +131,19 @@ class HdfWriterTest(unittest.TestCase):
         <attribute name="NX_class" source="constant" type="string" value="SDS"/>
       </dataset>
     </group>
+    <group name="NDArrayUniqueId">
+      <attribute name="signal" source="constant" type="string" value="NDArrayUniqueId"/>
+      <attribute name="NX_class" source="constant" type="string" value="NXdata"/>
+      <dataset name="NDArrayUniqueId" ndattribute="NDArrayUniqueId" source="ndattribute"/>
+      <hardlink name="x_demand" target="/entry/data/x_demand"/>
+      <hardlink name="y_demand" target="/entry/data/y_demand"/>
+    </group>
     <group name="NDAttributes" ndattr_default="true">
       <attribute name="NX_class" source="constant" type="string" value="NXcollection"/>
     </group>
   </group>
 </hdf5_layout>
 """
-        """
-    <group name="sum">
-      <attribute name="signal" source="constant" type="string" value="sum"/>
-      <attribute name="NX_class" source="constant" type="string" value="NXdata"/>
-      <dataset name="sum" ndattribute="sum" source="ndattribute"/>
-      <hardlink name="x_demand" target="/entry/data/x_demand"/>
-      <hardlink name="y_demand" target="/entry/data/y_demand"/>
-    </group>
-        """
 
         self.assert_xml(self.s.xml, expected)
         # check that it validates
