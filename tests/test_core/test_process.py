@@ -127,7 +127,7 @@ class ProcessTest(unittest.TestCase):
         cothread.Yield()
         self.assertIsNot(self.s.send, None)
         self.s.send.assert_called_once_with(
-            SType.Value, d.methods["run"].to_dict(), changes=dict(descriptor="new desc"))
+            SType.Value, d.methods["run"], changes=dict(descriptor="new desc"))
         self.s.send.reset_mock()
         self.s.inq.Signal((SType.Unsubscribe, {}))
         # Yield to let socket recv

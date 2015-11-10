@@ -15,11 +15,14 @@ class JsonPresenter(Presenter):
         self.camel_re = re.compile("[a-z]([a-z0-9]*)([A-Z]+[a-z0-9]*)*$")
 
     def normalize(self, d):
-        # Check camelcase in keys
-        for key in d.keys():
+        for key, value in d.items():
+            # Check camelcase in keys
             match = self.camel_re.match(key)
             if not match:
                 self.log_warning("Key {} isn't camelCase".format(key))
+            # pop None values
+            if value is None:
+                d.pop(key)
         if "timeStamp" in d:
             timeStamp = d["timeStamp"]
             ts = OrderedDict(secondsPastEpoch=int(timeStamp))

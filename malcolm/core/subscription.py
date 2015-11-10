@@ -27,14 +27,8 @@ class ServerSubscription(EventLoop):
         pass
 
     def post(self, value, changes):
-        # fix value
-        # TODO: should traverse down the levels
-        if hasattr(value, "to_dict"):
-            fix_value = value.to_dict()
-        else:
-            fix_value = value
         super(ServerSubscription, self).post(
-            value, SType.Value, fix_value, changes=changes)
+            value, SType.Value, value, changes=changes)
 
     def loop_stop(self, *args, **kwargs):
         super(ServerSubscription, self).loop_stop()

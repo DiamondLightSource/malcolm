@@ -44,7 +44,12 @@ class HasMethods(Base):
 def wrap_method(only_in=None, arguments_from=None, **attributes):
     """Provide a wrapper function that checks types"""
     def decorator(function):
-        return Method(function, only_in, arguments_from, **attributes)
+        assert inspect.isfunction(function), \
+            "Expected function, got {}".format(function)
+        name = function.__name__
+        descriptor = function.__doc__
+        return Method(name, descriptor, function, only_in,
+                      arguments_from, **attributes)
     return decorator
 
 
@@ -52,14 +57,13 @@ class Method(Base):
     """Class representing a callable method"""
     _endpoints = "name,descriptor,arguments,validStates".split(",")
 
-    def __init__(self, function, valid_states=None, arguments_from=None,
-                 **attributes):
-        assert inspect.isfunction(function), \
-            "Expected function, got {}".format(function)
+    def __init__(self, name, descriptor, function, valid_states=None,
+                 arguments_from=None, **attributes):
         # Set the name and docstring from the _actual_ function
-        super(Method, self).__init__(function.__name__)
-        self.descriptor = function.__doc__
+        super(Method, self).__init__(name)
+        self.descriptor = descriptor
         self.function = function
+        functools.update_wrapper(self, self.function)
         if valid_states is None or type(valid_states) in (list, tuple):
             self.valid_states = valid_states
         else:
@@ -68,7 +72,6 @@ class Method(Base):
             except TypeError:
                 self.valid_states = [valid_states]
         self.arguments_from = arguments_from
-        functools.update_wrapper(self, function)
         self.device = None
         self.attributes = attributes
 
@@ -92,9 +95,6 @@ class Method(Base):
         return args, default_d
 
     def describe(self, device, attributes):
-        # TODO:
-        # This is more elegant
-        # http://stackoverflow.com/questions/306130/python-decorator-makes-function-forget-that-it-belongs-to-a-class#307263
         self.attributes.update(attributes)
         self.device = weakref.proxy(device)
         # If arguments_from then get the arguments from another named member
@@ -161,7 +161,8 @@ class Method(Base):
                 else:
                     missing.append(arg)
         assert len(missing) == 0, \
-            "Arguments not supplied: {}, you gave me {}".format(missing, kwargs)
+            "Arguments not supplied: {}, you gave me {}".format(
+                missing, kwargs)
         # Now report extras
         extras = [x for x in sorted(kwargs) if x not in self.arguments]
         assert len(extras) == 0, \
@@ -177,3 +178,16 @@ class Method(Base):
         else:
             valid_states = []
         return super(Method, self).to_dict(validStates=valid_states)
+
+
+class ClientMethod(Method):
+
+    def describe(self, device, attributes):
+        self.device = weakref.proxy(device)
+        # attributes here are arguments
+        self.arguments = OrderedDict()
+        for name, arg in attributes.items():
+            a = Attribute(arg["type"], arg["descriptor"],
+                          value=arg.get("value", None), name=name,
+                          tags=arg.get("tags", []))
+            self.arguments[name] = a

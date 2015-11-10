@@ -77,14 +77,14 @@ class AttributeTest(unittest.TestCase):
 
     def test_to_dict(self):
         d = self.s.to_dict()
-        self.assertEqual(d.keys(), ['type', 'descriptor'])
-        self.assertEqual(d.values(), [VString(), 'The String'])
+        self.assertEqual(d.keys(), ['value', 'type', 'tags', 'descriptor', 'alarm', 'timeStamp'])
+        self.assertEqual(d.values(), [ None,  VString(),  None,  'The String', None,  None, ])
         self.s.update("wow", timeStamp=3.2)
         d = self.s.to_dict()
         self.assertEqual(
-            d.keys(), ['value', 'type', 'descriptor', 'alarm', 'timeStamp'])
+            d.keys(), ['value', 'type', 'tags', 'descriptor', 'alarm', 'timeStamp'])
         self.assertEqual(
-            d.values(), ['wow', VString(), 'The String', Alarm.ok(), 3.2])
+            d.values(), ['wow', VString(), None, 'The String', Alarm.ok(), 3.2])
 
     def test_lists(self):
         a = Attribute(VStringArray, "List of strings")

@@ -82,7 +82,8 @@ class Process(Device, multiprocessing.Process):
         # Set the name and create a Method wrapper for it
         f.__name__ = "create{}".format(cls.__name__)
         class_attributes = getattr(cls, "class_attributes", {})
-        method = Method(f, arguments_from=cls.__init__)
+        method = Method("create{}".format(cls.__name__), cls.__doc__, f,
+                        arguments_from=cls.__init__)
         self.add_method(method, name=Attribute(VString, "Device name"),
                         timeout=Attribute(VDouble, "Timeout for any process"),
                         **class_attributes)
@@ -114,7 +115,8 @@ class Process(Device, multiprocessing.Process):
                 labels = getattr(
                     self.ds, "instances{}".format(ia.dcls.__name__), [])
                 if tuple(labels) != ia.typ.labels:
-                    ia.update_type(VObject(labels, weak_method(self.get_device)))
+                    ia.update_type(
+                        VObject(labels, weak_method(self.get_device)))
 
     def get_device(self, device, serverStrings=None):
         """Create a weak reference to a new DeviceClient object (or existing)

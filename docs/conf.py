@@ -93,27 +93,23 @@ def which(name, flags=os.X_OK):
 here = os.path.abspath(os.path.dirname(__file__))
 
 if not which("plantuml"):
-    # download plantuml
+    # For github
+    print "download plantuml..."
     import urllib
     here_plantuml = os.path.join(here, "plantuml_downloaded.jar")
     url = "http://downloads.sourceforge.net/project/plantuml/plantuml.8031.jar?r=http%3A%2F%2Fplantuml.com%2Fdownload.html&ts=1446734489&use_mirror=kent"
     urllib.urlretrieve(url, here_plantuml)
-    # download java
+    print "download java..."
     import subprocess
     here_jre_tar = os.path.join(here, "jre.tar.gz")
     url = "http://download.oracle.com/otn-pub/java/jdk/8u65-b17/jre-8u65-linux-x64.tar.gz"
     subprocess.call(["curl", "-v", "-j", "-k", "-L", "-H", "Cookie: oraclelicense=accept-securebackup-cookie", url, "-o", here_jre_tar])
-    # unzip java
+    print "unzip java..."
     subprocess.call(["/bin/tar", "xvzf", here_jre_tar])
     here_jre = os.path.join(here, "jre1.8.0_65")
-    print os.listdir(here_jre)
     os.environ["JAVA_HOME"] = here_jre
     plantuml = '%s/bin/java -Dplantuml.include.path=%s/.. -jar %s' % (here_jre, here, here_plantuml)
-    print os.listdir("/usr/bin")
-    print os.listdir("/bin")
-    print os.listdir("/opt")
-    print os.listdir(here)
-    print here
+    print "done prep plantuml"
 
 autodoc_member_order = 'bysource'
 

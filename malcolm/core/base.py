@@ -4,8 +4,6 @@ import weakref
 import functools
 from collections import OrderedDict
 
-import numpy
-
 
 class Base(object):
     __metaclass__ = ABCMeta
@@ -37,8 +35,9 @@ class Base(object):
                 val = overrides[endpoint]
             else:
                 val = getattr(self, endpoint)
-            if type(val).__module__ == numpy.__name__ or \
-                    val not in ([], {}, (), None):
+            if val in ([], {}, (), None):
+                d[endpoint] = None
+            else:
                 d[endpoint] = val
         return d
 

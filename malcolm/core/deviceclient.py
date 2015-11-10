@@ -12,6 +12,7 @@ from .alarm import Alarm
 from .subscription import ClientSubscription
 from .method import HasMethods
 from .vtype import VBool
+from malcolm.core.method import ClientMethod
 
 
 class ValueQueue(ILoop):
@@ -32,7 +33,7 @@ class ValueQueue(ILoop):
     def wait_for_return(self, timeout=None):
         event, d = self.inq.Wait(timeout)
         if event == SType.Return:
-            return d["value"]
+            return d.get("value", None)
         elif event == SType.Error:
             raise AssertionError(d["message"])
         else:
@@ -118,10 +119,8 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
                 self.do_subscribe(update, "stateMachine")
         # Update methods
         for mname, mdata in structure.get("methods", {}).items():
-            f = functools.partial(weak_method(self.do_call), mname)
-            f.__doc__ = mdata.get("descriptor", mname)
-            f.func_name = str(mname)
-            setattr(self, mname, f)
+            m = self.make_method(mname, mdata)
+            self.add_method(m, **mdata.get("arguments", {}))
         self.deviceClientConnected = True
         self.log_info("Device connected")
 
@@ -133,6 +132,13 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
         el = ClientSubscription(self.sock, endpoint, callback)
         self.add_loop(el)
         return el
+
+    def make_method(self, mname, mdata):
+        def f(self, *args, **kwargs):
+            return self.do_call(mname, *args, **kwargs)
+        m = ClientMethod(mname, mdata.get("descriptor", mname), f,
+                         mdata.get("valid_states", None))
+        return m
 
     def do_call(self, method, *args, **kwargs):
         # Call a method on this device

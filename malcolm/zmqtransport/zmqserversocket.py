@@ -32,7 +32,7 @@ class ZmqServerSocket(ZmqSocket, ServerSocket):
         if (zmq_id, _id) not in self._send_functions:
             self = weakref.proxy(self)
 
-            def send(typ, value=None, **kwargs):
+            def send(typ, value=None, changes={}, **kwargs):
                 kwargs = OrderedDict(id=_id)
                 if typ == SType.Error:
                     kwargs.update(message=value.message)
@@ -40,6 +40,11 @@ class ZmqServerSocket(ZmqSocket, ServerSocket):
                     if hasattr(value, "to_dict"):
                         value = value.to_dict()
                     kwargs.update(value=value)
+                    # ensure changes are propogated
+                    for k, v in changes.items():
+                        # TODO: traverse down
+                        if hasattr(value, "keys") and "." not in k:
+                            value[k] = v
                 msg = self.serialize(typ, kwargs)
                 try:
                     self.send([zmq_id, msg])
