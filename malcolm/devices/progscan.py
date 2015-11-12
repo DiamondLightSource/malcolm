@@ -150,7 +150,7 @@ class ProgScan(HasConfigSequence, RunnableDevice):
         elif self.state == DState.Running:
             # Abort run
             self.scanAbort = True
-            self.post_changes(None, None)
+        self.post_changes(None, None)
         return DState.Aborting, "Aborting started"
 
     def do_aborting(self, value, changes):
@@ -158,7 +158,7 @@ class ProgScan(HasConfigSequence, RunnableDevice):
         Return None, message if it isn't.
         Return DState.Aborted, message if it is.
         """
-        if self.progState != "Scanning" and not self._sconfig.running:
+        if self.progState != "Scanning":
             return DState.Aborted, "Aborting finished"
         else:
             # No change
@@ -169,7 +169,7 @@ class ProgScan(HasConfigSequence, RunnableDevice):
         Return DState.Resetting, message when started
         """
         self.scanAbort = True
-        self.post_resetting(None, None)
+        self.post_changes(None, None)
         return DState.Resetting, "Resetting started"
 
     def do_resetting(self, value, changes):

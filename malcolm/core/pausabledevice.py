@@ -4,6 +4,7 @@ from .method import wrap_method
 from .attribute import Attribute
 from .runnabledevice import RunnableDevice, DState, DEvent
 from .vtype import VInt, VBool
+import time
 
 
 class PausableDevice(RunnableDevice):
@@ -92,6 +93,9 @@ class PausableDevice(RunnableDevice):
          * If the user aborts then it will return a DState.Aborted Status
          * If something goes wrong it will return a DState.Fault Status
         """
+        assert self.currentStep - steps > 0, \
+            "Cannot rewind {} steps as we are only on step {}".format(
+                steps, self.currentStep)
         self.post_rewind(steps)
         if block:
             timeout = self._get_default_times("rewind")
@@ -109,3 +113,31 @@ class PausableDevice(RunnableDevice):
         if block:
             timeout = self._get_default_times("resume")
             self.wait_until(DState.doneResume(), timeout=timeout)
+
+    @wrap_method(only_in=DState.Ready,
+                 block=Attribute(VBool, "Wait for function to complete?"))
+    def run(self, block=True):
+        """Start a configured device running. It blocks until the device is in a
+        rest state:
+         * Normally it will return a DState.Idle Status
+         * If the device allows many runs from a single configure the it
+           will return a DState.Ready Status
+         * If the user aborts then it will return a DState.Aborted Status
+         * If something goes wrong it will return a DState.Fault Status
+        """
+        self.post_run()
+        if block:
+            typical = self._get_default_times()["runTime"]
+            extra = self._get_default_times("run") - typical
+            while True:
+                todo = 1 - float(self.currentStep) / self.totalSteps
+                timeout = typical * todo + extra
+                self.wait_until(
+                    DState.rest() + [DState.Paused], timeout=timeout)
+                if self.state in DState.rest():
+                    return
+                else:
+                    self.wait_until(DState.rest() + [DState.Running],
+                                    timeout=None)
+                    if self.state != DState.Running:
+                        return

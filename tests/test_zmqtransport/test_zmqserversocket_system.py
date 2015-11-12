@@ -33,12 +33,7 @@ class ZmqServerSocketProcTest(unittest.TestCase):
         pass
 
     def test_send_func(self):
-        self.cs.send(['{"type": "Call", "id": 0, "endpoint": "zebra.run"}'])
-        # This will do the actual send, then fail with timeout
-        try:
-            self.cs.recv(timeout=0.01)
-        except ZMQError:
-            pass
+        self.cs.sock.send_multipart(['{"type": "Call", "id": 0, "endpoint": "zebra.run"}'])
         typ, args, kwargs = self.inq.Wait(timeout=0.1)
         self.assertEqual(typ, SType.Call)
         self.assertEqual(kwargs, OrderedDict(endpoint="zebra.run"))

@@ -108,8 +108,7 @@
               }
             }, 
             "validStates": [
-              "Ready", 
-              "Paused"
+              "Ready"
             ]
           }, 
           "validate": {

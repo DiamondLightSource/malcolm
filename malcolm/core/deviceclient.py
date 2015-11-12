@@ -76,7 +76,7 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
         self.descriptor = structure.get("descriptor", "")
         self.tags = structure.get("tags", [])
         # Update attributes
-        self.attributes = {}
+        self.attributes = OrderedDict()
         # Add connection attribute
         self.add_attributes(
             deviceClientConnected=Attribute(VBool, "Is device reponsive?"))
@@ -120,7 +120,7 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
         # Update methods
         for mname, mdata in structure.get("methods", {}).items():
             m = self.make_method(mname, mdata)
-            self.add_method(m, **mdata.get("arguments", {}))
+            self.add_method(m)
         self.deviceClientConnected = True
         self.log_info("Device connected")
 
@@ -136,8 +136,12 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
     def make_method(self, mname, mdata):
         def f(self, *args, **kwargs):
             return self.do_call(mname, *args, **kwargs)
+        valid_states = mdata.get("validStates", None)
+        if valid_states:
+            valid_states = [DState.__members__[s] for s in valid_states]
         m = ClientMethod(mname, mdata.get("descriptor", mname), f,
-                         mdata.get("valid_states", None))
+                         valid_states)
+        m.in_arguments = mdata.get("arguments", {})
         return m
 
     def do_call(self, method, *args, **kwargs):
@@ -169,6 +173,8 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
             # Device inactive for 5s, must be dead
             self.log_info("Device inactive, reconnecting")
             self.deviceClientConnected = False
+            for attr in self.attributes.values():
+                attr.update(alarm=Alarm.disconnected())
             self._reconnect()
         elif self._last_uptime >= self.uptime:
             self._uptime_static += 1

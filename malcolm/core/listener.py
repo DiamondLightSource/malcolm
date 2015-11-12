@@ -62,7 +62,7 @@ class HasListeners(Base):
                 value = self.get_endpoint(prefix)
                 for callback in listeners:
                     cname = getattr(callback, "__name__", "callback")
-                    # self.log_debug("Calling {}({}, {})"
+                    # self.log_error("Calling {}({}, {})"
                     #                .format(cname, value, filt_changes))
                     try:
                         callback(value, filt_changes)

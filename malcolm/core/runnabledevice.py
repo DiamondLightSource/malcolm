@@ -17,6 +17,7 @@ class RunnableDevice(ConfigurableDevice):
 
         # Ready
         t(s.Ready,       e.Changes,   do.ready,     s.Ready, s.Idle)
+        t(s.Ready,       e.Config,    do.config,    s.Configuring)
         t(s.Ready,       e.Run,       do.run,       s.Running)
         # Running
         t(s.Running,     e.Changes,   do.running,   s.Running, s.Idle, s.Ready)
@@ -53,7 +54,7 @@ class RunnableDevice(ConfigurableDevice):
         # Now just return superclass result
         return super(RunnableDevice, self)._get_default_times(funcname)
 
-    @wrap_method(only_in=DState.canRun(),
+    @wrap_method(only_in=DState.Ready,
                  block=Attribute(VBool, "Wait for function to complete?"))
     def run(self, block=True):
         """Start a configured device running. It blocks until the device is in a

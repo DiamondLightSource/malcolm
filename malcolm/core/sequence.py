@@ -141,7 +141,8 @@ class SeqTransitionItem(SeqItem):
                     continue
                 if actual in self.rest:
                     assert actual in self.desired, \
-                        "Expected {} in {}".format(actual, self.desired)
+                        "{}: Expected {}, got {}" \
+                        .format(ob.name, self.desired, actual)
                     self.obs_todo.remove(ob)
                     break
         if self.obs_todo:

@@ -186,7 +186,7 @@ class ClientMethod(Method):
         self.device = weakref.proxy(device)
         # attributes here are arguments
         self.arguments = OrderedDict()
-        for name, arg in attributes.items():
+        for name, arg in self.in_arguments.items():
             a = Attribute(arg["type"], arg["descriptor"],
                           value=arg.get("value", None), name=name,
                           tags=arg.get("tags", []))

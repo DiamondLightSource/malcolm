@@ -69,12 +69,12 @@ These devices are available:
 Type self.get_device("<device_name>") to get a device client
 Try:
 det = self.get_device("det")
-probe(det)
+gui(det)
 det.configure(exposure=0.1, nframes=10)
 det.run()
 """.format(self.ds_string, all_devices)
     import numpy
-    from malcolm import probe
+    from malcolm import gui, probe
     try:
         import IPython
     except ImportError:

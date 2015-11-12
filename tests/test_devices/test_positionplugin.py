@@ -6,6 +6,7 @@ import difflib
 require("mock")
 require("pyzmq")
 import unittest
+import numpy
 import sys
 import re
 import os
@@ -21,7 +22,7 @@ from mock import MagicMock, patch
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.devices import PositionPlugin
-from malcolm.core import Attribute, PvAttribute, VDouble
+from malcolm.core import Attribute, PvAttribute, VDouble, VInt
 
 
 class DummyPVAttribute(PvAttribute):
@@ -40,13 +41,14 @@ class PositionPluginTest(unittest.TestCase):
         self.positions = [
             ("y", VDouble, np.repeat(np.arange(6, 9), 5) * 0.1, 'mm'),
             ("x", VDouble, np.tile(np.arange(5), 3) * 0.1, 'mm'),
+            ("y_index", VInt, np.repeat(np.arange(3, dtype=numpy.int32), 5), ''),
+            ("x_index", VInt, np.tile(np.arange(5, dtype=numpy.int32), 3), '')
         ]
         self.in_params = dict(positions=self.positions)
         self.valid_params = dict(
             positions=self.positions, idStart=1,
             resetTimeout=1, runTime=None, runTimeout=1,
-            abortTimeout=1, configureTimeout=1, arrayPort=None,
-            dimensions = [3, 5])
+            abortTimeout=1, configureTimeout=1, arrayPort=None)
         self.send_params = dict(
             enableCallbacks=1,
             idStart=1, xml="something")
@@ -54,7 +56,7 @@ class PositionPluginTest(unittest.TestCase):
 
     def test_init(self):
         base = ['prefix', 'uptime']
-        pvs = ['arrayPort','delete', 'dimensions', 'enableCallbacks', 'idStart', 'portName','positions',
+        pvs = ['arrayPort','delete', 'enableCallbacks', 'idStart', 'portName','positions',
                'running', 'uniqueId', 'xml']
         self.assertEqual(self.s.attributes.keys(), base + pvs)
         self.assertEqual(self.s.prefix, "PRE")
@@ -107,8 +109,8 @@ class PositionPluginTest(unittest.TestCase):
 <pos_layout>
   <dimensions>
     <dimension name="y"/>
-    <dimension name="y_index"/>
     <dimension name="x"/>
+    <dimension name="y_index"/>
     <dimension name="x_index"/>
     <dimension name="FilePluginClose"/>
   </dimensions>
@@ -133,7 +135,6 @@ class PositionPluginTest(unittest.TestCase):
 """
         self.assert_xml(self.s.xml, expected)
         self.assertEqual(self.s.stateMachine.state, DState.Ready)
-        self.assertTrue(all(self.s.dimensions == [3, 5]))
 
     def assert_xml(self, xml, expected):
         pretty = minidom.parseString(xml).toprettyxml(indent="  ")
@@ -184,89 +185,6 @@ class PositionPluginTest(unittest.TestCase):
         self.assertEqual(self.s.stateMachine.state, DState.Aborted)
         spawned.Wait(1)
         aspawned.Wait(1)
-
-    def test_non_square(self):
-        xs = []
-        ys = []
-        v = 2.0  # velocity in units/s
-        period = 1.0  # time between points in s
-        revs = 3  # number of revolutions in spiral
-        r = 2.0  # radius increase for one turn
-        # start from the outside and work inwards as it gives
-        # us a better speed approximation
-        theta = revs * 2 * np.pi
-        while theta > 0:
-            xs.append(r * theta * np.cos(theta) / 2 / np.pi)
-            ys.append(r * theta * np.sin(theta) / 2 / np.pi)
-            # This is the speed in radians/s
-            w = v * 2 * np.pi / (theta * r)
-            # Increments by next v
-            theta -= w * period
-        xs = np.array(xs)
-        ys = np.array(ys)
-        # These are the points zipped together
-        pts = np.array((xs, ys)).T
-        # Diff between successive points
-        d = np.diff(pts, axis=0)
-        # Euclidean difference between points
-        segdists = np.sqrt((d ** 2).sum(axis=1))
-        #from pkg_resources import require
-        # require("matplotlib")
-        #import pylab
-        #pylab.plot(xs, ys, ".")
-        # pylab.show()
-        # pylab.plot(segdists)
-        # pylab.show()
-        # make a table of positions from it
-        positions = [
-            ("x", VDouble, xs, 'mm'),
-            ("y", VDouble, ys, 'mm'),
-        ]
-        xml = self.s._make_xml(positions)
-        dimensions = self.s._make_dimensions_indexes(positions)[0]
-        self.assertEqual(dimensions, [len(xs)])
-        expected = """<?xml version="1.0" ?>
-<pos_layout>
-  <dimensions>
-    <dimension name="x"/>
-    <dimension name="y"/>
-    <dimension name="FilePluginClose"/>
-  </dimensions>
-  <positions>
-    <position FilePluginClose="0" x="6.0" y="-4.40872847693e-15"/>
-    <position FilePluginClose="0" x="5.56947863188" y="-1.92845174521"/>
-    <position FilePluginClose="0" x="4.525500695" y="-3.6050366395"/>
-    <position FilePluginClose="0" x="2.97859060897" y="-4.83149156225"/>
-    <position FilePluginClose="0" x="1.10582592989" y="-5.45268765837"/>
-    <position FilePluginClose="0" x="-0.864850809899" y="-5.38019888777"/>
-    <position FilePluginClose="0" x="-2.67917049232" y="-4.61052723651"/>
-    <position FilePluginClose="0" x="-4.08827862096" y="-3.23448718721"/>
-    <position FilePluginClose="0" x="-4.88460514111" y="-1.43465532069"/>
-    <position FilePluginClose="0" x="-4.93738839002" y="0.531222219213"/>
-    <position FilePluginClose="0" x="-4.22223426636" y="2.36134163529"/>
-    <position FilePluginClose="0" x="-2.8384907795" y="3.7536974523"/>
-    <position FilePluginClose="0" x="-1.00848655147" y="4.4581710746"/>
-    <position FilePluginClose="0" x="0.945855846735" y="4.32941686101"/>
-    <position FilePluginClose="0" x="2.65060608551" y="3.3704864242"/>
-    <position FilePluginClose="0" x="3.74872171667" y="1.75550008515"/>
-    <position FilePluginClose="0" x="3.98154214242" y="-0.180084848187"/>
-    <position FilePluginClose="0" x="3.26763577747" y="-1.98995948875"/>
-    <position FilePluginClose="0" x="1.75778060225" y="-3.20967887567"/>
-    <position FilePluginClose="0" x="-0.158493951645" y="-3.48191539698"/>
-    <position FilePluginClose="0" x="-1.91717711416" y="-2.68949947839"/>
-    <position FilePluginClose="0" x="-2.92583905984" y="-1.05468159941"/>
-    <position FilePluginClose="0" x="-2.77815591363" y="0.85052730623"/>
-    <position FilePluginClose="0" x="-1.48415333532" y="2.23910853466"/>
-    <position FilePluginClose="0" x="0.388215253431" y="2.41837337579"/>
-    <position FilePluginClose="0" x="1.81306792059" y="1.22733126801"/>
-    <position FilePluginClose="0" x="1.80321424653" y="-0.594376954658"/>
-    <position FilePluginClose="0" x="0.309071746704" y="-1.53249072941"/>
-    <position FilePluginClose="0" x="-1.01982033588" y="-0.544614506768"/>
-    <position FilePluginClose="1" x="-0.196997591065" y="0.572540665964"/>
-  </positions>
-</pos_layout>
-"""
-        self.assert_xml(xml, expected)
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

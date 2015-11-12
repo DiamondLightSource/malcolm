@@ -8,7 +8,7 @@ import unittest
 import sys
 import os
 import cothread
-import numpy
+import numpy as np
 
 import logging
 logging.basicConfig()
@@ -18,13 +18,13 @@ from mock import MagicMock, patch
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.personalities import SimDetectorPersonality
-from malcolm.core import VDouble
+from malcolm.core import VDouble, VInt
 
 
-class boolean_ndarray(numpy.ndarray):
+class boolean_ndarray(np.ndarray):
 
     def __eq__(self, other):
-        return numpy.array_equal(self, other)
+        return np.array_equal(self, other)
 
 
 class SimDetectorPersonalityTest(unittest.TestCase):
@@ -40,8 +40,12 @@ class SimDetectorPersonalityTest(unittest.TestCase):
                                         self.positionPlugin, self.hdf5Writer)
         self.s.loop_run()
         self.positions = [
-            ("y", VDouble, numpy.repeat(numpy.arange(6, 9), 5) * 0.1, 'mm'),
-            ("x", VDouble, numpy.tile(numpy.arange(5), 3) * 0.1, 'mm'),
+            ("y", VDouble, np.repeat(np.arange(6, 9), 5) * 0.1, 'mm'),
+            ("x", VDouble, np.tile(np.arange(5), 3) * 0.1, 'mm'),
+        ]
+        self.valid_positions = self.positions + [
+            ("y_index", VInt, np.repeat(np.arange(3, dtype=np.int32), 5).view(boolean_ndarray), ''),
+            ("x_index", VInt, np.tile(np.arange(5, dtype=np.int32), 3).view(boolean_ndarray), '')
         ]
         self.in_params = dict(exposure=0.1, positions=self.positions,
                               hdf5File="/tmp/demo.hdf5")
@@ -53,7 +57,7 @@ class SimDetectorPersonalityTest(unittest.TestCase):
                                  hdf5File='/tmp/demo.hdf5',
                                  pauseTimeout=1,
                                  period=0.1,
-                                 positions=self.positions,
+                                 positions=self.valid_positions,
                                  resetTimeout=1,
                                  resumeTimeout=1,
                                  rewindTimeout=1,
@@ -64,8 +68,8 @@ class SimDetectorPersonalityTest(unittest.TestCase):
         self.simDetector.validate.return_value = dict(
             runTime=self.numImages * 0.1, runTimeout=(self.numImages + 1) * 0.1,
             period=0.1)
-        self.positionPlugin.validate.return_value = dict(
-            dimensions=[3, 5])
+        #self.positionPlugin.validate.return_value = dict(
+        #    dimensions=[3, 5])
         self.hdf5Writer.validate.return_value = dict(
             filePath='/tmp', fileName='demo.hdf5',
             dimNames=['y_index', 'x_index'], dimSizes=[3, 5],
@@ -87,9 +91,9 @@ class SimDetectorPersonalityTest(unittest.TestCase):
         self.assertEqual(actual, self.valid_params)
         self.simDetector.validate.assert_called_once_with(
             0.1, self.numImages, None)
-        self.positionPlugin.validate.assert_called_once_with(self.positions)
+        self.positionPlugin.validate.assert_called_once_with(self.valid_positions)
         self.hdf5Writer.validate.assert_called_once_with(
-            '/tmp', 'demo.hdf5', ['y', 'x'], [3, 5], ['mm', 'mm'])
+            '/tmp', 'demo.hdf5', ['y', 'x'], ['mm', 'mm'], ['y_index', 'x_index'], [3, 5])
 
     def set_state(self, child, state):
         child.state = state
@@ -120,7 +124,7 @@ class SimDetectorPersonalityTest(unittest.TestCase):
         self.simDetector.configure.assert_called_once_with(
             0.1, self.numImages, 0.1, 0, block=False)
         self.positionPlugin.configure.assert_called_once_with(
-            self.positions, 1, self.simDetector.portName, block=False)
+            self.valid_positions, 1, self.simDetector.portName, block=False)
         self.hdf5Writer.configure.assert_called_once_with(
             filePath='/tmp', fileName='demo.hdf5',
             dimNames=['y_index', 'x_index'], dimSizes=[3, 5],
@@ -319,7 +323,7 @@ class SimDetectorPersonalityTest(unittest.TestCase):
             0.1, self.numImages - currentstep, 0.1, currentstep, block=False)
         self.simDetector.configure.reset_mock()
         positions = []
-        for n, t, d, u in self.positions:
+        for n, t, d, u in self.valid_positions:
             positions.append([n, t, d[currentstep:].view(boolean_ndarray), u])
         self.positionPlugin.configure.assert_called_once_with(
             positions, currentstep + 1, self.simDetector.portName, block=False)
@@ -337,6 +341,48 @@ class SimDetectorPersonalityTest(unittest.TestCase):
         then = time.time()
         self.assertLess(then - now, 0.05)
 
+    def test_non_square(self):
+        xs = []
+        ys = []
+        v = 2.0  # velocity in units/s
+        period = 1.0  # time between points in s
+        revs = 3  # number of revolutions in spiral
+        r = 2.0  # radius increase for one turn
+        # start from the outside and work inwards as it gives
+        # us a better speed approximation
+        theta = revs * 2 * np.pi
+        while theta > 0:
+            xs.append(r * theta * np.cos(theta) / 2 / np.pi)
+            ys.append(r * theta * np.sin(theta) / 2 / np.pi)
+            # This is the speed in radians/s
+            w = v * 2 * np.pi / (theta * r)
+            # Increments by next v
+            theta -= w * period
+        xs = np.array(xs)
+        ys = np.array(ys)
+        # These are the points zipped together
+        pts = np.array((xs, ys)).T
+        # Diff between successive points
+        d = np.diff(pts, axis=0)
+        # Euclidean difference between points
+        segdists = np.sqrt((d ** 2).sum(axis=1))
+        #from pkg_resources import require
+        # require("matplotlib")
+        #import pylab
+        #pylab.plot(xs, ys, ".")
+        # pylab.show()
+        # pylab.plot(segdists)
+        # pylab.show()
+        # make a table of positions from it
+        positions = [
+            ("x", VDouble, xs, 'mm'),
+            ("y", VDouble, ys, 'mm'),
+        ]
+        dimensions, valid_positions = self.s._add_position_indexes(positions)
+        self.assertEqual(dimensions, [len(xs)])
+        self.assertEqual(len(valid_positions), 3)
+        self.assertEqual(valid_positions[2][0], "n_index")
+        self.assertTrue(np.array_equal(valid_positions[2][2], np.arange(len(xs), dtype=np.int32)))
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

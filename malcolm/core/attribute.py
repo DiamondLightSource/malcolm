@@ -129,7 +129,7 @@ class Attribute(Base):
             else:
                 return self.typ.value_equal(value, self.value)
 
-    def update(self, value, alarm=None, timeStamp=None):
+    def update(self, value=None, alarm=None, timeStamp=None):
         changes = {}
         # Assert type
         if value is not None:

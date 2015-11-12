@@ -23,11 +23,13 @@ class Hdf5Writer(HasConfigSequence, RunnableDevice):
         self.add_attributes(
             # Configure
             dimNames=Attribute(
-                VStringArray, "List of names of dimensions to write"),
-            dimSizes=Attribute(
-                VIntArray, "List of sizes of dimensions"),
+                VStringArray, "List of names of positioners to write"),
             dimUnits=Attribute(
-                VStringArray, "List of units for dimensions (defaults to mm)"),
+                VStringArray, "List of units for positioners (defaults to mm)"),
+            indexNames=Attribute(
+                VStringArray, "List of names of dimension attributes to write"),
+            indexSizes=Attribute(
+                VIntArray, "List of sizes of dimensions"),
             enableCallbacks=PvAttribute(
                 p + "EnableCallbacks", VBool,
                 "Enable plugin to run when we get a new frame",
@@ -132,8 +134,8 @@ class Hdf5Writer(HasConfigSequence, RunnableDevice):
         self.add_listener(self.post_changes, "attributes")
 
     @wrap_method()
-    def validate(self, filePath, fileName, dimNames, dimSizes,
-                 dimUnits=None, arrayPort=None):
+    def validate(self, filePath, fileName, dimNames, dimUnits, indexNames,
+                 indexSizes, arrayPort=None):
         """Check whether a set of configuration parameters is valid or not. Each
         parameter name must match one of the names in self.attributes. This set
         of parameters should be checked in isolation, no device state should be
@@ -149,17 +151,18 @@ class Hdf5Writer(HasConfigSequence, RunnableDevice):
             "File extension for {} should be supplied".format(fileName)
         if filePath[-1] != os.sep:
             filePath += os.sep
-        assert len(dimNames) == len(dimSizes), \
-            "Mismatch in sizes of dimNames {} and dimSizes {}" \
-            .format(dimNames, dimSizes)
-        if dimUnits is None:
-            dimUnits = ["mm" for x in dimNames]
-        else:
-            assert len(dimNames) == len(dimUnits), \
-                "Mismatch in sizes of dimNames {} and dimUnits {}" \
-                .format(dimNames, dimUnits)
+        # validate positioner dimensions
+        assert len(dimNames) == len(dimUnits), \
+            "Mismatch in sizes of indexNames {} and dimUnits {}" \
+            .format(dimNames, dimUnits)
         assert len(dimNames) > 0, \
             "Need >0 dimNames, got {}".format(dimNames)
+        # validate indexes
+        assert len(indexNames) == len(indexSizes), \
+            "Mismatch in sizes of dimNames {} and indexSizes {}" \
+            .format(indexNames, indexSizes)        
+        assert len(indexNames) <= 3, \
+            "Need <=3 indexNames, got {}".format(indexNames)
         return super(Hdf5Writer, self).validate(locals())
 
     def _make_xml(self, dimNames, dimUnits):
@@ -230,22 +233,22 @@ class Hdf5Writer(HasConfigSequence, RunnableDevice):
         # Make sure we aren't capturing
         if self.capture:
             self.capture = False
-        # Calculate posNames
+        # Calculate dimNames
         dimNames = config_params["dimNames"]
-        dimSizes = config_params["dimSizes"]
         dimUnits = config_params["dimUnits"]
+        indexNames = config_params["indexNames"]
+        indexSizes = config_params["indexSizes"]
         config_params.update(
             xml=self._make_xml(dimNames, dimUnits),
-            numExtraDims=len(dimNames) - 1
+            numExtraDims=len(indexNames) - 1
         )
-        # pad dimNames and sizes
-        dimNames = [x + "_index" for x in dimNames]
-        dimNames += [''] * (3 - len(dimNames))
-        dimSizes = list(dimSizes) + [1] * (3 - len(dimSizes))
+        # pad indexNames (indexes) and sizes
+        indexNames += [''] * (3 - len(indexNames))
+        indexSizes = list(indexSizes) + [1] * (3 - len(indexSizes))
         config_params.update(
-            posNameDimN=dimNames[0], extraDimSizeN=dimSizes[0],
-            posNameDimX=dimNames[1], extraDimSizeX=dimSizes[1],
-            posNameDimY=dimNames[2], extraDimSizeY=dimSizes[2],
+            posNameDimN=indexNames[0], extraDimSizeN=indexSizes[0],
+            posNameDimX=indexNames[1], extraDimSizeX=indexSizes[1],
+            posNameDimY=indexNames[2], extraDimSizeY=indexSizes[2],
         )
         # make some sequences for config
         # Add a configuring object
@@ -283,6 +286,7 @@ class Hdf5Writer(HasConfigSequence, RunnableDevice):
         Return DState.Idle, message if it is and we are all done
         Return DState.Ready, message if it is and we are partially done
         """
+        assert self.writeStatus == "Ok", self.writeMessage
         if "capture.value" in changes and not self.capture:
             return DState.Idle, "Running finished"
         else:
@@ -299,6 +303,7 @@ class Hdf5Writer(HasConfigSequence, RunnableDevice):
         elif self.state == DState.Running:
             # Abort run
             self.capture = False
+        self.post_changes(None, None)
         return DState.Aborting, "Aborting started"
 
     def do_aborting(self, value, changes):
@@ -306,7 +311,7 @@ class Hdf5Writer(HasConfigSequence, RunnableDevice):
         Return None, message if it isn't.
         Return DState.Aborted, message if it is.
         """
-        if not self.capture and not self._sconfig.running:
+        if not self.capture:
             return DState.Aborted, "Aborting finished"
         else:
             # No change
@@ -317,7 +322,7 @@ class Hdf5Writer(HasConfigSequence, RunnableDevice):
         Return DState.Resetting, message when started
         """
         self.capture = False
-        self.post_resetting(None, None)
+        self.post_changes(None, None)
         return DState.Resetting, "Resetting started"
 
     def do_resetting(self, value, changes):

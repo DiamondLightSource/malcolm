@@ -42,6 +42,13 @@ class Alarm(Base):
     def ok(cls):
         return cls(AlarmSeverity.noAlarm, AlarmStatus.noStatus, "No alarm")
 
+    @classmethod
+    def disconnected(cls):
+        return cls(AlarmSeverity.invalidAlarm, AlarmStatus.Comm, "Disconnected")
+
+    def __repr__(self):
+        return "<{}: {}>".format(self.severity.name, self.status.name)
+
     def __eq__(self, other):
         if isinstance(other, Alarm):
             equal = self.severity == other.severity

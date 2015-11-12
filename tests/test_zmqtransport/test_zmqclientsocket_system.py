@@ -46,12 +46,7 @@ class ZmqClientSocketProcTest(unittest.TestCase):
         response = MagicMock()
         self.cs.request(response, SType.Call, dict(endpoint="zebra1.run"))
         ss_msg = self.ss.recv()
-        self.ss.send([ss_msg[0], '{"type": "Return", "id": 0, "value": 32}'])
-        # This will do the actual send, then fail with timeout
-        try:
-            self.ss.recv(timeout=0.01)
-        except ZMQError:
-            pass
+        self.ss.sock.send_multipart([ss_msg[0], '{"type": "Return", "id": 0, "value": 32}'])
         cothread.Sleep(0.2)
         response.assert_called_once_with(SType.Return, value=32)
 

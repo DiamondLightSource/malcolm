@@ -49,7 +49,7 @@ class ZmqServerSocket(ZmqSocket, ServerSocket):
                 try:
                     self.send([zmq_id, msg])
                 except zmq.ZMQError as error:
-                    if error.errno not in (zmq.ENOTSUP, zmq.EHOSTUNREACH):
+                    if error.errno not in (zmq.ENOTSUP, zmq.EHOSTUNREACH, zmq.EHOSTUNREACH):
                         raise
                     # Unsubscribe all things with this zmq id
                     sends = []

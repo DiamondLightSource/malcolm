@@ -8,7 +8,7 @@ import numpy
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.core.vtype import VDouble, VInt, VFloat, VType, VString, VStringArray, VEnum, VNumber,\
-    VTable, VFloatArray, VDoubleArray
+    VTable, VFloatArray, VDoubleArray, VIntArray
 
 
 class AttributeTest(unittest.TestCase):
@@ -19,6 +19,16 @@ class AttributeTest(unittest.TestCase):
 
     def test_vfloat_from_int(self):
         self.assertEqual(VFloat().validate(32), 32.0)
+
+    def test_vfloat_from_string(self):
+        self.assertEqual(VFloat().validate("32.0"), 32.0)
+
+    def test_vint_from_vlong(self):
+        self.assertEqual(VInt().validate(numpy.arange(1)[0]), 0)
+
+    def test_vintarray_from_long_array(self):
+        cast = VIntArray().validate(numpy.arange(10, dtype=numpy.int32))
+        self.assertTrue(numpy.array_equal(cast, numpy.arange(10)))
 
     def test_vint_from_double_no_decimal(self):
         self.assertEqual(VInt().validate(32.0), 32)

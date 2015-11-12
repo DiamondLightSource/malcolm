@@ -20,11 +20,13 @@ class ZmqSocket(ISocket):
 
     def send(self, msg):
         """Send the message to the socket"""
-        self.sendq.append(msg)
+        event = self.cothread.Event()
+        self.sendq.append([msg, event])
         # sys.stdout.write("Sent message {}\n".format(msg))
         # sys.stdout.flush()
         # Tell our event loop to recheck recv
         os.write(self.sendsig_w, "-")
+        event.Wait()
 
     def recv(self, timeout=None):
         """Co-operatively block until received"""
@@ -50,7 +52,13 @@ class ZmqSocket(ISocket):
                             raise StopIteration
                         else:
                             # Send sent thing
-                            self.sock.send_multipart(self.sendq.popleft())
+                            msg, event = self.sendq.popleft()
+                            try:
+                                self.sock.send_multipart(msg)
+                            except Exception as e:
+                                event.SignalException(e)
+                            else:
+                                event.Signal(None)
                 elif error.errno in [zmq.ENOTSOCK, zmq.ENOTSUP]:
                     raise StopIteration
                 else:

@@ -73,8 +73,9 @@ class VNumber(VType, VTypeArray):
         # Cast to the numpy datatype
         cast = self.numpy_type()(value)
         # Rely on numpy's equals to tell us if we've lost info
-        assert cast == value, \
-            "Lost information converting {} to {}".format(value, cast)
+        if type(value) != str:
+            assert cast == value, \
+                "Lost information converting {} to {}".format(repr(value), repr(cast))
         return cast
 
     def value_equal(self, v1, v2):

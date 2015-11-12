@@ -37,11 +37,16 @@ class DummyClientSocket(ZmqClientSocket):
     def make_zmq_sock(self, address):
         return MagicMock()
 
+    def send(self, msg):
+        self.sendq.append(msg)
 
 class DummyServerSocket(ZmqServerSocket):
 
     def make_zmq_sock(self, address):
         return MagicMock()
+
+    def send(self, msg):
+        self.sendq.append(msg)
 
 
 class DummyZebra(RunnableDevice):

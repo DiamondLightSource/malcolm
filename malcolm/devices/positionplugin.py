@@ -1,7 +1,5 @@
 from xml.etree import ElementTree as ET
 
-import numpy
-
 from malcolm.core import RunnableDevice, Attribute, wrap_method, PvAttribute, \
     VString, VInt, VBool, DState, VTable, VIntArray, VNumber, Sequence, \
     SeqAttributeItem, HasConfigSequence
@@ -48,8 +46,6 @@ class PositionPlugin(HasConfigSequence, RunnableDevice):
                 "Start a run",
                 put_callback=False),
             # Monitor
-            dimensions=Attribute(
-                VIntArray, "Detected dimensionality of positions"),
             uniqueId=PvAttribute(
                 p + "UniqueId_RBV", VInt,
                 "Current unique id number for frame"),
@@ -59,31 +55,13 @@ class PositionPlugin(HasConfigSequence, RunnableDevice):
         )
         self.add_listener(self.post_changes, "attributes")
 
-    def _make_dimensions_indexes(self, positions):
-        uniq = [sorted(set(data)) for _, _, data, _ in positions]
-        dims = [len(pts) for pts in uniq]
-        npts = len(positions[0][2])
-        if numpy.prod(dims) == npts:
-            # If the product of dimensions is the length of the points, we can
-            # assume this is a square scan and write it as such
-            dimensions = dims
-            indexes = uniq
-        else:
-            # Non square scan, should be written as long list
-            dimensions = [npts]
-            indexes = None
-        return dimensions, indexes
-
     def _make_xml(self, positions):
         # Make xml
-        indexes = self._make_dimensions_indexes(positions)[1]
         root_el = ET.Element("pos_layout")
         dimensions_el = ET.SubElement(root_el, "dimensions")
         names = [column[0] for column in positions]
         for name in names:
             ET.SubElement(dimensions_el, "dimension", name=name)
-            if indexes:
-                ET.SubElement(dimensions_el, "dimension", name=name + "_index")
         ET.SubElement(dimensions_el, "dimension", name="FilePluginClose")
         positions_el = ET.SubElement(root_el, "positions")
         data = [column[2] for column in positions]
@@ -91,17 +69,12 @@ class PositionPlugin(HasConfigSequence, RunnableDevice):
             attribs = dict(FilePluginClose="0")
             for n, v in zip(names, d):
                 attribs[n] = str(v)
-            if indexes:
-                for i, n, v in zip(indexes, names, d):
-                    attribs[n + "_index"] = str(i.index(v))
             last = ET.SubElement(positions_el, "position", **attribs)
         last.attrib["FilePluginClose"] = "1"
         xml = ET.tostring(root_el)
         return xml
 
     def _validate_positions(self, positions):
-        assert len(positions) in range(1, 4), \
-            "Can only do 1..3 position attributes"
         for _, typ, data, _ in positions:
             assert issubclass(typ, VNumber), \
                 "Only Number attributes can be stored. Got {}".format(typ)
@@ -121,7 +94,6 @@ class PositionPlugin(HasConfigSequence, RunnableDevice):
         """
         self._validate_positions(positions)
         assert idStart > 0, "Need idStart {} > 0".format(idStart)
-        dimensions = self._make_dimensions_indexes(positions)[0]
         return super(PositionPlugin, self).validate(locals())
 
     def make_config_sequence(self, **valid_params):
@@ -171,6 +143,7 @@ class PositionPlugin(HasConfigSequence, RunnableDevice):
         elif self.state == DState.Running:
             # Abort run
             self.running = False
+        self.post_changes(None, None)
         return DState.Aborting, "Aborting started"
 
     def do_aborting(self, value, changes):
@@ -178,7 +151,7 @@ class PositionPlugin(HasConfigSequence, RunnableDevice):
         Return None, message if it isn't.
         Return DState.Aborted, message if it is.
         """
-        if not self.running and not self._sconfig.running:
+        if not self.running:
             return DState.Aborted, "Aborting finished"
         else:
             # No change
@@ -188,7 +161,7 @@ class PositionPlugin(HasConfigSequence, RunnableDevice):
         """Start doing a reset from aborted or fault state.
         Return DState.Resetting, message when started
         """
-        self.post_resetting(None, None)
+        self.post_changes(None, None)
         return DState.Resetting, "Resetting started"
 
     def do_resetting(self, value, changes):

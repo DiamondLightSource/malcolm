@@ -118,6 +118,8 @@ class DummyDet(PausableDevice):
         """
         for param, value in config_params.items():
             self.attributes[param].update(value)
+        self.currentStep = 0
+        self.totalSteps = self.nframes
         self.sim_post(
             SEvent.Config, self.nframes, self.exposure, self.configureSleep)
         return DState.Configuring, "Configuring started"
@@ -145,8 +147,9 @@ class DummyDet(PausableDevice):
         Return DState.Idle, message if it is and we are all done
         Return DState.Ready, message if it is and we are partially done
         """
+        self.currentStep = (self.nframes - self.sim.nframes)
         if status.state == SState.Acquiring:
-            percent = (self.nframes - self.sim.nframes) * 100 / self.nframes
+            percent = self.currentStep * 100 / self.nframes
             return None, "Running in progress {}% done".format(percent)
         elif status.state == SState.Idle:
             return DState.Idle, "Running in progress 100% done"
@@ -166,7 +169,7 @@ class DummyDet(PausableDevice):
                 "Cannot retrace {} steps as we are only on step {}".format(
                     steps, self.nframes - self.frames_to_do)
             self.frames_to_do += steps
-            self.post_pausesta("finished")
+            self.post_changes(self.stateMachine, None)
             message = "Retracing started"
         return DState.Rewinding, message
 

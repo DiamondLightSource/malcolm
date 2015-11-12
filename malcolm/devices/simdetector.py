@@ -113,6 +113,7 @@ class SimDetector(HasConfigSequence, RunnableDevice):
         elif self.state == DState.Running:
             # Abort run
             self.acquire = False
+        self.post_changes(None, None)
         return DState.Aborting, "Aborting started"
 
     def do_aborting(self, value, changes):
@@ -120,7 +121,7 @@ class SimDetector(HasConfigSequence, RunnableDevice):
         Return None, message if it isn't.
         Return DState.Aborted, message if it is.
         """
-        if not self.acquire and not self._sconfig.running:
+        if not self.acquire:
             return DState.Aborted, "Aborting finished"
         else:
             # No change
@@ -130,7 +131,7 @@ class SimDetector(HasConfigSequence, RunnableDevice):
         """Start doing a reset from aborted or fault state.
         Return DState.Resetting, message when started
         """
-        self.post_resetting(None, None)
+        self.post_changes(None, None)
         return DState.Resetting, "Resetting started"
 
     def do_resetting(self, value, changes):

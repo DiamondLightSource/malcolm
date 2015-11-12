@@ -1,9 +1,16 @@
 import os
 
+import numpy
+
 from malcolm.core import PausableDevice, DState, InstanceAttribute, \
     wrap_method, Attribute, VDouble, VString, VTable, \
-    SeqFunctionItem, Sequence, SeqTransitionItem, VIntArray
+    SeqFunctionItem, Sequence, SeqTransitionItem, VIntArray, VInt
 from malcolm.devices import SimDetector, Hdf5Writer, PositionPlugin
+
+def_positions = [
+    ("y", VDouble, numpy.repeat(numpy.arange(6, 9), 5) * 0.1, 'mm'),
+    ("x", VDouble, numpy.tile(numpy.arange(5), 3) * 0.1, 'mm'),
+]
 
 
 class SimDetectorPersonality(PausableDevice):
@@ -52,30 +59,28 @@ class SimDetectorPersonality(PausableDevice):
     def _validate_hdf5Writer(self, hdf5File, positions, dimensions,
                              totalSteps):
         filePath, fileName = os.path.split(hdf5File)
-        numExtraDims = len(positions)
-        if numExtraDims == len(dimensions):
-            # This is a non-sparse scan so put in place
-            dimNames = []
-            dimSizes = []
-            dimUnits = []
-            for i, (name, _, _, unit) in enumerate(positions):
+        dimNames = []
+        dimUnits = []
+        names = [c[0] for c in positions]
+        indexNames = [n for n in names if n.endswith("_index")]
+        for name, _, _, unit in positions:
+            if not name.endswith("_index"):
                 dimNames.append(name)
-                dimSizes.append(dimensions[i])
-                dimUnits.append(unit)
-        elif [totalSteps] == dimensions:
-            # This is a sparse, so unroll to series of points
-            dimNames = ["n"]
-            dimSizes = [totalSteps]
-            dimUnits = [""]
-        else:
-            raise AssertionError(
-                "Can't unify position number of columns {} with "
-                "dimensions {}".format(numExtraDims, dimensions))
+                if unit:
+                    dimUnits.append(unit)
+                else:
+                    dimUnits.append("mm")
+        assert len(dimNames) == len(dimensions), \
+            "Can't unify position number of index columns {} with " \
+            "dimensions {}".format(len(dimNames), dimensions)
         return self.hdf5Writer.validate(
-            filePath, fileName,  dimNames, dimSizes, dimUnits)
+            filePath, fileName, dimNames, dimUnits, indexNames, dimensions)
 
     @wrap_method()
-    def validate(self, exposure, positions, hdf5File, period=None):
+    def validate(self, hdf5File, exposure, positions=def_positions,
+                 period=None):
+        # Validate self
+        dimensions, positions = self._add_position_indexes(positions)
         # Validate simDetector
         totalSteps = len(positions[0][2])
         sim_params = self.simDetector.validate(exposure, totalSteps, period)
@@ -83,10 +88,46 @@ class SimDetectorPersonality(PausableDevice):
         runTimeout = sim_params["runTimeout"]
         period = sim_params["period"]
         # Validate position plugin
-        dimensions = self.positionPlugin.validate(positions)["dimensions"]
+        self.positionPlugin.validate(positions)
         # Validate hdf writer
         self._validate_hdf5Writer(hdf5File, positions, dimensions, totalSteps)
         return super(SimDetectorPersonality, self).validate(locals())
+
+    def _add_position_indexes(self, positions):
+        # which columns are index columns?
+        names = [column[0] for column in positions]
+        indexes = [n[:-len("_index")] for n in names if n.endswith("_index")]
+        non_indexes = [n for n in names if not n.endswith("_index")]
+        expected_indexes = ["{}_index".format(n) for n in non_indexes]
+        # check if indexes are supplied
+        if indexes == expected_indexes or indexes == ["n_index"]:
+            # just get dimensionality from these indexes
+            dims = [max(d) + 1 for n, _, d, _ in positions if n in indexes]
+            index_columns = [c for c in positions if n in indexes]
+        else:
+            # detect dimensionality of non_index columns
+            uniq = [sorted(set(d))
+                    for n, _, d, _ in positions if n in non_indexes]
+            dims = [len(pts) for pts in uniq]
+            npts = len(positions[0][2])
+            if numpy.prod(dims) != npts:
+                # This is a sparse scan, should be written as long list
+                dims = [npts]
+                index_columns = [
+                    ("n_index", VInt, numpy.arange(npts, dtype=numpy.int32), '')]
+            else:
+                # Create position table
+                index_columns = []
+                for name, sort in zip(non_indexes, uniq):
+                    index = "{}_index".format(name)
+                    # select the correct named column
+                    data = [d for n, _, d, _ in positions if n == name][0]
+                    # work out their index in the unique sorted list
+                    data = numpy.array([sort.index(x)
+                                        for x in data], dtype=numpy.int32)
+                    index_columns.append((index, VInt, data, ''))
+        positions = [c for c in positions if n in non_indexes] + index_columns
+        return dims, positions
 
     def _configure_simDetector(self):
         self.simDetector.configure(
@@ -181,8 +222,8 @@ class SimDetectorPersonality(PausableDevice):
         plugins = [self.simDetector.stateMachine,
                    self.positionPlugin.stateMachine]
         for d in plugins:
-            assert d.state in DState.canRun(), \
-                "Child device {} in state {} is not canRun"\
+            assert d.state == DState.Ready, \
+                "Child device {} in state {} is not runnable"\
                 .format(d.name, d.state)
         seq_items = [
             SeqFunctionItem(
@@ -250,6 +291,7 @@ class SimDetectorPersonality(PausableDevice):
         for d in self.children:
             if d.state in DState.canAbort():
                 d.abort(block=False)
+        self.post_changes(None, None)
         return DState.Aborting, "Aborting started"
 
     def do_aborting(self, value, changes):
@@ -261,9 +303,9 @@ class SimDetectorPersonality(PausableDevice):
         rest = [s in DState.rest() for s in child_states]
         if all(rest):
             # All are in rest states
-            aborted = [s == DState.Aborted for s in child_states]
-            assert all(aborted), \
-                "Expected all aborted, got {}".format(child_states)
+            no_fault = [s != DState.Fault for s in child_states]
+            assert all(no_fault), \
+                "Expected no fault, got {}".format(child_states)
             return DState.Aborted, "Aborting finished"
         else:
             # No change
@@ -273,33 +315,40 @@ class SimDetectorPersonality(PausableDevice):
         """Start doing a reset from aborted or fault state.
         Return DState.Resetting, message when started
         """
+        seq_items = []
         # Abort any items that need to be aborted
+        need_wait = []
+        need_reset = []
         for d in self.children:
             if d.state not in DState.rest():
                 d.abort(block=False)
+                need_wait.append(d.stateMachine)
+                need_reset.append(d)
+            elif d.state in DState.canReset():
+                need_reset.append(d)
+        if need_wait:
+            seq_items.append(SeqTransitionItem(
+                "Wait for plugins to stop aborting",
+                need_wait, DState.rest()))
+        if need_reset:
+            for d in need_reset:
+                seq_items.append(SeqFunctionItem(
+                    "Reset {}".format(d.name), d.reset,
+                    block=False))
+            seq_items.append(SeqTransitionItem(
+                "Wait for plugins to stop resetting",
+                [d.stateMachine for d in need_reset], DState.rest()))
         # Add a resetting object
-        self._sreset = Sequence(
-            self.name + ".SReset",
-            SeqTransitionItem(
-                "Wait for plugins to be at rest", self.children,
-                DState.rest()),
-            SeqFunctionItem(
-                "Reset hdf5Writer", self.hdf5Writer.reset,
-                block=False),
-            SeqFunctionItem(
-                "Reset simDetector", self.simDetector.reset,
-                block=False),
-            SeqFunctionItem(
-                "Reset positionPlugin", self.positionPlugin.reset,
-                block=False),
-            SeqTransitionItem(
-                "Wait for plugins to be at rest", self.children,
-                DState.rest()),
-        )
-        # Start the sequence
-        item_done, msg = self._sreset.start()
-        if item_done:
-            # Arrange for a callback to process the next item
+        if seq_items:
+            self._sreset = Sequence(self.name + ".SReset", *seq_items)
+            # Start the sequence
+            item_done, msg = self._sreset.start()
+            if item_done:
+                # Arrange for a callback to process the next item
+                self.post_changes(None, None)
+        else:
+            self._sreset = None
+            msg = "Started resetting"
             self.post_changes(None, None)
         return DState.Resetting, msg
 
@@ -308,6 +357,8 @@ class SimDetectorPersonality(PausableDevice):
         Return None, message if it isn't.
         Return DState.Idle, message if it is.
         """
+        if self._sreset is None:
+            return DState.Idle, "Resetting done"
         running, item_done, msg = self._sreset.process(value, changes)
         if running is False:
             # Finished
@@ -372,9 +423,6 @@ class SimDetectorPersonality(PausableDevice):
         else:
             self._post_rewind_state = DState.Paused
         if steps is not None:
-            assert self.currentStep - steps > 0, \
-                "Cannot retrace {} steps as we are only on step {}".format(
-                    steps, self.currentStep)
             self.currentStep -= steps
         # Start the sequence
         item_done, msg = self._spause.start()

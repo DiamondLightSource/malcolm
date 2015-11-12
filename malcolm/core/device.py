@@ -37,10 +37,6 @@ class DState(Enum):
         return [cls.Idle, cls.Ready]
 
     @classmethod
-    def canRun(cls):
-        return [cls.Ready, cls.Paused]
-
-    @classmethod
     def canReset(cls):
         return [cls.Fault, cls.Aborted]
 

@@ -13,7 +13,7 @@ import cothread
 
 import logging
 logging.basicConfig()
-#logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 from mock import MagicMock, patch
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -35,30 +35,32 @@ class HdfWriterTest(unittest.TestCase):
         self.s = Hdf5Writer("S", "PRE")
         self.s.loop_run()
         self.in_params = dict(filePath="/tmp", fileName="demo.hdf5",
-                              dimNames=["x", "y"], dimSizes=[5, 3])
+                              dimNames=["x", "y"], indexNames=["n_index"],
+                              indexSizes=[15], dimUnits=["mm", "mm"])
         self.valid_params = dict(
             filePath="/tmp/", fileName="demo.hdf5",
-            dimNames=["x", "y"], dimSizes=[5, 3], dimUnits=["mm", "mm"],
+            dimNames=["x", "y"], indexNames=["n_index"], indexSizes=[15], dimUnits=["mm", "mm"],
             resetTimeout=1, runTime=None, runTimeout=1,
             abortTimeout=1, configureTimeout=1, arrayPort=None)
         self.send_params = {
-            'ndAttributeChunk': True, 'swmrMode': True, 'extraDimSizeX': 3,
-            'extraDimSizeY': 1, 'filePath': '/tmp/', 'posNameDimN': 'x_index',
-            'fileWriteMode': 'Stream', 'numExtraDims': 1,
-            'extraDimSizeN': 5, 'enableCallbacks': True,
+            'ndAttributeChunk': True, 'swmrMode': True, 'extraDimSizeX': 1,
+            'extraDimSizeY': 1, 'filePath': '/tmp/', 'posNameDimN': 'n_index',
+            'fileWriteMode': 'Stream', 'numExtraDims': 0,
+            'extraDimSizeN': 15, 'enableCallbacks': True,
             'dimAttDatasets': True, 'lazyOpen': True,
             'fileTemplate': '%s%s', 'fileName': 'demo.hdf5',
-            'posNameDimX': 'y_index', 'posNameDimY': '', 'xml': 'something',
+            'posNameDimX': '', 'posNameDimY': '', 'xml': 'something',
             "numCapture": 0
         }
 
     def test_init(self):
         base = ['prefix', 'readbacks', 'uptime']
         pvs = ['arrayPort', 'capture', 'dimAttDatasets',
-               'dimNames', 'dimSizes', 'dimUnits', 
+               'dimNames', 'dimUnits',
                'enableCallbacks', 'extraDimSizeN',
                'extraDimSizeX', 'extraDimSizeY', 'fileName', 'filePath',
-               'fileTemplate', 'fileWriteMode', 'lazyOpen', 'ndAttributeChunk',
+               'fileTemplate', 'fileWriteMode', 'indexNames', 'indexSizes',
+               'lazyOpen', 'ndAttributeChunk',
                'numCapture', 'numExtraDims', 'portName', 'posNameDimN', 'posNameDimX',
                'posNameDimY', 'positionMode', 'swmrMode', 'uniqueId',
                'writeMessage', 'writeStatus', 'xml']
@@ -156,9 +158,11 @@ class HdfWriterTest(unittest.TestCase):
         self.s.configure(block=False, **self.in_params)
         cothread.Yield()
         self.check_set("positionMode", True)
-        Attribute.update(self.s.attributes["xml"], self.s._sconfig.seq_items[1].seq_params["xml"])
+        Attribute.update(
+            self.s.attributes["xml"], self.s._sconfig.seq_items[1].seq_params["xml"])
         cothread.Yield()
         self.assertEqual(self.s.state, DState.Ready)
+        self.s.attributes["writeStatus"]._value = "Ok"
 
     def test_run(self):
         self.set_configured()
