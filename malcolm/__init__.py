@@ -5,7 +5,7 @@ except ImportError:
     pass
 try:
     from malcolm.gui.gui import gui, probe
-except:
+except ImportError:
     print "No Qt available"
 import malcolm.devices
 import malcolm.personalities

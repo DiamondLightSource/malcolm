@@ -15,7 +15,7 @@ from collections import OrderedDict
 class GuiModel(QAbstractItemModel):
 
     def __init__(self, device, probe=False):
-        super(GuiModel, self).__init__()
+        QAbstractItemModel.__init__(self)
         # map ob.name -> GuiItem instance
         self.probe = probe
         self.device_items = {}
@@ -249,7 +249,7 @@ class GuiModel(QAbstractItemModel):
             self.dataChanged.emit(index, index)
 
     def flags(self, index):
-        flags = super(GuiModel, self).flags(index)
+        flags = QAbstractItemModel.flags(self, index)
         if index.isValid() and index.column() == 1:
             item = index.internalPointer()
             if self.isArgument(item) or isinstance(item.data, Method):

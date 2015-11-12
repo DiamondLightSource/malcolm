@@ -8,7 +8,6 @@ class MState(Enum):
     Normal, Hovered, Pressed = range(3)
 
 
-
 class Delegate(QStyledItemDelegate):
 
     def paint(self, painter, option, index):
@@ -35,12 +34,13 @@ class Delegate(QStyledItemDelegate):
                 opt.state |= QStyle.State_MouseOver
             opt.rect = option.rect
             opt.text = index.internalPointer().name
-            style.drawControl(QStyle.CE_PushButton, opt, painter, self.blue_button)
+            style.drawControl(QStyle.CE_PushButton, opt, painter,
+                              self.blue_button)
         else:
             if option.state & QStyle.State_Selected:
                 # Don't show delegates as highlighted
                 option.state = option.state ^ QStyle.State_Selected
-            super(Delegate, self).paint(painter, option, index)
+            QStyledItemDelegate.paint(self, painter, option, index)
 
     def method_allowed(self, item):
         sm = getattr(item.data.device, "stateMachine", None)
@@ -55,5 +55,4 @@ class Delegate(QStyledItemDelegate):
                 if self.method_allowed(index.internalPointer()):
                     model.setData(index, 0)
                 return True
-        return super(QStyledItemDelegate, self).editorEvent(event, model,
-                                                            option, index)
+        QStyledItemDelegate.editorEvent(self, event, model, option, index)
