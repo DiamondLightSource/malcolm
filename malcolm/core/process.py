@@ -19,11 +19,11 @@ from .vtype import VStringArray, VString, VDouble, VObject
 class Process(Device, multiprocessing.Process):
 
     def __init__(self, serverStrings, name, ds_name="DirectoryService",
-                 ds_string=None, timeout=None):
+                 ds_string=None):
         """name is process name
         serverStrings is list of "zmq://tcp://172.23.122.23:5600"
         """
-        super(Process, self).__init__(name, timeout)
+        super(Process, self).__init__(name)
         # Store ds details
         self.ds = None
         self.ds_name = ds_name

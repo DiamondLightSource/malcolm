@@ -25,7 +25,7 @@ class DeviceTest(unittest.TestCase):
 
     def setUp(self):
         self.sock = MagicMock()
-        self.d = DeviceClient("D", self.sock, timeout=1)
+        self.d = DeviceClient("D", self.sock)
         self.assertEqual(self.sock.mock_calls, [])
 
     def test_run_calls_right_things(self):

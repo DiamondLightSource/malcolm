@@ -12,9 +12,8 @@ from .vtype import VString, VStringArray
 @not_process_creatable
 class DirectoryService(Process):
 
-    def __init__(self, server_strings, name="DirectoryService", timeout=None):
-        super(DirectoryService, self).__init__(server_strings, name,
-                                               timeout=timeout)
+    def __init__(self, server_strings, name="DirectoryService"):
+        super(DirectoryService, self).__init__(server_strings, name)
         # Connection strings dict
         self._connection_strings = {}
         # registered devices deviceClient instances

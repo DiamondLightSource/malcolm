@@ -24,8 +24,8 @@ from malcolm.core import Device, wrap_method
 
 class Counter(Device):
 
-    def __init__(self, name, timeout=None):
-        super(Counter, self).__init__(name, timeout)
+    def __init__(self, name):
+        super(Counter, self).__init__(name)
         self.counter = 0
         self.add_loop(TimerLoop("timer", self.do_count, 0.01))
 

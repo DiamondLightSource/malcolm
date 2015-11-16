@@ -63,10 +63,8 @@ class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops):
         ",")
     not_process_creatable = []
 
-    def __init__(self, name, timeout=None):
+    def __init__(self, name):
         super(Device, self).__init__(name)
-        # TODO: delete this?
-        self.timeout = timeout
         self.add_stateMachine_transitions()
         self.add_all_attributes()
         self.add_methods()

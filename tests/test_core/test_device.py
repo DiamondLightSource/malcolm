@@ -21,7 +21,7 @@ from malcolm.core import DEvent
 class DeviceTest(unittest.TestCase):
 
     def setUp(self):
-        self.d = DummyDet("D", timeout=1)
+        self.d = DummyDet("D")
         self.d.loop_run()
         self.reset_cb_lists()
 

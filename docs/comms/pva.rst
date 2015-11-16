@@ -54,5 +54,3 @@ or on different machines, and it should make no difference.
 The high level objects I would expect to be written in Python, while the lower level
 objects should be written in C++ (although they are currently in Python talking CA to
 V3 IOCs).
-
-

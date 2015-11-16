@@ -38,9 +38,9 @@ class ServerSubscription(EventLoop):
 
 class ClientSubscription(EventLoop):
 
-    def __init__(self, sock, endpoint, callback, timeout=None):
+    def __init__(self, sock, endpoint, callback):
         name = "ClientSubscription.{}".format(endpoint)
-        super(ClientSubscription, self).__init__(name, timeout)
+        super(ClientSubscription, self).__init__(name)
         self.add_event_handler(SType.Value, callback)
         # TODO: add errback
         # el.add_event_handler(SType.Error, callback)

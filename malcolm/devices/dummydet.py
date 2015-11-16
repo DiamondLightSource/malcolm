@@ -77,9 +77,9 @@ class DummyDet(PausableDevice):
     class_attributes = dict(
         single=Attribute(VBool, "Whether to single step or not"))
 
-    def __init__(self, name, single=False, timeout=None):
+    def __init__(self, name, single=False):
         # TODO: add single step
-        super(DummyDet, self).__init__(name, timeout=timeout)
+        super(DummyDet, self).__init__(name)
         self.single = single
         self.sim = DummyDetSim(name + "Sim")
         self.sim.add_listener(self.post_changes)

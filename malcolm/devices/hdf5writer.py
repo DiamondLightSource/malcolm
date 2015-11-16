@@ -12,10 +12,10 @@ class Hdf5Writer(HasConfigSequence, RunnableDevice):
         readbacks=Attribute(VBool, "Whether this detector produces position "
                             "readbacks rather than data"))
 
-    def __init__(self, name, prefix, readbacks=False, timeout=None):
+    def __init__(self, name, prefix, readbacks=False):
         self.prefix = prefix
         self.readbacks = readbacks
-        super(Hdf5Writer, self).__init__(name, timeout)
+        super(Hdf5Writer, self).__init__(name)
 
     def add_all_attributes(self):
         super(Hdf5Writer, self).add_all_attributes()

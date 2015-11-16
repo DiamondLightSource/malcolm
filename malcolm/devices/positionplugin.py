@@ -9,9 +9,9 @@ class PositionPlugin(HasConfigSequence, RunnableDevice):
     class_attributes = dict(
         prefix=Attribute(VString, "PV Prefix for device"))
 
-    def __init__(self, name, prefix, timeout=None):
+    def __init__(self, name, prefix):
         self.prefix = prefix
-        super(PositionPlugin, self).__init__(name, timeout)
+        super(PositionPlugin, self).__init__(name)
 
     def add_all_attributes(self):
         super(PositionPlugin, self).add_all_attributes()

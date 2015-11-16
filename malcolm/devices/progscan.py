@@ -7,9 +7,9 @@ class ProgScan(HasConfigSequence, RunnableDevice):
     class_attributes = dict(
         prefix=Attribute(VString, "PV Prefix for device"))
 
-    def __init__(self, name, prefix, timeout=None):
+    def __init__(self, name, prefix):
         self.prefix = prefix
-        super(ProgScan, self).__init__(name, timeout)
+        super(ProgScan, self).__init__(name)
 
     def add_all_attributes(self):
         super(ProgScan, self).add_all_attributes()

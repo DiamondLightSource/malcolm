@@ -21,9 +21,8 @@ class SimDetectorPersonality(PausableDevice):
             PositionPlugin, "PositionPlugin Device"),
     )
 
-    def __init__(self, name, simDetector, positionPlugin, hdf5Writer,
-                 timeout=None):
-        super(SimDetectorPersonality, self).__init__(name, timeout)
+    def __init__(self, name, simDetector, positionPlugin, hdf5Writer):
+        super(SimDetectorPersonality, self).__init__(name)
         self.simDetector = simDetector
         self.positionPlugin = positionPlugin
         self.hdf5Writer = hdf5Writer

@@ -45,10 +45,9 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
     _endpoints = "name,descriptor,tags,methods,stateMachine,attributes".split(
         ",")
 
-    def __init__(self, name, sock, monitor=True, timeout=None):
+    def __init__(self, name, sock, monitor=True):
         super(DeviceClient, self).__init__(name + "Client")
         self.devicename = name
-        self.timeout = timeout
         self.monitor = monitor
         self.sock = sock
         self.add_methods()
