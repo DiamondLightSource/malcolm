@@ -40,10 +40,12 @@ class Zebra2(FlowGraph):
                 "Block {} not known".format(block)
             block = self._blocks[block]
             if "." in field:
-                print "Not supported yet... {}".format(field)
-            else:
-                print block, field, val
-                self.update_attribute(block, field, val)
+                field, suffix = field.split(".", 1)
+                field = "{}_{}".format(field, suffix)
+                if suffix not in ["UNITS", "CAPTURE", "SCALE", "OFFSET"]:
+                    print "Not supported yet... {}.{}".format(block.name, field)
+                    continue
+            self.update_attribute(block, field, val)
 
     def update_attribute(self, block, field, val):
         assert field in block.attributes, \

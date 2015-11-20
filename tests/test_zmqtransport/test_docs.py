@@ -127,9 +127,6 @@ class ZmqDocsTest(unittest.TestCase):
         positions = [
             ("y", VDouble, np.repeat(np.arange(6, 9), 5) * 0.1, 'mm'),
             ("x", VDouble, np.tile(np.arange(5), 3) * 0.1, 'mm'),
-            ("y_index", VInt, np.repeat(
-                np.arange(3, dtype=np.int32), 5), ''),
-            ("x_index", VInt, np.tile(np.arange(5, dtype=np.int32), 3), '')
         ]
         self.zebraClient.do_call(
             "configure", pcBitCap=1, pcTsPre="ms", positions=positions)

@@ -105,7 +105,12 @@ call_json
 
     .. container:: header
 
-        **Example**: Call ``zebra.configure(PC_BIT_CAP=1, PC_TSPRE="ms")``:
+        **Example**: Call::
+        
+            zebra.configure(PC_BIT_CAP=1, PC_TSPRE="ms", positions = [
+                ("y", VDouble, np.repeat(np.arange(6, 9), 5) * 0.1, 'mm'),
+                ("x", VDouble, np.tile(np.arange(5), 3) * 0.1, 'mm'),
+            ])
 
     .. include:: zmqExamples/call_zebra_configure
 

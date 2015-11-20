@@ -11,7 +11,6 @@ class Zebra2Block(Device):
         self._configurable = []
         super(Zebra2Block, self).__init__(name)
         # Now add a configuration method
-        
 
     def add_all_attributes(self):
         super(Zebra2Block, self).add_all_attributes()
@@ -36,7 +35,13 @@ class Zebra2Block(Device):
             attribute = Attribute(VString, field)
         elif typ == "position":
             attribute = Attribute(VDouble, field)
-        elif typ == "scaled_time":
+            self.add_attribute(
+                field + "_UNITS", Attribute(VString, field + " position units"))
+            self.add_attribute(
+                field + "_SCALE", Attribute(VString, field + " scale"))
+            self.add_attribute(
+                field + "_OFFSET", Attribute(VString, field + " offset"))
+        elif typ == "time":
             attribute = Attribute(VDouble, field)
         else:
             raise AssertionError(
@@ -60,7 +65,9 @@ class Zebra2Block(Device):
     def make_bit_out_attribute(self, field, typ):
         assert typ == "bit", "Field {} Class bit_out Type {} not handled" \
             .format(field, typ)
-        self.add_attribute(field, Attribute(VBool, field))
+        self.make_param_attribute(field, typ)
+        self.add_attribute(
+            field + "_CAPTURE", Attribute(VBool, "Capture {} in PCAP?".format(field)))
 
     def make_pos_in_attribute(self, field, typ):
         assert typ == "pos_mux", "Field {} Class pos_in Type {} not handled" \
@@ -72,11 +79,21 @@ class Zebra2Block(Device):
     def make_pos_out_attribute(self, field, typ):
         assert typ == "position", "Field {} Class pos_out Type {} not handled" \
             .format(field, typ)
-        self.add_attribute(field, Attribute(VInt, field))
+        self.make_param_attribute(field, typ)
+        self.add_attribute(
+            field + "_CAPTURE", Attribute(VBool, "Capture {} in PCAP?".format(field)))
 
     def make_table_attribute(self, field, typ):
         assert typ == "", "Field {} Class table Type {} not handled" \
             .format(field, typ)
         # TODO: get column headings from server when it supports it
         self.add_attribute(field, Attribute(VTable, field))
+        self._configurable.append(field)
+
+    def make_time_attribute(self, field, typ):
+        assert typ == "", "Field {} Class table time {} not handled" \
+            .format(field, typ)
+        self.add_attribute(field, Attribute(VDouble, field))
+        self.add_attribute(
+            field + "_UNITS", Attribute(VEnum("s,ms,us"), field + " time units"))
         self._configurable.append(field)

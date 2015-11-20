@@ -1,241 +1,65 @@
 .. code-block:: javascript
 
     {
-      "type": "Return", 
+      "type": "Call", 
       "id": 0, 
-      "value": {
-        "name": "zebra1", 
-        "tags": [
-          "instance:DummyZebra", 
-          "instance:RunnableDevice", 
-          "instance:ConfigurableDevice", 
-          "instance:Device"
-        ], 
-        "methods": {
-          "abort": {
-            "name": "abort", 
-            "descriptor": "Abort configuration or abandon the current run whether it is\n        running or paused. It blocks until the device is in a rest state:\n         * Normally it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
-            "arguments": {
-              "block": {
-                "value": true, 
-                "type": {
-                  "name": "VBool", 
-                  "version": "2"
-                }, 
-                "descriptor": "Wait for function to complete?"
-              }
+      "endpoint": "zebra1", 
+      "method": "configure", 
+      "arguments": {
+        "pcBitCap": 1, 
+        "pcTsPre": "ms", 
+        "positions": [
+          [
+            "y", 
+            {
+              "name": "VDouble", 
+              "version": "2"
             }, 
-            "validStates": [
-              "Idle", 
-              "Configuring", 
-              "Ready", 
-              "Running", 
-              "Rewinding", 
-              "Paused"
-            ]
-          }, 
-          "configure": {
-            "name": "configure", 
-            "descriptor": "Assert params are valid, then use them to configure a device for a run.\n        It blocks until the device is in a rest state:\n         * Normally it will return a DState.Configured Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
-            "arguments": {
-              "pcTsPre": {
-                "type": {
-                  "name": "VString", 
-                  "version": "2"
-                }, 
-                "tags": [
-                  "argument:required"
-                ], 
-                "descriptor": "What time units for capture"
-              }, 
-              "pcBitCap": {
-                "type": {
-                  "name": "VInt", 
-                  "version": "2"
-                }, 
-                "tags": [
-                  "argument:required"
-                ], 
-                "descriptor": "Which encoders to capture"
-              }, 
-              "positions": {
-                "type": {
-                  "name": "VTable", 
-                  "version": "2"
-                }, 
-                "tags": [
-                  "argument:required"
-                ], 
-                "descriptor": "Positions to capture at"
-              }, 
-              "block": {
-                "value": true, 
-                "type": {
-                  "name": "VBool", 
-                  "version": "2"
-                }, 
-                "descriptor": "Wait for function to complete?"
-              }
-            }, 
-            "validStates": [
-              "Idle", 
-              "Ready"
-            ]
-          }, 
-          "exit": {
-            "name": "exit", 
-            "descriptor": "Stop the event loop and destoy the device"
-          }, 
-          "reset": {
-            "name": "reset", 
-            "descriptor": "Try and reset the device into DState.Idle. It blocks until the\n        device is in a rest state:\n         * Normally it will return a DState.Idle Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
-            "arguments": {
-              "block": {
-                "value": true, 
-                "type": {
-                  "name": "VBool", 
-                  "version": "2"
-                }, 
-                "descriptor": "Wait for function to complete?"
-              }
-            }, 
-            "validStates": [
-              "Fault", 
-              "Aborted"
-            ]
-          }, 
-          "run": {
-            "name": "run", 
-            "descriptor": "Start a configured device running. It blocks until the device is in a\n        rest state:\n         * Normally it will return a DState.Idle Status\n         * If the device allows many runs from a single configure the it\n           will return a DState.Ready Status\n         * If the user aborts then it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
-            "arguments": {
-              "block": {
-                "value": true, 
-                "type": {
-                  "name": "VBool", 
-                  "version": "2"
-                }, 
-                "descriptor": "Wait for function to complete?"
-              }
-            }, 
-            "validStates": [
-              "Ready"
-            ]
-          }, 
-          "validate": {
-            "name": "validate", 
-            "descriptor": "Check parameters are valid", 
-            "arguments": {
-              "pcTsPre": {
-                "type": {
-                  "name": "VString", 
-                  "version": "2"
-                }, 
-                "tags": [
-                  "argument:required"
-                ], 
-                "descriptor": "What time units for capture"
-              }, 
-              "pcBitCap": {
-                "type": {
-                  "name": "VInt", 
-                  "version": "2"
-                }, 
-                "tags": [
-                  "argument:required"
-                ], 
-                "descriptor": "Which encoders to capture"
-              }, 
-              "positions": {
-                "type": {
-                  "name": "VTable", 
-                  "version": "2"
-                }, 
-                "tags": [
-                  "argument:required"
-                ], 
-                "descriptor": "Positions to capture at"
-              }
-            }
-          }
-        }, 
-        "stateMachine": {
-          "message": "Configuring...", 
-          "state": "Configuring", 
-          "states": [
-            "Idle", 
-            "Fault", 
-            "Configuring", 
-            "Ready", 
-            "Aborting", 
-            "Aborted", 
-            "Resetting", 
-            "Running"
+            [
+              0.6000000000000001, 
+              0.6000000000000001, 
+              0.6000000000000001, 
+              0.6000000000000001, 
+              0.6000000000000001, 
+              0.7000000000000001, 
+              0.7000000000000001, 
+              0.7000000000000001, 
+              0.7000000000000001, 
+              0.7000000000000001, 
+              0.8, 
+              0.8, 
+              0.8, 
+              0.8, 
+              0.8
+            ], 
+            "mm"
           ], 
-          "timeStamp": {
-            "secondsPastEpoch": 14419090000, 
-            "nanoseconds": 200000762, 
-            "userTag": 0
-          }
-        }, 
-        "attributes": {
-          "uptime": {
-            "type": {
-              "name": "VInt", 
+          [
+            "x", 
+            {
+              "name": "VDouble", 
               "version": "2"
             }, 
-            "descriptor": "Seconds since device was created"
-          }, 
-          "connected": {
-            "value": 0, 
-            "type": {
-              "name": "VInt", 
-              "version": "2"
-            }, 
-            "descriptor": "Is zebra connected", 
-            "alarm": {
-              "severity": "invalidAlarm", 
-              "status": "UDF", 
-              "message": "Disconnected"
-            }, 
-            "timeStamp": {
-              "secondsPastEpoch": 14419091000, 
-              "nanoseconds": 200000762, 
-              "userTag": 0
-            }
-          }, 
-          "pcBitCap": {
-            "type": {
-              "name": "VInt", 
-              "version": "2"
-            }, 
-            "tags": [
-              "method:configure", 
-              "method:validate"
+            [
+              0.0, 
+              0.1, 
+              0.2, 
+              0.30000000000000004, 
+              0.4, 
+              0.0, 
+              0.1, 
+              0.2, 
+              0.30000000000000004, 
+              0.4, 
+              0.0, 
+              0.1, 
+              0.2, 
+              0.30000000000000004, 
+              0.4
             ], 
-            "descriptor": "Which encoders to capture"
-          }, 
-          "pcTsPre": {
-            "type": {
-              "name": "VString", 
-              "version": "2"
-            }, 
-            "tags": [
-              "method:configure", 
-              "method:validate"
-            ], 
-            "descriptor": "What time units for capture"
-          }, 
-          "positions": {
-            "type": {
-              "name": "VTable", 
-              "version": "2"
-            }, 
-            "tags": [
-              "method:configure", 
-              "method:validate"
-            ], 
-            "descriptor": "Positions to capture at"
-          }
-        }
+            "mm"
+          ]
+        ]
       }
     }
+
