@@ -58,6 +58,16 @@
                 ], 
                 "descriptor": "Which encoders to capture"
               }, 
+              "positions": {
+                "type": {
+                  "name": "VTable", 
+                  "version": "2"
+                }, 
+                "tags": [
+                  "argument:required"
+                ], 
+                "descriptor": "Positions to capture at"
+              }, 
               "block": {
                 "value": true, 
                 "type": {
@@ -134,6 +144,16 @@
                   "argument:required"
                 ], 
                 "descriptor": "Which encoders to capture"
+              }, 
+              "positions": {
+                "type": {
+                  "name": "VTable", 
+                  "version": "2"
+                }, 
+                "tags": [
+                  "argument:required"
+                ], 
+                "descriptor": "Positions to capture at"
               }
             }
           }
@@ -204,6 +224,17 @@
               "method:validate"
             ], 
             "descriptor": "What time units for capture"
+          }, 
+          "positions": {
+            "type": {
+              "name": "VTable", 
+              "version": "2"
+            }, 
+            "tags": [
+              "method:configure", 
+              "method:validate"
+            ], 
+            "descriptor": "Positions to capture at"
           }
         }
       }

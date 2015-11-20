@@ -53,12 +53,14 @@ class HasAttributes(HasLoops, HasListeners):
     def __getattr__(self, attr):
         """If we haven't defined a class attribute, then get its value from
         the self.attributes object"""
-        if hasattr(self, "attributes") and attr in self.attributes:
-            return self.attributes[attr].value
-        else:
+        try:
+            attr = object.__getattribute__(self, "attributes")[attr]
+        except:
             raise AttributeError(
                 "Object '{}' has no attribute '{}'"
                 .format(object.__getattribute__(self, "_name"),  attr))
+        else:
+            return attr.value
 
     def __setattr__(self, attr, value):
         """If we have an attribute, then set it, otherwise set it as a local

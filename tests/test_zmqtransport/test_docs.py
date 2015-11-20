@@ -12,6 +12,7 @@ import json
 import zmq
 import time
 import cothread
+import numpy as np
 
 import logging
 logging.basicConfig()
@@ -30,7 +31,8 @@ from malcolm.core.loop import LState
 from malcolm.core.transport import SType
 from malcolm.core.method import wrap_method
 from malcolm.core.directoryservice import DirectoryService
-from malcolm.core.vtype import VString, VInt
+from malcolm.core.vtype import VString, VInt, VTable, VDouble
+
 
 class DummyClientSocket(ZmqClientSocket):
 
@@ -39,6 +41,7 @@ class DummyClientSocket(ZmqClientSocket):
 
     def send(self, msg):
         self.sendq.append(msg)
+
 
 class DummyServerSocket(ZmqServerSocket):
 
@@ -59,11 +62,12 @@ class DummyZebra(RunnableDevice):
         self.add_attributes(
             pcTsPre=Attribute(VString, "What time units for capture"),
             pcBitCap=Attribute(VInt, "Which encoders to capture"),
+            positions=Attribute(VTable, "Positions to capture at"),
             connected=Attribute(VInt, "Is zebra connected"),
         )
 
     @wrap_method()
-    def validate(self, pcTsPre, pcBitCap):
+    def validate(self, pcTsPre, pcBitCap, positions):
         "Check parameters are valid"
 
     def do_abort(self):
@@ -120,8 +124,17 @@ class ZmqDocsTest(unittest.TestCase):
 
     @patch("malcolm.core.deviceclient.ValueQueue")
     def test_call_zebra_configure(self, mock_vq):
-        self.zebraClient.do_call("configure", pcBitCap=1, pcTsPre="ms")
-        self.assertDocExample("call_zebra_configure", self.cs.sendq.popleft()[0])
+        positions = [
+            ("y", VDouble, np.repeat(np.arange(6, 9), 5) * 0.1, 'mm'),
+            ("x", VDouble, np.tile(np.arange(5), 3) * 0.1, 'mm'),
+            ("y_index", VInt, np.repeat(
+                np.arange(3, dtype=np.int32), 5), ''),
+            ("x_index", VInt, np.tile(np.arange(5, dtype=np.int32), 3), '')
+        ]
+        self.zebraClient.do_call(
+            "configure", pcBitCap=1, pcTsPre="ms", positions=positions)
+        self.assertDocExample(
+            "call_zebra_configure", self.cs.sendq.popleft()[0])
 
     @patch("malcolm.core.deviceclient.ValueQueue")
     def test_get_DirectoryService_Device_instances(self, mock_vq):
@@ -141,10 +154,12 @@ class ZmqDocsTest(unittest.TestCase):
 
     def test_subscribe_zebra_status(self):
         el = self.zebraClient.do_subscribe(lambda: None, "stateMachine")
-        self.assertDocExample("subscribe_zebra_status", self.cs.sendq.popleft()[0])
+        self.assertDocExample(
+            "subscribe_zebra_status", self.cs.sendq.popleft()[0])
         el.loop_run()
         el.loop_stop()
-        self.assertDocExample("unsubscribe_zebra_status", self.cs.sendq.popleft()[0])
+        self.assertDocExample(
+            "unsubscribe_zebra_status", self.cs.sendq.popleft()[0])
 
     def test_value_zebra_status(self):
         send = self.ss.make_send_function(dict(zmq_id=1, id=0))
@@ -160,13 +175,15 @@ class ZmqDocsTest(unittest.TestCase):
         self.zebra.stateMachine.update(
             state=DState.Configuring, message="Configuring...", timeStamp=14419090000.2)
         self.ds.do_get(send, "zebra1.stateMachine")
-        self.assertDocExample("return_zebra_status", self.ss.sendq.popleft()[1])
+        self.assertDocExample(
+            "return_zebra_status", self.ss.sendq.popleft()[1])
 
     def test_return_zebra(self):
         send = self.ss.make_send_function(dict(zmq_id=1, id=0))
         self.zebra.stateMachine.update(
             state=DState.Configuring, message="Configuring...", timeStamp=14419090000.2)
-        self.zebra.attributes["connected"].update(0, Alarm(AlarmSeverity.invalidAlarm, AlarmStatus.UDF, "Disconnected"), timeStamp=14419091000.2)
+        self.zebra.attributes["connected"].update(0, Alarm(
+            AlarmSeverity.invalidAlarm, AlarmStatus.UDF, "Disconnected"), timeStamp=14419091000.2)
         self.ds.do_get(send, "zebra1")
         self.assertDocExample("return_zebra", self.ss.sendq.popleft()[1])
 
@@ -186,6 +203,7 @@ class ZmqDocsTest(unittest.TestCase):
         except Exception, e:
             self.ds.do_error(e, send)
         self.assertDocExample("error_foo", self.ss.sendq.popleft()[1])
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
