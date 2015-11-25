@@ -5,9 +5,14 @@ from .zebra2comms import Zebra2Comms
 from .zebra2block import Zebra2Block
 from malcolm.core.loop import TimerLoop
 from malcolm.core.alarm import Alarm, AlarmSeverity, AlarmStatus
+from malcolm.core import Attribute, VString
 
 
 class Zebra2(FlowGraph):
+    class_attributes = dict(
+        hostname=Attribute(VString, "Hostname of zebra2 box"),
+        port=Attribute(VString, "Config port of zebra2 server")
+    )
 
     def __init__(self, name, hostname, port):
         super(Zebra2, self).__init__(name)
@@ -29,8 +34,8 @@ class Zebra2(FlowGraph):
         field_data = self.comms.get_field_data(block)
         # TODO: make this i+1 when the server supports it
         blockname = "{}:{}{}".format(self.name, block, i)
-        self._blocks["{}{}".format(block, i)] = Zebra2Block(
-            blockname, self.comms, field_data)
+        self._blocks["{}{}".format(block, i)] = self.process.create_device(
+            Zebra2Block, blockname, comms=self.comms, field_data=field_data)
 
     def do_poll(self):
         changes = self.comms.get_changes()

@@ -45,6 +45,7 @@ class Process(Device, multiprocessing.Process):
         router = EventLoop(name + ".router")
         router.add_event_handler(SType.Call, self.do_call)
         router.add_event_handler(SType.Get, self.do_get)
+        router.add_event_handler(SType.Put, self.do_put)
         router.add_event_handler(SType.Subscribe, self.do_subscribe)
         router.add_event_handler(SType.Unsubscribe, self.do_unsubscribe)
         router.error_handler = weak_method(self.do_error)
@@ -73,7 +74,11 @@ class Process(Device, multiprocessing.Process):
             if d not in Device.not_process_creatable and \
                     not inspect.isabstract(d):
                 # Make a method to create an instance of it
-                self.make_create_device(d)
+                d.process = weakref.proxy(self)
+                try:
+                    self.make_create_device(d)
+                except KeyError:
+                    pass
 
     def make_create_device(self, cls):
         @functools.wraps(cls)
@@ -91,8 +96,6 @@ class Process(Device, multiprocessing.Process):
 
     def create_device(self, cls, name, **kwargs):
         device = cls(name, **kwargs)
-        device.create_device = weak_method(self.create_device)
-        device.get_device = weak_method(self.get_device)
         self._device_servers[name] = device
         self.add_loop(device)
         self.update_devices()
@@ -248,3 +251,27 @@ class Process(Device, multiprocessing.Process):
     def do_error(self, error, send, *args, **kwargs):
         EventLoop.error_handler(self.router, error, send, *args, **kwargs)
         send(SType.Error, error)
+
+    def do_put(self, send, endpoint, value):
+        device, ename = self._get_device(endpoint)
+        endpoint = device.get_endpoint(ename)
+        assert isinstance(endpoint, Attribute), \
+            "Can only put an attribute, not {}".format(endpoint)
+        method = endpoint.put_method_name()
+        assert method, \
+            "Device {} Attribute {} has no put methods" \
+            .format(device.name, endpoint.name)
+        assert method in device.methods, \
+            "Device {} doesn't have method {}".format(device.name, method)
+        method = device.methods[method]
+        # fill in current values of attributes
+        arguments = {}
+        for attr in method.arguments:
+            if attr in device.attributes:
+                aval = getattr(device, attr)
+                if aval is not None:
+                    arguments[attr] = aval
+        arguments[endpoint.name] = value
+        # now call the method
+        ct = self.cothread.Spawn(self.do_func, send, method, arguments)
+        self.spawned.append(ct)

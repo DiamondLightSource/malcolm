@@ -91,7 +91,8 @@ Need to think about:
   - val = self.exposure
   - calls self.read_attribute("exposure") which returns self.attributes["exposure"].value
 
-ca can be a Device with custom attributes, so that when we monitor them they get created
+ca can be a Device with custom attributes, so that when we monitor them they get created. Could
+do something funny with stack frame to warn about self.connected = True from inside...
 
 rename wrap_method to publish_method
 
@@ -126,3 +127,61 @@ Finally we have the Methods
 
 These should take the lock (where needed), then call the do_ function, catching
 StateException and setting
+
+Think we should get rid of the attributes and methods structures, and replace them with
+methods to return lists of names. This will make it look more like python objects.
+So we can do::
+    
+    pvput("MD.a", True)
+    arguments = pvget("MD.configure.arguments")
+    arguments.a.value = False
+    pvrpc("MD", "configure", arguments)
+    
+Instead of::
+    
+    pvput("MD.attributes.a", True)
+    arguments = pvget("MD.methods.configure.arguments")
+    arguments.a.value = False
+    pvrpc("MD", "methods.configure", arguments)
+
+Need to do some kind of validation as well. Maybe convert to JSON schema and use:
+
+http://www.jsonschema2pojo.org/
+
+Separate out ca so it's in its own object
+
+make VType something you make an instance of and pass around. Need to make it more lightweight?
+
+To convert configure(a=1, b=2) to configure(params) we need a VMap. This should take:
+
+* names
+* types
+* descriptions
+
+It could look like this::
+    
+    @wrap_method(params=VMap(
+        exposure=Attribute, period=Attribute,
+        wait=Attribute(VBool, "Whether to wait until complete")
+    )
+    
+Maybe we should combine the VTypes and Attributes? Then we get::
+
+    @wrap_method(params=VMap(
+        exposure=Attribute, period=Attribute(None),
+        wait=VBool("Whether to wait until complete")
+    )
+    
+    def add_all_attributes(self):
+        self.exposure = VDouble("Exposure time of detector")
+        self.exposure.update(0.1)
+        # or
+        self.exposure = PVDouble(
+            "Exposure time of detector",
+            self.prefix + "Exposure",
+            rbv_suff="_RBV"),        
+        )
+        self.exposure.set_pv(0.1)
+
+Need to make process globally accessible for this to work
+

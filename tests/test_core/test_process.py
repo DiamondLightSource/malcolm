@@ -5,8 +5,10 @@ import os
 import logging
 import cothread
 from mock import MagicMock
+from malcolm.core.attribute import Attribute
+from malcolm.core.vtype import VBool, VInt
 logging.basicConfig()
-#logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from malcolm.core.process import Process
@@ -59,9 +61,17 @@ class MockDevice(Device):
     "Mock thing"
     runcalled = False
 
+    def add_all_attributes(self):
+        Device.add_all_attributes(self)
+        self.add_attributes(
+            a=Attribute(VBool, "Things"),
+            b=Attribute(VInt, "More things"),
+        )
+
     @wrap_method()
-    def run(self):
+    def run(self, a=None, b=None):
         self.runcalled = True
+        self.runargs = (a, b)
         return 32
 
 
@@ -80,11 +90,12 @@ class ProcessTest(unittest.TestCase):
         self.p.log_debug = log_debug
         self.s = None
         self.p = None
-        self.assertEqual(msgs, ['Garbage collecting loop', 'Stopping loop', 'Waiting for loop to finish', 
+        self.assertEqual(msgs, ['Garbage collecting loop', 'Stopping loop', 'Waiting for loop to finish',
                                 "Loop finished", 'Loop garbage collected'])
 
     def test_create_device(self):
-        expected = ['Device', 'RunnableDevice', 'PausableDevice', 'Process', 'DirectoryService', 'MockDevice']
+        expected = ['Device', 'RunnableDevice', 'PausableDevice',
+                    'Process', 'DirectoryService', 'MockDevice']
         for d in expected:
             self.assertIn(d, self.p.deviceTypes)
         d = self.p.createMockDevice("MD")
@@ -102,6 +113,22 @@ class ProcessTest(unittest.TestCase):
         # Yield to let spawned do_func run
         cothread.Yield()
         self.assertEqual(d.runcalled, True)
+        self.assertIsNot(self.s.send, None)
+        self.s.send.assert_called_once_with(SType.Return, 32)
+
+    def test_put_on_device(self):
+        d = self.p.createMockDevice("MD")
+        d.b = 40
+        self.s.inq.Signal((SType.Put, dict(endpoint="MD.attributes.a", value=True)))
+        self.assertEqual(d.runcalled, False)
+        # Yield to let socket recv
+        cothread.Yield()
+        # Yield to let process retrieve from inq
+        cothread.Yield()
+        # Yield to let spawned do_func run
+        cothread.Yield()
+        self.assertEqual(d.runcalled, True)
+        self.assertEqual(d.runargs, (True, 40))
         self.assertIsNot(self.s.send, None)
         self.s.send.assert_called_once_with(SType.Return, 32)
 

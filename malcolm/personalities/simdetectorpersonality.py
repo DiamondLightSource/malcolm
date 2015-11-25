@@ -95,7 +95,7 @@ class SimDetectorPersonality(PausableDevice):
     def _add_position_indexes(self, positions):
         # which columns are index columns?
         names = [column[0] for column in positions]
-        indexes = [n[:-len("_index")] for n in names if n.endswith("_index")]
+        indexes = [n for n in names if n.endswith("_index")]
         non_indexes = [n for n in names if not n.endswith("_index")]
         expected_indexes = ["{}_index".format(n) for n in non_indexes]
         # check if indexes are supplied

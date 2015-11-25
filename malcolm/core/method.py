@@ -23,7 +23,11 @@ class HasMethods(Base):
         def ismethod(thing):
             return isinstance(thing, Method)
 
+        methods = []
         for _, method in inspect.getmembers(self, predicate=ismethod):
+            methods.append((method._index, method))
+
+        for _, method in sorted(methods):
             self.add_method(method, **attributes)
 
     def add_method(self, method, **attributes):
@@ -55,12 +59,15 @@ def wrap_method(only_in=None, arguments_from=None, **attributes):
 
 class Method(Base):
     """Class representing a callable method"""
+    _index = 0
     _endpoints = "name,descriptor,arguments,validStates".split(",")
 
     def __init__(self, name, descriptor, function, valid_states=None,
                  arguments_from=None, **attributes):
         # Set the name and docstring from the _actual_ function
         super(Method, self).__init__(name)
+        self._index = Method._index
+        Method._index += 1
         self.descriptor = descriptor
         self.function = function
         functools.update_wrapper(self, self.function)

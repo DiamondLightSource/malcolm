@@ -23,7 +23,8 @@ class GuiModel(QAbstractItemModel):
             self.root_items = self.populate_items(device)
         else:
             self.root_items = []
-            self.root_items.append(self.populate_stateMachine(device))
+            if hasattr(device, "stateMachine"):
+                self.root_items.append(self.populate_stateMachine(device))
             self.method_items = self.populate_methods(device) 
             self.root_items += self.method_items
             self.root_items.append(self.populate_attributes(device))
@@ -176,10 +177,12 @@ class GuiModel(QAbstractItemModel):
             elif role == Qt.EditRole:
                 return self.format_data(item)
             elif role == Qt.BackgroundRole:
-                if self.isArgument(item):
-                    return QBrush(QColor(205, 205, 205))
+                if self.isArgument(item) or self.isWriteable(item):
+                    # alternating background as specified by stylesheet
+                    return None
                 else:
-                    return QBrush(QColor(64, 64, 64))
+                    # and a bit darker
+                    return QBrush(QColor(0, 0, 0, 176))
             elif role == Qt.ToolTipRole:
                 txts = ["value: {}".format(self.format_data(item))]
                 for attr in ("descriptor", "type", "alarm", "timeStamp"):
@@ -189,7 +192,7 @@ class GuiModel(QAbstractItemModel):
             elif role == Qt.ForegroundRole:
                 alarm = getattr(item.data, "alarm", None)
                 severity = getattr(alarm, "severity", AlarmSeverity.noAlarm)
-                if self.isArgument(item):
+                if self.isArgument(item) or self.isWriteable(item):
                     return QBrush(QColor(0, 0, 196))
                 elif severity == AlarmSeverity.noAlarm:
                     return QBrush(QColor(96, 255, 96))
@@ -202,12 +205,24 @@ class GuiModel(QAbstractItemModel):
 
     def isArgument(self, item):
         if self.probe:
+            # method.argument.value
             isargument = item.parent_item and item.parent_item.parent_item and isinstance(
                 item.parent_item.parent_item.data, Method)
         else:
+            # method.argument
             isargument = item.parent_item and isinstance(
                 item.parent_item.data, Method)
         return isargument
+
+    def isWriteable(self, item):
+        if self.probe:
+            # attribute.value
+            iswriteable = item.parent_item and isinstance(
+                item.parent_item.data, Attribute) and item.parent_item.data.put_method_name()
+        else:
+            # attribute
+            iswriteable = isinstance(item.data, Attribute) and item.data.put_method_name()
+        return iswriteable
 
     def setData(self, index, value, role=Qt.EditRole):
         if role == Qt.EditRole:
@@ -221,6 +236,11 @@ class GuiModel(QAbstractItemModel):
                         label = index.sibling(index.row(), 0)
                         self.dataChanged.emit(label, index)
                         return True
+                elif self.isWriteable(item):
+                    newvalue = str(value.toString())
+                    import cothread
+                    cothread.Spawn(self.do_put, index, newvalue)
+                    return True
                 elif isinstance(item.data, Method):
                     args = {}
                     for child_item in item.children:
@@ -248,11 +268,22 @@ class GuiModel(QAbstractItemModel):
             item.argvalue = None
             self.dataChanged.emit(index, index)
 
+    def do_put(self, index, value):
+        item = index.internalPointer()
+        if self.probe:
+            item = item.parent_item
+        attr = item.data
+        try:
+            # TODO: something with ret here
+            ret = attr.update(value)
+        except:
+            attr.log_exception("Exception raised from gui")
+
     def flags(self, index):
         flags = QAbstractItemModel.flags(self, index)
         if index.isValid() and index.column() == 1:
             item = index.internalPointer()
-            if self.isArgument(item) or isinstance(item.data, Method):
+            if self.isArgument(item) or self.isWriteable(item) or isinstance(item.data, Method):
                 flags |= Qt.ItemIsEditable
         return flags
 

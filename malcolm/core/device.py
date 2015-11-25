@@ -86,10 +86,11 @@ class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops):
         self.add_attributes(
             uptime=Attribute(VInt, "Seconds since device was created"))
 
-    def create_device(self, cls, name, *args, **kwargs):
+    @classmethod
+    def create_device(cls, dcls, name, *args, **kwargs):
         """Locally available method to create device, will be overridden if
         running under a process"""
-        return cls(name, *args, **kwargs)
+        return dcls(name, *args, **kwargs)
 
     def get_device(self, device):
         """If running under a process, this will allow devices to be connected to
@@ -149,3 +150,5 @@ class Device(HasAttributes, HasMethods, HasStateMachine, HasLoops):
             attributes=getattr(self, "attributes", None),
             methods=getattr(self, "methods", None),
             stateMachine=getattr(self, "stateMachine", None))
+
+Device.process = Device

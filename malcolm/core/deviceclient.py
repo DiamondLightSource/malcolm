@@ -80,23 +80,7 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
         self.add_attributes(
             deviceClientConnected=Attribute(VBool, "Is device reponsive?"))
         for aname, adata in structure.get("attributes", {}).items():
-            typ = adata["type"]
-            attr = self.add_attribute(
-                aname, Attribute(typ, adata["descriptor"],
-                                 tags=adata.get("tags", None)))
-
-            def update(value, attr=attr):
-                d = value
-                value = d.get("value", None)
-                alarm = d.get("alarm", None)
-                if alarm is None:
-                    alarm = Alarm.ok()
-                else:
-                    alarm = Alarm(**d["alarm"])
-                attr.update(value, alarm, d.get("timeStamp", None))
-            update(adata)
-            if self.monitor:
-                self.do_subscribe(update, "attributes.{}".format(aname))
+            self.make_attribute(aname, adata)
         # Update stateMachine
         if "stateMachine" in structure:
             sdata = structure["stateMachine"]
@@ -143,6 +127,33 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
         m.in_arguments = mdata.get("arguments", {})
         return m
 
+    def make_attribute(self, aname, adata):
+        endpoint = ".".join((self.devicename, "attributes", aname))
+
+        weak_do_put = weak_method(self.do_put)
+
+        def do_put(value):
+            weak_do_put(endpoint, value)
+
+        typ = adata["type"]
+        attr = self.add_attribute(
+            aname, Attribute(typ, adata["descriptor"],
+                             tags=adata.get("tags", None)))
+        attr.update = do_put
+
+        def update(value, attr=attr):
+            d = value
+            value = d.get("value", None)
+            alarm = d.get("alarm", None)
+            if alarm is None:
+                alarm = Alarm.ok()
+            else:
+                alarm = Alarm(**d["alarm"])
+            Attribute.update(attr, value, alarm, d.get("timeStamp", None))
+        update(adata)
+        if self.monitor:
+            self.do_subscribe(update, "attributes.{}".format(aname))
+
     def do_call(self, method, *args, **kwargs):
         # Call a method on this device
         assert len(args) == 0, \
@@ -167,13 +178,21 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
         self.sock.request(weak_method(vq.post), SType.Get, d)
         return vq.wait_for_return()
 
+    def do_put(self, endpoint, value):
+        d = OrderedDict(endpoint=endpoint)
+        d.update(value=value)
+        vq = ValueQueue("Put({})".format(endpoint))
+        vq.loop_run()
+        self.sock.request(weak_method(vq.post), SType.Put, d)
+        return vq.wait_for_return()
+
     def _check_uptime(self):
         if self._last_uptime >= self.uptime and self._uptime_static > 5:
             # Device inactive for 5s, must be dead
             self.log_info("Device inactive, reconnecting")
             self.deviceClientConnected = False
             for attr in self.attributes.values():
-                attr.update(alarm=Alarm.disconnected())
+                Attribute.update(attr, alarm=Alarm.disconnected())
             self._reconnect()
         elif self._last_uptime >= self.uptime:
             self._uptime_static += 1

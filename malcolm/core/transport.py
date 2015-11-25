@@ -8,7 +8,7 @@ from .base import weak_method
 
 
 class SType(Enum):
-    Call, Get, Subscribe, Unsubscribe, Error, Value, Return = range(7)
+    Call, Get, Subscribe, Unsubscribe, Error, Value, Return, Put = range(8)
 
 
 class ISocket(ILoop):

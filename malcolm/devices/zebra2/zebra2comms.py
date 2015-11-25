@@ -86,3 +86,9 @@ class Zebra2Comms(object):
                 field, val = line.split("=", 1)
             changes[field] = val
         return changes
+
+    def set_field(self, block, field, value):
+        self.sock.send("{}.{}={}\n".format(block, field, value))
+        resp = self.get_response()
+        assert resp == "OK", \
+            "Expected OK, got {}".format(resp)

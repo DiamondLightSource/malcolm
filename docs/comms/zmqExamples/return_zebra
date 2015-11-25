@@ -12,27 +12,9 @@
           "instance:Device"
         ], 
         "methods": {
-          "abort": {
-            "name": "abort", 
-            "descriptor": "Abort configuration or abandon the current run whether it is\n        running or paused. It blocks until the device is in a rest state:\n         * Normally it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
-            "arguments": {
-              "block": {
-                "value": true, 
-                "type": {
-                  "name": "VBool", 
-                  "version": "2"
-                }, 
-                "descriptor": "Wait for function to complete?"
-              }
-            }, 
-            "validStates": [
-              "Idle", 
-              "Configuring", 
-              "Ready", 
-              "Running", 
-              "Rewinding", 
-              "Paused"
-            ]
+          "exit": {
+            "name": "exit", 
+            "descriptor": "Stop the event loop and destoy the device"
           }, 
           "configure": {
             "name": "configure", 
@@ -82,9 +64,27 @@
               "Ready"
             ]
           }, 
-          "exit": {
-            "name": "exit", 
-            "descriptor": "Stop the event loop and destoy the device"
+          "abort": {
+            "name": "abort", 
+            "descriptor": "Abort configuration or abandon the current run whether it is\n        running or paused. It blocks until the device is in a rest state:\n         * Normally it will return a DState.Aborted Status\n         * If something goes wrong it will return a DState.Fault Status\n        ", 
+            "arguments": {
+              "block": {
+                "value": true, 
+                "type": {
+                  "name": "VBool", 
+                  "version": "2"
+                }, 
+                "descriptor": "Wait for function to complete?"
+              }
+            }, 
+            "validStates": [
+              "Idle", 
+              "Configuring", 
+              "Ready", 
+              "Running", 
+              "Rewinding", 
+              "Paused"
+            ]
           }, 
           "reset": {
             "name": "reset", 

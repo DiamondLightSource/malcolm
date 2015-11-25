@@ -107,6 +107,11 @@ class Zebra2CommsTest(unittest.TestCase):
         expected = "PULSE0.WIDTH=1.43166e+09,PULSE1.WIDTH=1.43166e+09,PULSE2.WIDTH=1.43166e+09,PULSE3.WIDTH=1.43166e+09,PULSE0.INP=<type 'exceptions.Exception'>,PULSE1.INP=<type 'exceptions.Exception'>,PULSE2.INP=<type 'exceptions.Exception'>,PULSE3.INP=<type 'exceptions.Exception'>"
         self.assertEqual(pretty, expected)
 
+    def test_set(self):
+        self.c.sock.recv.return_value = "OK\n"
+        self.c.set_field("PULSE0", "WIDTH", 0)
+        self.c.sock.send.assert_called_once_with("PULSE0.WIDTH=0\n")
+
 
 class Zebra2BlockTest(unittest.TestCase):
     pass

@@ -16,7 +16,7 @@ import signal
 
 import logging
 # logging.basicConfig()
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 from mock import MagicMock, patch
 # Module import
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -39,10 +39,10 @@ class Zebra2SystemTest(unittest.TestCase):
         self.assertEqual(self.z.blocks, expected)
         adder = self.z._blocks["ADDER0"]
         expected = ['uptime',
+                    'RESULT',
                     'RESULT_UNITS',
                     'RESULT_SCALE',
                     'RESULT_OFFSET',
-                    'RESULT',
                     'RESULT_CAPTURE',
                     'MASK',
                     'OUTSCALE']

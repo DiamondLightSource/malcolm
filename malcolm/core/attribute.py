@@ -157,6 +157,12 @@ class Attribute(Base):
         if hasattr(self, "notify_listeners"):
             self.notify_listeners(changes)
 
+    def put_method_name(self):
+        method_tags = [t for t in self.tags if t.startswith("method:")]
+        if method_tags:
+            method = method_tags[0][len("method:"):]
+            return method
+
     def update_type(self, typ):
         old_typ = getattr(self, "_typ", None)
         if isinstance(typ, VType):
@@ -194,3 +200,4 @@ class InstanceAttribute(Attribute):
         if value is not None:
             value = value.name
         return super(InstanceAttribute, self).to_dict(value=value)
+
