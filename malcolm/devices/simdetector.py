@@ -65,8 +65,8 @@ class SimDetector(HasConfigSequence, RunnableDevice):
         """
         if period is None:
             period = exposure
-        assert exposure >= period, \
-            "Exposure {} should be >= period {}".format(exposure, period)
+        assert exposure <= period, \
+            "Exposure {} should be <= period {}".format(exposure, period)
         runTime = numImages * period
         runTimeout = runTime + period
         return super(SimDetector, self).validate(locals())
