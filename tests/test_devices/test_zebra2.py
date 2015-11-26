@@ -26,22 +26,24 @@ class Zebra2CommsTest(unittest.TestCase):
         self.c = Zebra2Comms("h", "p")
         self.s = mock_socket
 
-    def test_init(self):
-        self.s.assert_called_once_with()
-        self.c.sock.connect.assert_called_once_with(("h", "p"))
-
     def test_multiline_response_good(self):
         messages = ["!TTLIN 6\n", "!OUTENC 4\n!CAL", "C 2\n.\nblah"]
         self.c.sock.recv.side_effect = messages
-        resp = list(self.c.get_response())
+        resp = list(self.c.send_recv(""))
         expected = ["TTLIN 6", "OUTENC 4", "CALC 2"]
         self.assertEqual(resp, expected)
 
     def test_two_resp(self):
         messages = ["OK =mm\n", "OK =232\n"]
         self.c.sock.recv.side_effect = messages
-        self.assertEqual(self.c.get_response(), "OK =mm")
-        self.assertEqual(self.c.get_response(), "OK =232")
+        self.assertEqual(self.c.send_recv(""), "OK =mm")
+        self.assertEqual(self.c.send_recv(""), "OK =232")
+
+    def test_bad_good(self):
+        messages = ["ERR Invalid bit value\n", "OK =232\n"]
+        self.c.sock.recv.side_effect = messages
+        self.assertRaises(ValueError, self.c.send_recv, "")
+        self.assertEqual(self.c.send_recv(""), "OK =232")
 
     def test_num_blocks(self):
         self.c.sock.recv.return_value = """!TTLIN 6
@@ -112,6 +114,29 @@ class Zebra2CommsTest(unittest.TestCase):
         self.c.set_field("PULSE0", "WIDTH", 0)
         self.c.sock.send.assert_called_once_with("PULSE0.WIDTH=0\n")
 
+    def test_bits(self):
+        bits = []
+        messages = []
+        for i in range(4):
+            names = []
+            for j in range(32):
+                names.append("field {}".format(i * 32 + j))
+            bits.append(names)
+            messages += ["!{}\n".format(f) for f in names]
+            messages.append(".\n")
+        self.c.sock.recv.side_effect = messages
+        resp = self.c.get_bits()
+        self.assertEqual(resp, bits)
+
+    def test_positions(self):
+        positions = []
+        for j in range(32):
+            positions.append("field {}".format(j))
+        messages = ["!{}\n".format(f) for f in positions]
+        messages.append(".\n")
+        self.c.sock.recv.side_effect = messages
+        resp = self.c.get_positions()
+        self.assertEqual(resp, positions)
 
 class Zebra2BlockTest(unittest.TestCase):
     pass

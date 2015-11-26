@@ -4,6 +4,8 @@ import signal
 import subprocess
 simserver = "/home/tmc43/common/zebra2-server/simserver"
 s = subprocess.Popen(simserver, stdin=subprocess.PIPE)
+import time
+time.sleep(2)
 
 import sys
 sys.path.append(
@@ -23,6 +25,6 @@ try:
     ims.interact()
 finally:
     try:
-        os.killpg(os.getpgid(s.pid), signal.SIGINT)
+        os.kill(s.pid, signal.SIGINT)
     except:
         pass

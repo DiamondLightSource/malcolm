@@ -1,5 +1,6 @@
 from collections import OrderedDict
 
+import cothread
 from cothread.cosocket import socket
 
 
@@ -8,52 +9,70 @@ class Zebra2Comms(object):
     def __init__(self, hostname, port):
         self.sock = socket()
         self.sock.connect((hostname, port))
-        self.buffer = ""
-        self.line_iterator = self.get_line()
+        self.respq = cothread.EventQueue()
+        self.outq = cothread.EventQueue()
+        cothread.Spawn(self.recv_task)
 
-    def get_line(self):
+    def send_recv(self, msg):
+        q = cothread.EventQueue()
+        self.respq.Signal(q)
+        self.sock.send(msg)
+        resp = q.Wait(1.0)
+        if isinstance(resp, Exception):
+            raise resp
+        else:
+            return resp
+
+    def get_lines(self):
+        buf = ""
         while True:
-            lines = self.buffer.split("\n")
+            lines = buf.split("\n")
             for line in lines[:-1]:
+                #print "Yield", repr(line)
                 yield line
-            self.buffer = lines[-1]
+            buf = lines[-1]
             # Get something new from the socket
             rx = self.sock.recv(4096)
             assert rx, "Didn't get response in time"
-            self.buffer += rx
+            buf += rx
 
-    def get_response(self, is_multiline=None):
-        if is_multiline:
-            ret = []
-        for line in self.line_iterator:
-            if is_multiline is None:
-                is_multiline = line.startswith("!") or line == "."
-                ret = []
+    def recv_task(self):
+        self._resp = []
+        self._is_multiline = None
+        for line in self.get_lines():
+            #print "Line", line
+            if self._is_multiline is None:
+                self._is_multiline = line.startswith("!") or line == "."
             if line.startswith("ERR"):
-                raise ValueError(line)
-            elif is_multiline:
+                self._respond(ValueError(line))
+            elif self._is_multiline:
                 if line == ".":
-                    return ret
+                    self._respond(self._resp)
                 else:
                     assert line[0] == "!", \
                         "Multiline response {} doesn't start with !" \
                         .format(repr(line))
-                    ret.append(line[1:])
+                    self._resp.append(line[1:])
             else:
-                return line
+                self._respond(line)
+
+    def _respond(self, resp):
+        q = self.respq.Wait(0.1)
+        q.Signal(resp)
+        #print "Signal", resp
+        self._resp = []
+        self._is_multiline = None
 
     def get_num_blocks(self):
-        self.sock.send("*BLOCKS?\n")
         num_blocks = OrderedDict()
-        for line in self.get_response():
+        for line in self.send_recv("*BLOCKS?\n"):
             block, num = line.split()
             num_blocks[block] = int(num)
         return num_blocks
 
     def get_field_data(self, block):
-        self.sock.send("{}.*?\n".format(block))
         results = {}
-        for line in self.get_response():
+        for line in self.send_recv("{}.*?\n".format(block)):
             data = line.split()
             assert len(data) in (3, 4), \
                 "Expected field_data to have len 3 or 4, got {}"\
@@ -68,17 +87,15 @@ class Zebra2Comms(object):
         return field_data
 
     def get_enum_labels(self, block, field):
-        self.sock.send("{}.{}.LABELS?\n".format(block, field))
         enum_labels = OrderedDict()
-        for line in self.get_response():
+        for line in self.send_recv("{}.{}.LABELS?\n".format(block, field)):
             index, string = line.split(" ", 1)
             enum_labels[int(index)] = string
         return enum_labels
 
     def get_changes(self):
-        self.sock.send("*CHANGES?\n")
         changes = OrderedDict()
-        for line in self.get_response():
+        for line in self.send_recv("*CHANGES?\n"):
             if line.endswith("(error)"):
                 field = line.split(" ", 1)[0]
                 val = Exception
@@ -88,7 +105,15 @@ class Zebra2Comms(object):
         return changes
 
     def set_field(self, block, field, value):
-        self.sock.send("{}.{}={}\n".format(block, field, value))
-        resp = self.get_response()
+        resp = self.send_recv("{}.{}={}\n".format(block, field, value))
         assert resp == "OK", \
             "Expected OK, got {}".format(resp)
+
+    def get_bits(self):
+        bits = []
+        for i in range(4):
+            bits.append(self.send_recv("*BITS{}?\n".format(i)))
+        return bits
+
+    def get_positions(self):
+        return self.send_recv("*POSITIONS?\n")

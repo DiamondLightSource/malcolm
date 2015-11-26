@@ -12,15 +12,29 @@ class Zebra2Block(Device):
         self.field_data = field_data
         self._configurable = OrderedDict()
         super(Zebra2Block, self).__init__(name)
-        # Now add a configuration method
-        self.configure = ClientMethod("configure", "Configure blocks",
-                                      Zebra2Block.configure)
-        self.configure.in_arguments = OrderedDict()
-        for name in self._configurable:
-            attr = self.attributes[name]
-            arg = dict(type=attr.typ, descriptor=attr.descriptor)
-            self.configure.in_arguments[name] = arg
-        self.add_method(self.configure)
+        # Now add a setter method for each param
+        for attr in self._configurable.values():
+            self.make_setter(self.name.split(":")[-1], attr)
+
+    def make_setter(self, block, attr):
+        param = attr.name
+        comms_param = param.replace("_", ".")
+        set_name = "set_{}".format(param)
+        isbool = type(attr.typ) == VBool
+
+        def set_func(device, **args):
+            value = args[param]
+            if isbool:
+                value = int(args[param])
+            device.comms.set_field(block, comms_param, value)
+            setattr(device, param, value)
+
+        method = ClientMethod(set_name, set_name, set_func)
+        arg = dict(type=attr.typ, descriptor=attr.descriptor)
+        method.in_arguments = OrderedDict([(param, arg)])
+        setattr(self, set_name, method)
+        self.add_method(method)
+        attr.tags.append("method:{}".format(set_name))
 
     def configure(self, **params):
         for param, val in params.items():
@@ -38,6 +52,8 @@ class Zebra2Block(Device):
             ret[field] = Attribute(VBool, field)
         elif typ == "bit":
             ret[field] = Attribute(VBool, field)
+        elif typ == "bit_mux":
+            ret[field] = Attribute(VString, field)
         elif typ == "enum":
             block = self.name.split(":", 1)[1]
             labels = self.comms.get_enum_labels(block, field)
@@ -56,6 +72,8 @@ class Zebra2Block(Device):
                 VString, field + " scale")
             ret[field + "_OFFSET"] = Attribute(
                 VString, field + " offset")
+        elif typ == "pos_mux":
+            ret[field] = Attribute(VString, field)
         elif typ == "time":
             ret[field] = Attribute(VDouble, field)
         else:
@@ -73,22 +91,6 @@ class Zebra2Block(Device):
         ret = self.make_read_attribute(field, typ)
         self._configurable.update(ret)
 
-    def make_in_attribute(self, field, typ):
-        # TODO: should be an enum
-        attr = Attribute(VString, field)
-        self.add_attribute(field, attr)
-        self._configurable[field] = attr
-
-    def make_bit_in_attribute(self, field, typ):
-        assert typ == "bit_mux", "Field {} Class bit_in Type {} not handled" \
-            .format(field, typ)
-        self.make_in_attribute(field, typ)
-
-    def make_pos_in_attribute(self, field, typ):
-        assert typ == "pos_mux", "Field {} Class pos_in Type {} not handled" \
-            .format(field, typ)
-        self.make_in_attribute(field, typ)
-
     def make_out_attribute(self, field, typ):
         self.make_read_attribute(field, typ)
         field = field + "_CAPTURE"
@@ -97,14 +99,14 @@ class Zebra2Block(Device):
         self._configurable[field] = attr
 
     def make_bit_out_attribute(self, field, typ):
-        assert typ == "bit", "Field {} Class bit_out Type {} not handled" \
+        assert typ == "", "Field {} Class bit_out Type {} not handled" \
             .format(field, typ)
-        self.make_out_attribute(field, typ)
+        self.make_out_attribute(field, "bit")
 
     def make_pos_out_attribute(self, field, typ):
-        assert typ == "position", "Field {} Class pos_out Type {} not handled" \
+        assert typ == "", "Field {} Class pos_out Type {} not handled" \
             .format(field, typ)
-        self.make_out_attribute(field, typ)
+        self.make_out_attribute(field, "position")
 
     def make_table_attribute(self, field, typ):
         assert typ == "", "Field {} Class table Type {} not handled" \
@@ -113,6 +115,9 @@ class Zebra2Block(Device):
         attr = Attribute(VTable, field)
         self.add_attribute(field, attr)
         self._configurable[field] = attr
+
+    def make_short_table_attribute(self, field, typ):
+        self.make_table_attribute(field, typ)
 
     def make_time_attribute(self, field, typ):
         assert typ == "", "Field {} Class table time {} not handled" \
@@ -124,3 +129,4 @@ class Zebra2Block(Device):
         field = field + "_UNITS"
         self.add_attribute(field, attr)
         self._configurable[field] = attr
+

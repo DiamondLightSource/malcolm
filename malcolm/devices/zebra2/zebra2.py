@@ -20,19 +20,21 @@ class Zebra2(FlowGraph):
         # Read the blocks from the server
         self.num_blocks = self.comms.get_num_blocks()
         self._blocks = OrderedDict()
+        # Read the bit enums
+        self._bits = self.comms.get_bits()
+        self._positions = self.comms.get_positions()
         # Now create N block objects based on this info
         for block, num in self.num_blocks.items():
+            field_data = self.comms.get_field_data(block)
             for i in range(num):
-                self.make_block(block, i)
+                self.make_block(block, i + 1, field_data)
         # Publish these blocks
         self.blocks = [b.name for b in self._blocks.values()]
         # Now poll them at 10Hz
         self.timer = TimerLoop("{}.Poller".format(name), self.do_poll, 0.1)
         self.add_loop(self.timer)
 
-    def make_block(self, block, i):
-        field_data = self.comms.get_field_data(block)
-        # TODO: make this i+1 when the server supports it
+    def make_block(self, block, i, field_data):
         blockname = "{}:{}{}".format(self.name, block, i)
         self._blocks["{}{}".format(block, i)] = self.process.create_device(
             Zebra2Block, blockname, comms=self.comms, field_data=field_data)
@@ -48,7 +50,7 @@ class Zebra2(FlowGraph):
                 field, suffix = field.split(".", 1)
                 field = "{}_{}".format(field, suffix)
                 if suffix not in ["UNITS", "CAPTURE", "SCALE", "OFFSET"]:
-                    print "Not supported yet... {}.{}".format(block.name, field)
+                    print "Not supported yet {}.{}".format(block.name, field)
                     continue
             self.update_attribute(block, field, val)
 

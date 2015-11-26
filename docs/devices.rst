@@ -185,3 +185,7 @@ Maybe we should combine the VTypes and Attributes? Then we get::
 
 Need to make process globally accessible for this to work
 
+Need a better way to make Methods programmatically too. Attribute setters should
+be able to be defined from the VType constructor too.
+
+The attribute set is in the wrong place, it should be in Device, not Process
