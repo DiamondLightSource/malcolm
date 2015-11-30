@@ -13,7 +13,6 @@ sys.path.append(
 from pkg_resources import require
 require("pyzmq==13.1.0")
 require("cothread==2.14b1")
-import os
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from malcolm.imalcolm import IMalcolmServer
 from malcolm.devices.zebra2.zebra2 import Zebra2

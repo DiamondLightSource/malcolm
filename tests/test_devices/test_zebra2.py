@@ -121,7 +121,7 @@ class Zebra2CommsTest(unittest.TestCase):
             names = []
             for j in range(32):
                 names.append("field {}".format(i * 32 + j))
-            bits.append(names)
+            bits += names
             messages += ["!{}\n".format(f) for f in names]
             messages.append(".\n")
         self.c.sock.recv.side_effect = messages

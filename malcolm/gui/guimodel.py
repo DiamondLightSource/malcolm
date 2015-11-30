@@ -8,6 +8,7 @@ from malcolm.gui.guiitem import GuiItem
 from malcolm.core.method import Method
 from malcolm.core.alarm import AlarmSeverity, Alarm
 from collections import OrderedDict
+from malcolm.core.vtype import VBool
 
 # https://www.daniweb.com/programming/software-development/threads/312211/pyqt4-treemodel-example
 
@@ -238,6 +239,8 @@ class GuiModel(QAbstractItemModel):
                         return True
                 elif self.isWriteable(item):
                     newvalue = str(value.toString())
+                    if isinstance(item.data.typ, VBool):
+                        newvalue = newvalue.lower() != "false"
                     import cothread
                     cothread.Spawn(self.do_put, index, newvalue)
                     return True

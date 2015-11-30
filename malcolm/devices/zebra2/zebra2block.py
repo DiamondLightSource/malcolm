@@ -7,9 +7,11 @@ from collections import OrderedDict
 
 class Zebra2Block(Device):
 
-    def __init__(self, name, comms, field_data):
+    def __init__(self, name, comms, field_data, bits, positions):
         self.comms = comms
         self.field_data = field_data
+        self.bits = bits
+        self.positions = positions
         self._configurable = OrderedDict()
         super(Zebra2Block, self).__init__(name)
         # Now add a setter method for each param
@@ -18,7 +20,6 @@ class Zebra2Block(Device):
 
     def make_setter(self, block, attr):
         param = attr.name
-        comms_param = param.replace("_", ".")
         set_name = "set_{}".format(param)
         isbool = type(attr.typ) == VBool
 
@@ -26,7 +27,7 @@ class Zebra2Block(Device):
             value = args[param]
             if isbool:
                 value = int(args[param])
-            device.comms.set_field(block, comms_param, value)
+            device.comms.set_field(block, param.replace(":", "."), value)
             setattr(device, param, value)
 
         method = ClientMethod(set_name, set_name, set_func)
@@ -53,7 +54,9 @@ class Zebra2Block(Device):
         elif typ == "bit":
             ret[field] = Attribute(VBool, field)
         elif typ == "bit_mux":
-            ret[field] = Attribute(VString, field)
+            ret[field] = Attribute(VEnum(self.bits), field)
+            self.add_attribute(field + ":VAL", Attribute(
+                VBool, field + " current value"))
         elif typ == "enum":
             block = self.name.split(":", 1)[1]
             labels = self.comms.get_enum_labels(block, field)
@@ -66,14 +69,16 @@ class Zebra2Block(Device):
             ret[field] = Attribute(VString, field)
         elif typ == "position":
             ret[field] = Attribute(VDouble, field)
-            ret[field + "_UNITS"] = Attribute(
+            ret[field + ":UNITS"] = Attribute(
                 VString, field + " position units")
-            ret[field + "_SCALE"] = Attribute(
+            ret[field + ":SCALE"] = Attribute(
                 VString, field + " scale")
-            ret[field + "_OFFSET"] = Attribute(
+            ret[field + ":OFFSET"] = Attribute(
                 VString, field + " offset")
         elif typ == "pos_mux":
-            ret[field] = Attribute(VString, field)
+            ret[field] = Attribute(VEnum(self.positions), field)
+            self.add_attribute(field + ":VAL", Attribute(
+                VDouble, field + " current value"))
         elif typ == "time":
             ret[field] = Attribute(VDouble, field)
         else:
@@ -92,8 +97,11 @@ class Zebra2Block(Device):
         self._configurable.update(ret)
 
     def make_out_attribute(self, field, typ):
-        self.make_read_attribute(field, typ)
-        field = field + "_CAPTURE"
+        ret = self.make_read_attribute(field, typ)
+        for name, attr in ret.items():
+            if ":" in name:
+                self._configurable[name] = attr
+        field = field + ":CAPTURE"
         attr = Attribute(VBool, "Capture {} in PCAP?".format(field))
         self.add_attribute(field, attr)
         self._configurable[field] = attr
@@ -126,7 +134,6 @@ class Zebra2Block(Device):
         self.add_attribute(field, attr)
         self._configurable[field] = attr
         attr = Attribute(VEnum("s,ms,us"), field + " time units")
-        field = field + "_UNITS"
+        field = field + ":UNITS"
         self.add_attribute(field, attr)
         self._configurable[field] = attr
-

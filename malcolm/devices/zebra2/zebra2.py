@@ -6,6 +6,7 @@ from .zebra2block import Zebra2Block
 from malcolm.core.loop import TimerLoop
 from malcolm.core.alarm import Alarm, AlarmSeverity, AlarmStatus
 from malcolm.core import Attribute, VString
+from malcolm.core.vtype import VBool
 
 
 class Zebra2(FlowGraph):
@@ -23,6 +24,8 @@ class Zebra2(FlowGraph):
         # Read the bit enums
         self._bits = self.comms.get_bits()
         self._positions = self.comms.get_positions()
+        # (block, field) -> [list of .VAL attributes that need updating]
+        self._muxes = {}
         # Now create N block objects based on this info
         for block, num in self.num_blocks.items():
             field_data = self.comms.get_field_data(block)
@@ -37,7 +40,9 @@ class Zebra2(FlowGraph):
     def make_block(self, block, i, field_data):
         blockname = "{}:{}{}".format(self.name, block, i)
         self._blocks["{}{}".format(block, i)] = self.process.create_device(
-            Zebra2Block, blockname, comms=self.comms, field_data=field_data)
+            Zebra2Block, blockname, comms=self.comms, field_data=field_data,
+            bits=[x for x in self._bits if x],
+            positions=[x for x in self._positions if x])
 
     def do_poll(self):
         changes = self.comms.get_changes()
@@ -46,13 +51,7 @@ class Zebra2(FlowGraph):
             assert block in self._blocks, \
                 "Block {} not known".format(block)
             block = self._blocks[block]
-            if "." in field:
-                field, suffix = field.split(".", 1)
-                field = "{}_{}".format(field, suffix)
-                if suffix not in ["UNITS", "CAPTURE", "SCALE", "OFFSET"]:
-                    print "Not supported yet {}.{}".format(block.name, field)
-                    continue
-            self.update_attribute(block, field, val)
+            self.update_attribute(block, field.replace(".", ":"), val)
 
     def update_attribute(self, block, field, val):
         assert field in block.attributes, \
@@ -64,4 +63,24 @@ class Zebra2(FlowGraph):
                           "Not in range")
             attr.update(alarm=alarm)
         else:
+            if isinstance(attr.typ, VBool):
+                val = bool(int(val))
+            # TODO: make pos_out and bit_out things toggle while changing
             attr.update(val)
+            for val_attr in self._muxes.get((block, field), []):
+                val_attr.update(val)
+        # if we changed the value of a pos_mux or bit_mux, update its value
+        if field in block.field_data and \
+                block.field_data[field][1] in ("bit_mux", "pos_mux"):
+            # this is the attribute that needs to update
+            val_attr = block.attributes[field + ":VAL"]
+            for mux_list in self._muxes.values():
+                try:
+                    mux_list.remove(val_attr)
+                except ValueError:
+                    pass
+            # add it to the list of things that need to update
+            mon_block, mon_field = val.split(".", 1)
+            self._muxes.setdefault((mon_block, mon_field), []).append(val_attr)
+            # update it to the right value
+            val_attr.update(self._blocks[mon_block].attributes[mon_field].value)

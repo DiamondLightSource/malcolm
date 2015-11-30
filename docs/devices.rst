@@ -183,6 +183,82 @@ Maybe we should combine the VTypes and Attributes? Then we get::
         )
         self.exposure.set_pv(0.1)
 
+We should also be able to name VMaps, VTables and VEnums. This would allow us to
+created named objects that could be mapped to Java types::
+
+    class Xspress3ConfigParams(VMap):
+        "Parameters to pass to Xspress3"
+        hdfFile=VString("Hdf filename to write", REQUIRED)
+        exposure=VDouble("Exposure time of detector", 0.1)        
+        period=VDouble("Time between frames, defaults to exposure", OPTIONAL)
+        runTimeout=VDouble("Typical time taken for run")
+    
+    @publish(Xspress3ConfigParams, only_in=DState.canConfig())
+    def configure(self, args):
+        args = self.validate(args)
+        self.do_configure(args)
+        
+Can use ordering number in VTypes to work out definition order. However, this stops us
+dynamically allocating parameter attributes at runtime and using PV subclasses which
+may be an oversight. Maybe::
+
+    class Xspress3ConfigParams(VMap):
+        "Parameters to pass to Xspress3"
+        hdfFile=Attribute(REQUIRED)
+        exposure=Attribute(0.1)        
+        period=Attribute(OPTIONAL)
+        runTimeout=VDouble("Typical time taken for run", OPTIONAL)
+
+    def add_all_attributes(self):
+        self.exposure = PVDouble(
+            "Exposure time of detector",
+            self.prefix + "Exposure",
+            rbv_suff="_RBV")
+        self.START = VDouble(
+            "Zebra start value",
+            setter=self.set_start)
+        # configure is special, do this in baseclass
+        for attr in Xspress3ConfigParams.attributes():
+            self.attributes()[attr].setter = self.partial_configure
+
+    @accepts(Xspress3ConfigParams)
+    @returns(Xspress3ConfigParams)
+    def validate(self, args):
+        return super(Xspress3, self).validate(args)    
+
+    @accepts(from_method="validate")
+    @valid_states(DState.canConfig())
+    def configure(self, args):
+        """Configure the device"""
+        args = self.validate(args)
+        self.do_configure(args)    
+    
+    # this will be called self.partial_configure(exposure=0.1)
+    def partial_configure(self, **args):
+        # get values and update args
+        self.configure(args)
+        
+    @valid_states(DState.canRun())
+    def run(self):
+        """Run the device"""
+        typical = self._get_default_times()["runTime"]
+        extra = self._get_default_times("run") - typical        
+        while True:
+            todo = 1 - float(self.currentStep) / self.totalSteps
+            # Sets expiry time that report_wait can check against
+            Thread.set_timeout(typical * todo + extra)
+            try:
+                return self.do_run()
+            except StateChangedException as e:
+                if e.state != DState.Rewinding:
+                    raise
+            Thread.set_timeout(None)
+            event = self.report_wait() 
+            while event.typ != Event.State and event.value != DState.Running:
+                event = self.report_wait()
+                
+        
+
 Need to make process globally accessible for this to work
 
 Need a better way to make Methods programmatically too. Attribute setters should

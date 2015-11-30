@@ -112,7 +112,7 @@ class Zebra2Comms(object):
     def get_bits(self):
         bits = []
         for i in range(4):
-            bits.append(self.send_recv("*BITS{}?\n".format(i)))
+            bits += self.send_recv("*BITS{}?\n".format(i))
         return bits
 
     def get_positions(self):
