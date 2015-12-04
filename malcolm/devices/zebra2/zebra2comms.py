@@ -99,6 +99,9 @@ class Zebra2Comms(object):
             if line.endswith("(error)"):
                 field = line.split(" ", 1)[0]
                 val = Exception
+            elif "<" in line:
+                # table
+                pass
             else:
                 field, val = line.split("=", 1)
             changes[field] = val

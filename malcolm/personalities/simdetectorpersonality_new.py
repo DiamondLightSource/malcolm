@@ -163,7 +163,7 @@ class SimDetectorPersonality(PausableDevice):
         params.update(arrayPort=self.positionPlugin.portName, block=False)
         self.hdf5Writer.configure(**params)
 
-    def do_configure(self, **config_params):
+    def do_configure(self, config_params, task):
         """Start doing a configuration using config_params.
         Return DState.Configuring, message when started
         """
@@ -176,22 +176,22 @@ class SimDetectorPersonality(PausableDevice):
             setattr(self, name, value)
         self.stepsPerRun = 1
         self.currentStep = 0
-        self.report("Configuring simDetector")
+        task.report("Configuring simDetector")
         self._configure_simDetector()
-        self.report("Configuring positionPlugin")
+        task.report("Configuring positionPlugin")
         self._configure_positionPlugin()
         # Setup config matcher
         self._sconfig = ConfigMatcher(
             SeqTransitionItem(
                 self.child_statemachines,
                 DState.Ready, DState.rest()))
-        name, changes = self.report_wait("Wait for plugins to configure")
+        name, changes = task.report_wait("Wait for plugins to configure")
         while not self._sconfig.check_done(name, changes):
-            name, changes = self.report_wait()
-        self.report("Configuring hdf5Writer")
+            name, changes = task.report_wait()
+        task.report("Configuring hdf5Writer")
         self._configure_hdf5Writer(self.positionPlugin.dimensions)
         # Finished
-        self.report("Configuring done", DState.Ready)
+        task.report("Configuring done", DState.Ready)
 
     def do_ready(self, value, changes):
         """Work out if the changes mean we are still ready for run.

@@ -29,8 +29,11 @@ class Zebra2(FlowGraph):
         # Now create N block objects based on this info
         for block, num in self.num_blocks.items():
             field_data = self.comms.get_field_data(block)
-            for i in range(num):
-                self.make_block(block, i + 1, field_data)
+            if num == 1:
+                self.make_block(block, "", field_data)
+            else:
+                for i in range(num):
+                    self.make_block(block, i + 1, field_data)
         # Publish these blocks
         self.blocks = [b.name for b in self._blocks.values()]
         # Now poll them at 10Hz
