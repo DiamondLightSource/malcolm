@@ -80,7 +80,7 @@ class SimDetectorTest(unittest.TestCase):
         base = ['hdf5Writer', 'positionPlugin',
                 'simDetectorDriver', 'uptime']
         pause = ['currentStep', 'stepsPerRun', 'totalSteps']
-        config = ['dimensions', 'exposure', 'hdf5File', 'period', 'positions']
+        config = ['dimensions', 'exposure', 'hdf5File', 'period', 'positions', 'running']
         self.assertEqual(self.s.attributes.keys(), base + pause + config)
         self.assertEqual(self.s.hdf5Writer, self.hdf5Writer)
         self.assertEqual(self.s.positionPlugin, self.positionPlugin)
@@ -174,6 +174,7 @@ class SimDetectorTest(unittest.TestCase):
     def test_run(self):
         self.set_configured()
         # Do a run
+        self.assertEqual(self.s.running, False)
         spawned = cothread.Spawn(self.s.run)
         # let run() go
         cothread.Yield()
@@ -199,10 +200,12 @@ class SimDetectorTest(unittest.TestCase):
         self.set_state(self.positionPlugin, DState.Running)
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.message, "Wait for run to finish")
+        self.assertEqual(self.s.running, False)
         # Now start simDetectorDriver
         self.set_state(self.simDetectorDriver, DState.Running)
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.message, "Wait for run to finish")
+        self.assertEqual(self.s.running, True)
         # Now let them all finish except 1
         self.set_state(self.simDetectorDriver, DState.Idle)
         self.set_state(self.hdf5Writer, DState.Idle)

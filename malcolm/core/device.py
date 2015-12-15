@@ -41,6 +41,10 @@ class DState(Enum):
         return [cls.Fault, cls.Aborted]
 
     @classmethod
+    def canRewind(cls):
+        return [cls.Paused, cls.Ready]
+
+    @classmethod
     def doneRewind(cls):
         return [cls.Fault, cls.Aborted, cls.Paused, cls.Ready]
 

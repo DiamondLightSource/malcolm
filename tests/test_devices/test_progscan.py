@@ -34,23 +34,23 @@ class ProgScanTest(unittest.TestCase):
         self.s = ProgScan("S", "PRE")
         self.s.loop_run()
         self.in_params = dict(
-            m1Start=1, m1Step=0.1, m1NumPoints=10, m1Dwell=1000)
+            xStart=1, xStep=0.1, xNumPoints=10, xDwell=1000)
         self.valid_params = {
-            'm1NumPoints': 10, 'm2Step': 0.0, 'm3NumPoints': 0, 'm1Start': 1.0,
-            'm1Dwell': 1000, 'm2Alternate': False, 'm2Start': 0.0,
-            'runTimeout': 1, 'm3Alternate': False, 'm1Order': 3, 'm2Order': 2,
-            'resetTimeout': 1, 'm3Order': 1, 'm1Step': 0.10000000000000001,
-            'm3Dwell': 0, 'abortTimeout': 1, 'm2Dwell': 0, 'm2NumPoints': 0,
-            'm3Start': 0.0, 'runTime': 20.0, 'configureTimeout': 1,
-            'm1Alternate': False, 'm3Step': 0.0, 'startPoint': 1}
+            'xNumPoints': 10, 'yStep': 0.0, 'zNumPoints': 0, 'xStart': 1.0,
+            'xDwell': 1000, 'yAlternate': False, 'yStart': 0.0,
+            'runTimeout': 1, 'zAlternate': False, 'xOrder': 3, 'yOrder': 2,
+            'resetTimeout': 1, 'zOrder': 1, 'xStep': 0.10000000000000001,
+            'zDwell': 0, 'abortTimeout': 1, 'yDwell': 0, 'yNumPoints': 0,
+            'zStart': 0.0, 'runTime': 20.0, 'configureTimeout': 1,
+            'xAlternate': False, 'zStep': 0.0, 'startPoint': 1}
         self.send_params = {
-            'm1NumPoints': 10, 'm2Step': 0.0, 'm3NumPoints': 0, 'm1Start': 1.0,
-            'm1Dwell': 1000, 'm2Alternate': False, 'm2Start': 0.0,
-            'm3Alternate': False, 'm1Order': 3, 'm2Order': 2,
-            'm3Order': 1, 'm1Step': 0.10000000000000001,
-            'm3Dwell': 0, 'm2Dwell': 0, 'm2NumPoints': 0,
-            'm3Start': 0.0,
-            'm1Alternate': False, 'm3Step': 0.0, 'startPoint': 1}
+            'xNumPoints': 10, 'yStep': 0.0, 'zNumPoints': 0, 'xStart': 1.0,
+            'xDwell': 1000, 'yAlternate': False, 'yStart': 0.0,
+            'zAlternate': False, 'xOrder': 3, 'yOrder': 2,
+            'zOrder': 1, 'xStep': 0.10000000000000001,
+            'zDwell': 0, 'yDwell': 0, 'yNumPoints': 0,
+            'zStart': 0.0,
+            'xAlternate': False, 'zStep': 0.0, 'startPoint': 1}
 
     def test_init(self):
         base = ['prefix', 'uptime']
@@ -60,12 +60,12 @@ class ProgScanTest(unittest.TestCase):
                'scanAbort',
                'scanStart',
                'startPoint',
-               'm1Start', 'm1Step',
-               'm1NumPoints', 'm1Dwell', 'm1Alternate', 'm1Order',
-               'm2Start', 'm2Step',
-               'm2NumPoints', 'm2Dwell', 'm2Alternate', 'm2Order',
-               'm3Start', 'm3Step',
-               'm3NumPoints', 'm3Dwell', 'm3Alternate', 'm3Order']
+               'xStart', 'xStep',
+               'xNumPoints', 'xDwell', 'xAlternate', 'xOrder',
+               'yStart', 'yStep',
+               'yNumPoints', 'yDwell', 'yAlternate', 'yOrder',
+               'zStart', 'zStep',
+               'zNumPoints', 'zDwell', 'zAlternate', 'zOrder']
         self.assertEqual(self.s.attributes.keys(), base + pvs)
         self.assertEqual(self.s.prefix, "PRE")
         for attr in pvs:
@@ -109,7 +109,7 @@ class ProgScanTest(unittest.TestCase):
 
     def test_mismatch(self):
         self.set_configured()
-        Attribute.update(self.s.attributes["m1NumPoints"], 2)
+        Attribute.update(self.s.attributes["xNumPoints"], 2)
         self.assertEqual(self.s.stateMachine.state, DState.Ready)
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.state, DState.Idle)

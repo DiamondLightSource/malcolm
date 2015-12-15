@@ -83,7 +83,7 @@ class PausableDevice(RunnableDevice):
             timeout = self._get_default_times("pause")
             self.wait_until(DState.doneRewind(), timeout=timeout)
 
-    @wrap_method(only_in=DState.Paused,
+    @wrap_method(only_in=DState.canRewind(),
                  steps=Attribute(VInt, "Number of steps to rewind by"),
                  block=Attribute(VBool, "Wait for function to complete?"))
     def rewind(self, steps, block=True):

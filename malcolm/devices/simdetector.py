@@ -4,7 +4,7 @@ import numpy
 
 from malcolm.core import PausableDevice, DState, InstanceAttribute, \
     wrap_method, Attribute, VDouble, VString, VTable, \
-    SeqFunctionItem, Sequence, SeqTransitionItem, VIntArray, VInt
+    SeqFunctionItem, Sequence, SeqTransitionItem, VIntArray, VInt, VBool
 from malcolm.devices import SimDetectorDriver, Hdf5Writer, PositionPlugin
 
 def_positions = [
@@ -31,9 +31,11 @@ class SimDetector(PausableDevice):
         for c in self.children:
             c.add_listener(self.post_changes, "stateMachine")
         self.child_statemachines = [c.stateMachine for c in self.children]
-        # Run monitors
+        # This is so we can calculate currentStep
         hdf5Writer.add_listener(
             self.post_changes, "attributes.uniqueId")
+        # This is so we can wait for all plugins to be ready before starting
+        # driver
         hdf5Writer.add_listener(
             self.post_changes, "attributes.capture")
         positionPlugin.add_listener(
@@ -53,7 +55,10 @@ class SimDetector(PausableDevice):
             # Monitor
             dimensions=Attribute(
                 VIntArray, "Detected dimensionality of positions"),
+            running=Attribute(
+                VBool, "True when underlying detector is running"),
         )
+        self.running = False
 
     def _validate_hdf5Writer(self, hdf5File, positions, dimensions,
                              totalSteps):
@@ -268,9 +273,12 @@ class SimDetector(PausableDevice):
         # Update progress
         if value == self.hdf5Writer.attributes["uniqueId"]:
             self.currentStep = value.value
+        if self.simDetectorDriver.state == DState.Running:
+            self.running = True
         running, item_done, msg = self._srun.process(value, changes)
         if running is False:
             # Finished
+            self.running = False
             return DState.Idle, "Running done"
         elif item_done:
             # Arrange for a callback to process the next item
@@ -305,6 +313,7 @@ class SimDetector(PausableDevice):
             no_fault = [s != DState.Fault for s in child_states]
             assert all(no_fault), \
                 "Expected no fault, got {}".format(child_states)
+            self.running = False
             return DState.Aborted, "Aborting finished"
         else:
             # No change
@@ -318,6 +327,7 @@ class SimDetector(PausableDevice):
         # Abort any items that need to be aborted
         need_wait = []
         need_reset = []
+        self.running = False
         for d in self.children:
             if d.state not in DState.rest():
                 d.abort(block=False)

@@ -42,9 +42,9 @@ class ProgScan(HasConfigSequence, RunnableDevice):
                 "How far through current iteration are we?")
         )
         # Add per motor
-        for i in range(1, 4):
-            p = "{}M{}:".format(self.prefix, i)
-            m = "m{}{{}}".format(i)
+        for dim in "XYZ":
+            p = "{}{}:".format(self.prefix, dim)
+            m = "{}{{}}".format(dim.lower())
             # Configure
             self.add_attribute(
                 m.format("Start"),
@@ -85,12 +85,12 @@ class ProgScan(HasConfigSequence, RunnableDevice):
         self.add_listener(self.post_changes, "attributes")
 
     @wrap_method()
-    def validate(self, m1Start, m1Step, m1NumPoints, m1Dwell,
-                 m1Alternate=False, m1Order=3,
-                 m2Start=0, m2Step=0, m2NumPoints=0, m2Dwell=0,
-                 m2Alternate=False, m2Order=2,
-                 m3Start=0, m3Step=0, m3NumPoints=0, m3Dwell=0,
-                 m3Alternate=False, m3Order=1,
+    def validate(self, xStart, xStep, xNumPoints, xDwell,
+                 xAlternate=False, xOrder=3,
+                 yStart=0, yStep=0, yNumPoints=0, yDwell=0,
+                 yAlternate=False, yOrder=2,
+                 zStart=0, zStep=0, zNumPoints=0, zDwell=0,
+                 zAlternate=False, zOrder=1,
                  startPoint=1):
         """Check whether a set of configuration parameters is valid or not. Each
         parameter name must match one of the names in self.attributes. This set
@@ -102,9 +102,9 @@ class ProgScan(HasConfigSequence, RunnableDevice):
         {"runTime": 1.5, arg1=2, arg2="arg2default"}
         """
         # TODO: movetime is estimated at 1s here, this is wrong...
-        runTime = m1NumPoints * (m1Dwell * 0.001 + 1)
-        runTime += m2NumPoints * (m2Dwell * 0.001 + 1)
-        runTime += m3NumPoints * (m3Dwell * 0.001 + 1)
+        runTime = xNumPoints * (xDwell * 0.001 + 1)
+        runTime += yNumPoints * (yDwell * 0.001 + 1)
+        runTime += zNumPoints * (zDwell * 0.001 + 1)
         return super(ProgScan, self).validate(locals())
 
     def make_config_sequence(self, **config_params):
