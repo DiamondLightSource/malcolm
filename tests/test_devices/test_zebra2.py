@@ -138,8 +138,5 @@ class Zebra2CommsTest(unittest.TestCase):
         resp = self.c.get_positions()
         self.assertEqual(resp, positions)
 
-class Zebra2BlockTest(unittest.TestCase):
-    pass
-
 if __name__ == '__main__':
     unittest.main(verbosity=2)

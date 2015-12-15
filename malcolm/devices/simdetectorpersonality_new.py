@@ -5,7 +5,7 @@ import numpy
 from malcolm.core import PausableDevice, DState, InstanceAttribute, \
     wrap_method, Attribute, VDouble, VString, VTable, \
     SeqFunctionItem, Sequence, SeqTransitionItem, VIntArray, VInt
-from malcolm.devices import SimDetector, Hdf5Writer, PositionPlugin
+from malcolm.devices import SimDetectorDriver, Hdf5Writer, PositionPlugin
 
 def_positions = [
     ("y", VDouble, numpy.repeat(numpy.arange(6, 9), 5) * 0.1, 'mm'),
@@ -13,17 +13,17 @@ def_positions = [
 ]
 
 
-class SimDetectorPersonality(PausableDevice):
-    class_attributes = dict(
-        simDetector=InstanceAttribute(SimDetector, "SimDetector Device"),
+class SimDetector(PausableDevice):
+
+    @wrap_method(
+        simDetector=InstanceAttribute(SimDetectorDriver, "SimDetectorDriver Device"),
         hdf5Writer=InstanceAttribute(Hdf5Writer, "Hdf5Writer Device"),
         positionPlugin=InstanceAttribute(
             PositionPlugin, "PositionPlugin Device"),
     )
-
     def __init__(self, name, simDetector, positionPlugin, hdf5Writer):
-        super(SimDetectorPersonality, self).__init__(name)
-        self.simDetector = simDetector
+        super(SimDetector, self).__init__(name)
+        self.simDetectorDriver = simDetector
         self.positionPlugin = positionPlugin
         self.hdf5Writer = hdf5Writer
         self.children = [simDetector, positionPlugin, hdf5Writer]
@@ -40,20 +40,27 @@ class SimDetectorPersonality(PausableDevice):
             self.post_changes, "attributes.running")
 
     def add_all_attributes(self):
-        super(SimDetectorPersonality, self).add_all_attributes()
-        self.add_attributes(
-            # Configure
-            exposure=Attribute(VDouble, "Exposure time for each frame"),
-            period=Attribute(VDouble, "Time between the start of each frame"),
-            positions=Attribute(
-                VTable,
-                "Position table, column headings are dimension names, " \
-                "slowest changing first"),
-            hdf5File=Attribute(VString, "HDF5 full file path to write"),
-            # Monitor
-            dimensions=Attribute(
-                VIntArray, "Detected dimensionality of positions"),
-        )
+        super(SimDetector, self).add_all_attributes()
+        # Configure
+        self._thing = None
+        self.exposure = Attribute(VDouble, "Exposure time for each frame")
+        self.exposure = 1.2
+        if self.exposure > 0:
+            print "blah"
+
+        self.exposure.update(1.2, alarm=Alarm.disconnected())
+        if self.exposure._value > 0:
+            print "blah"
+
+        self.period = Attribute(VDouble, "Time between the start of each frame")
+        self.positions = Attribute(
+            VTable,
+            "Position table, column headings are dimension names, "
+            "slowest changing first")
+        self.hdf5File = Attribute(VString, "HDF5 full file path to write")
+        # Monitor
+        self.dimensions = Attribute(
+            VIntArray, "Detected dimensionality of positions")
 
     def _validate_hdf5Writer(self, hdf5File, positions, dimensions,
                              totalSteps):
@@ -80,9 +87,9 @@ class SimDetectorPersonality(PausableDevice):
                  period=None):
         # Validate self
         dimensions, positions = self._add_position_indexes(positions)
-        # Validate simDetector
+        # Validate simDetectorDriver
         totalSteps = len(positions[0][2])
-        sim_params = self.simDetector.validate(exposure, totalSteps, period)
+        sim_params = self.simDetectorDriver.validate(exposure, totalSteps, period)
         runTime = sim_params["runTime"]
         runTimeout = sim_params["runTimeout"]
         period = sim_params["period"]
@@ -90,12 +97,12 @@ class SimDetectorPersonality(PausableDevice):
         self.positionPlugin.validate(positions)
         # Validate hdf writer
         self._validate_hdf5Writer(hdf5File, positions, dimensions, totalSteps)
-        return super(SimDetectorPersonality, self).validate(locals())
+        return super(SimDetector, self).validate(locals())
 
     def _add_position_indexes(self, positions):
         # which columns are index columns?
         names = [column[0] for column in positions]
-        indexes = [n for n in names if n.endswith("_index")]
+        indexes = [n[:-len("_index")] for n in names if n.endswith("_index")]
         non_indexes = [n for n in names if not n.endswith("_index")]
         expected_indexes = ["{}_index".format(n) for n in non_indexes]
         # check if indexes are supplied
@@ -128,8 +135,8 @@ class SimDetectorPersonality(PausableDevice):
         positions = [c for c in positions if n in non_indexes] + index_columns
         return dims, positions
 
-    def _configure_simDetector(self):
-        self.simDetector.configure(
+    def _configure_simDetectorDriver(self):
+        self.simDetectorDriver.configure(
             self.exposure, self.totalSteps - self.currentStep, self.period,
             self.currentStep, block=False)
 
@@ -140,10 +147,10 @@ class SimDetectorPersonality(PausableDevice):
                 positions.append([n, t, d[self.currentStep:], u])
         else:
             positions = self.positions
-        assert self.simDetector.portName is not None, \
-            "Expected simDetector.portName != None"
+        assert self.simDetectorDriver.portName is not None, \
+            "Expected simDetectorDriver.portName != None"
         self.positionPlugin.configure(
-            positions, self.currentStep + 1, self.simDetector.portName,
+            positions, self.currentStep + 1, self.simDetectorDriver.portName,
             block=False)
 
     def _configure_hdf5Writer(self):
@@ -156,7 +163,7 @@ class SimDetectorPersonality(PausableDevice):
         params.update(arrayPort=self.positionPlugin.portName, block=False)
         self.hdf5Writer.configure(**params)
 
-    def do_config(self, **config_params):
+    def do_configure(self, config_params, task):
         """Start doing a configuration using config_params.
         Return DState.Configuring, message when started
         """
@@ -169,39 +176,22 @@ class SimDetectorPersonality(PausableDevice):
             setattr(self, name, value)
         self.stepsPerRun = 1
         self.currentStep = 0
-        # make some sequences for config
-        self._sconfig = Sequence(
-            self.name + ".SConfig",
-            SeqFunctionItem(
-                "Configuring simDetector", self._configure_simDetector),
-            SeqFunctionItem(
-                "Configuring positionPlugin", self._configure_positionPlugin),
-            SeqFunctionItem(
-                "Configuring hdf5Writer", self._configure_hdf5Writer),
+        task.report("Configuring simDetectorDriver")
+        self._configure_simDetectorDriver()
+        task.report("Configuring positionPlugin")
+        self._configure_positionPlugin()
+        # Setup config matcher
+        self._sconfig = ConfigMatcher(
             SeqTransitionItem(
-                "Wait for plugins to configure", self.child_statemachines,
-                DState.Ready, DState.rest()),
-        )
-        item_done, msg = self._sconfig.start()
-        if item_done:
-            # Arrange for a callback to process the next item
-            self.post_changes(None, None)
-        return DState.Configuring, msg
-
-    def do_configuring(self, value, changes):
-        """Work out if the changes mean configuring is complete.
-        Return None, message if it isn't.
-        Return self.ConfigDoneState, message if it is.
-        """
-        running, item_done, msg = self._sconfig.process(value, changes)
-        if running is False:
-            # Finished
-            return DState.Ready, "Configuring done"
-        elif item_done:
-            # Arrange for a callback to process the next item
-            self.post_changes(None, None)
-        # Still going
-        return DState.Configuring, msg
+                self.child_statemachines,
+                DState.Ready, DState.rest()))
+        name, changes = task.report_wait("Wait for plugins to configure")
+        while not self._sconfig.check_done(name, changes):
+            name, changes = task.report_wait()
+        task.report("Configuring hdf5Writer")
+        self._configure_hdf5Writer(self.positionPlugin.dimensions)
+        # Finished
+        task.report("Configuring done", DState.Ready)
 
     def do_ready(self, value, changes):
         """Work out if the changes mean we are still ready for run.
@@ -210,41 +200,40 @@ class SimDetectorPersonality(PausableDevice):
         """
         mismatches = self._sconfig.mismatches()
         if mismatches:
-            return DState.Idle, "Unconfigured: {}".format(mismatches)
-        else:
-            return None, None
+            yield "Unconfigured: {}".format(mismatches), DState.Idle
 
     def do_run(self):
         """Start doing a run.
         Return DState.Running, message when started
         """
-        plugins = [self.simDetector.stateMachine,
+        plugins = [self.simDetectorDriver.stateMachine,
                    self.positionPlugin.stateMachine]
         for d in plugins:
             assert d.state == DState.Ready, \
                 "Child device {} in state {} is not runnable"\
                 .format(d.name, d.state)
-        seq_items = [
-            SeqFunctionItem(
-                "Running positionPlugin", self.positionPlugin.run,
-                block=False)]
+        self.report("Running positionPlugin")
+        self.positionPlugin.run(block=False)
         # If hdf writer is not already running then run it
         if self.hdf5Writer.state != DState.Running:
-            seq_items += [
-                SeqFunctionItem(
-                    "Running hdf5Writer", self.hdf5Writer.run,
-                    block=False),
-                SeqTransitionItem(
-                    "Wait for hdf5Writer to run",
-                    self.hdf5Writer.attributes["capture"], True),
-            ]
-        # Now add the rest
+            self.hdf5Writer.run(block=False)
+            t = SeqTransitionItem(self.hdf5Writer.attributes["capture"], True)
+            name, changes = yield "Wait for hdf5Writer to run"
+            while not t.check_done(name, changes):
+                name, changes = yield "Wait for hdf5Writer to run"
+        # Now start the other plugins
+        t = SeqTransitionItem(self.positionPlugin.attributes["running"], True)
+        name, changes = yield "Wait for hdf5Writer to run"
+        while not t.check_done(name, changes):
+            name, changes = yield "Wait for hdf5Writer to run"
+        
+
         seq_items += [
             SeqTransitionItem(
                 "Wait for positionPlugin to run",
                 self.positionPlugin.attributes["running"], True),
             SeqFunctionItem(
-                "Running simDetector", self.simDetector.run,
+                "Running simDetectorDriver", self.simDetectorDriver.run,
                 block=False),
             SeqTransitionItem(
                 "Wait for run to finish", self.child_statemachines,
@@ -375,7 +364,7 @@ class SimDetectorPersonality(PausableDevice):
     def do_rewind(self, steps=None):
         """Start a pause"""
         # make some sequences for config
-        plugins = [self.simDetector.stateMachine,
+        plugins = [self.simDetectorDriver.stateMachine,
                    self.positionPlugin.stateMachine]
         for d in plugins:
             assert d.state in DState.canAbort(), \
@@ -383,11 +372,11 @@ class SimDetectorPersonality(PausableDevice):
                 .format(d, d.state)
         seq_items = []
         # if we need to abort
-        if self.simDetector.state not in DState.canConfig() or \
+        if self.simDetectorDriver.state not in DState.canConfig() or \
                 self.positionPlugin.state not in DState.canConfig():
             seq_items += [
                 SeqFunctionItem(
-                    "Stopping simDetector", self.simDetector.abort,
+                    "Stopping simDetectorDriver", self.simDetectorDriver.abort,
                     block=False),
                 SeqFunctionItem(
                     "Stopping positionPlugin", self.positionPlugin.abort,
@@ -396,7 +385,7 @@ class SimDetectorPersonality(PausableDevice):
                     "Wait for plugins to stop", plugins,
                     DState.Aborted, DState.rest()),
                 SeqFunctionItem(
-                    "Reset simDetector", self.simDetector.reset,
+                    "Reset simDetectorDriver", self.simDetectorDriver.reset,
                     block=False),
                 SeqFunctionItem(
                     "Reset positionPlugin", self.positionPlugin.reset,
@@ -410,7 +399,7 @@ class SimDetectorPersonality(PausableDevice):
             SeqFunctionItem(
                 "Configuring positionPlugin", self._configure_positionPlugin),
             SeqFunctionItem(
-                "Configuring simDetector", self._configure_simDetector),
+                "Configuring simDetectorDriver", self._configure_simDetectorDriver),
             SeqTransitionItem(
                 "Wait for plugins to configure", plugins,
                 DState.Ready, DState.rest()),

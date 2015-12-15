@@ -42,25 +42,30 @@ class ProgScanTest(unittest.TestCase):
             'resetTimeout': 1, 'm3Order': 1, 'm1Step': 0.10000000000000001,
             'm3Dwell': 0, 'abortTimeout': 1, 'm2Dwell': 0, 'm2NumPoints': 0,
             'm3Start': 0.0, 'runTime': 20.0, 'configureTimeout': 1,
-            'm1Alternate': False, 'm3Step': 0.0}
+            'm1Alternate': False, 'm3Step': 0.0, 'startPoint': 1}
         self.send_params = {
             'm1NumPoints': 10, 'm2Step': 0.0, 'm3NumPoints': 0, 'm1Start': 1.0,
             'm1Dwell': 1000, 'm2Alternate': False, 'm2Start': 0.0,
             'm3Alternate': False, 'm1Order': 3, 'm2Order': 2,
             'm3Order': 1, 'm1Step': 0.10000000000000001,
             'm3Dwell': 0, 'm2Dwell': 0, 'm2NumPoints': 0,
-            'm3Start': 0.0, 
-            'm1Alternate': False, 'm3Step': 0.0}
+            'm3Start': 0.0,
+            'm1Alternate': False, 'm3Step': 0.0, 'startPoint': 1}
 
     def test_init(self):
         base = ['prefix', 'uptime']
-        pvs = ['progState', 'scanAbort', 'scanStart', 'm1Start', 'm1Step',
+        pvs = ['nPoints',
+               'progState',
+               'progress',
+               'scanAbort',
+               'scanStart',
+               'startPoint',
+               'm1Start', 'm1Step',
                'm1NumPoints', 'm1Dwell', 'm1Alternate', 'm1Order',
-               'm1PointsDone', 'm1ScansDone', 'm2Start', 'm2Step',
+               'm2Start', 'm2Step',
                'm2NumPoints', 'm2Dwell', 'm2Alternate', 'm2Order',
-               'm2PointsDone', 'm2ScansDone', 'm3Start', 'm3Step',
-               'm3NumPoints', 'm3Dwell', 'm3Alternate', 'm3Order',
-               'm3PointsDone', 'm3ScansDone']
+               'm3Start', 'm3Step',
+               'm3NumPoints', 'm3Dwell', 'm3Alternate', 'm3Order']
         self.assertEqual(self.s.attributes.keys(), base + pvs)
         self.assertEqual(self.s.prefix, "PRE")
         for attr in pvs:

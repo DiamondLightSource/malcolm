@@ -26,6 +26,8 @@ class Zebra2(FlowGraph):
         self._positions = self.comms.get_positions()
         # (block, field) -> [list of .VAL attributes that need updating]
         self._muxes = {}
+        # changes left over from last time
+        self.changes = {}
         # Now create N block objects based on this info
         for block, num in self.num_blocks.items():
             field_data = self.comms.get_field_data(block)
@@ -48,15 +50,20 @@ class Zebra2(FlowGraph):
             positions=[x for x in self._positions if x])
 
     def do_poll(self):
-        changes = self.comms.get_changes()
-        for field, val in changes.items():
-            block, field = field.split(".", 1)
+        self.changes.update(self.comms.get_changes())
+        for fullfield, val in self.changes.items():
+            block, field = fullfield.split(".", 1)
             assert block in self._blocks, \
                 "Block {} not known".format(block)
             block = self._blocks[block]
-            self.update_attribute(block, field.replace(".", ":"), val)
+            ret = self.update_attribute(block, field.replace(".", ":"), val)
+            if ret is not None:
+                self.changes[fullfield] = ret
+            else:
+                self.changes.pop(fullfield)
 
     def update_attribute(self, block, field, val):
+        ret = None
         assert field in block.attributes, \
             "Block {} has no attribute {}".format(block.name, field)
         attr = block.attributes[field]
@@ -68,7 +75,10 @@ class Zebra2(FlowGraph):
         else:
             if isinstance(attr.typ, VBool):
                 val = bool(int(val))
-            # TODO: make pos_out and bit_out things toggle while changing
+                if val == attr.value:
+                    # make bit_out things toggle while changing
+                    ret = val
+                    val = not val
             attr.update(val)
             for val_attr in self._muxes.get((block, field), []):
                 val_attr.update(val)
@@ -87,3 +97,4 @@ class Zebra2(FlowGraph):
             self._muxes.setdefault((mon_block, mon_field), []).append(val_attr)
             # update it to the right value
             val_attr.update(self._blocks[mon_block].attributes[mon_field].value)
+        return ret

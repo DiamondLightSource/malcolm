@@ -87,10 +87,9 @@ class Zebra2Comms(object):
         return field_data
 
     def get_enum_labels(self, block, field):
-        enum_labels = OrderedDict()
+        enum_labels = []
         for line in self.send_recv("{}.{}.LABELS?\n".format(block, field)):
-            index, string = line.split(" ", 1)
-            enum_labels[int(index)] = string
+            enum_labels.append(line)
         return enum_labels
 
     def get_changes(self):

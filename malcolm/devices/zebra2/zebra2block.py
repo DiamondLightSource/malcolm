@@ -60,9 +60,7 @@ class Zebra2Block(Device):
         elif typ == "enum":
             block = self.name.split(":", 1)[1]
             labels = self.comms.get_enum_labels(block, field)
-            assert labels.keys() == range(len(labels)), \
-                "Can't deal with {}".format(labels)
-            ret[field] = Attribute(VEnum(labels.values()), field)
+            ret[field] = Attribute(VEnum(labels), field)
         elif typ == "uint":
             ret[field] = Attribute(VInt, field)
         elif typ == "lut":

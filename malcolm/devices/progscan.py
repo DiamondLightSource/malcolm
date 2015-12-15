@@ -20,6 +20,10 @@ class ProgScan(HasConfigSequence, RunnableDevice):
                 p + "SCAN:START", VBool,
                 "Start a scan",
                 put_callback=False),
+            startPoint=PvAttribute(
+                p + "START:POINT", VInt,
+                "Point to start at",
+                put_callback=False),
             # Abort
             scanAbort=PvAttribute(
                 p + "SCAN:ABORT", VBool,
@@ -29,6 +33,13 @@ class ProgScan(HasConfigSequence, RunnableDevice):
                 p + "PROG:STATE",
                 VEnum("Idle,Scanning,Prog error,Prog failed,Failed"),
                 "State of current run"),
+            # Readback
+            nPoints=PvAttribute(
+                p + "NPOINTS:RBV", VInt,
+                "How many points in the current scan"),
+            progress=PvAttribute(
+                p + "PROGRESS:RBV", VInt,
+                "How far through current iteration are we?")
         )
         # Add per motor
         for i in range(1, 4):
@@ -71,17 +82,6 @@ class ProgScan(HasConfigSequence, RunnableDevice):
                     p + "ORDER", VInt,
                     "Which axis to do first, second, third",
                     rbv_suff=":RBV"))
-            # Readback
-            self.add_attribute(
-                m.format("PointsDone"),
-                PvAttribute(
-                    p + "POINT", VInt,
-                    "How many points are done in the current iteration"))
-            self.add_attribute(
-                m.format("ScansDone"),
-                PvAttribute(
-                    p + "SCAN", VInt,
-                    "How many complete scans of this dimension are done"))
         self.add_listener(self.post_changes, "attributes")
 
     @wrap_method()
@@ -90,7 +90,8 @@ class ProgScan(HasConfigSequence, RunnableDevice):
                  m2Start=0, m2Step=0, m2NumPoints=0, m2Dwell=0,
                  m2Alternate=False, m2Order=2,
                  m3Start=0, m3Step=0, m3NumPoints=0, m3Dwell=0,
-                 m3Alternate=False, m3Order=1):
+                 m3Alternate=False, m3Order=1,
+                 startPoint=1):
         """Check whether a set of configuration parameters is valid or not. Each
         parameter name must match one of the names in self.attributes. This set
         of parameters should be checked in isolation, no device state should be

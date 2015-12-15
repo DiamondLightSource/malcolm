@@ -8,4 +8,3 @@ try:
 except ImportError:
     print "No Qt available"
 import malcolm.devices
-import malcolm.personalities
