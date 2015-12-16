@@ -33,19 +33,21 @@ class ProgScanTest(unittest.TestCase):
     def setUp(self):
         self.s = ProgScan("S", "PRE")
         self.s.loop_run()
-        self.in_params = dict(
-            xStart=1, xStep=0.1, xNumPoints=10, xDwell=1000)
+        self.in_params = dict(dwell=1000,
+                              xStart=1, xStep=0.1, xNumPoints=10, xDwell=0)
         self.valid_params = {
+            'dwell': 1000,
             'xNumPoints': 10, 'yStep': 0.0, 'zNumPoints': 0, 'xStart': 1.0,
-            'xDwell': 1000, 'yAlternate': False, 'yStart': 0.0,
+            'xDwell': 0, 'yAlternate': False, 'yStart': 0.0,
             'runTimeout': 1, 'zAlternate': False, 'xOrder': 3, 'yOrder': 2,
             'resetTimeout': 1, 'zOrder': 1, 'xStep': 0.10000000000000001,
             'zDwell': 0, 'abortTimeout': 1, 'yDwell': 0, 'yNumPoints': 0,
             'zStart': 0.0, 'runTime': 20.0, 'configureTimeout': 1,
             'xAlternate': False, 'zStep': 0.0, 'startPoint': 1}
         self.send_params = {
+            'dwell': 1000,
             'xNumPoints': 10, 'yStep': 0.0, 'zNumPoints': 0, 'xStart': 1.0,
-            'xDwell': 1000, 'yAlternate': False, 'yStart': 0.0,
+            'xDwell': 0, 'yAlternate': False, 'yStart': 0.0,
             'zAlternate': False, 'xOrder': 3, 'yOrder': 2,
             'zOrder': 1, 'xStep': 0.10000000000000001,
             'zDwell': 0, 'yDwell': 0, 'yNumPoints': 0,
@@ -54,7 +56,7 @@ class ProgScanTest(unittest.TestCase):
 
     def test_init(self):
         base = ['prefix', 'uptime']
-        pvs = ['nPoints',
+        pvs = ['dwell', 'nPoints',
                'progState',
                'progress',
                'scanAbort',

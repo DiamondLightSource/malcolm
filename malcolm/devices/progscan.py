@@ -23,7 +23,11 @@ class ProgScan(HasConfigSequence, RunnableDevice):
             startPoint=PvAttribute(
                 p + "START:POINT", VInt,
                 "Point to start at",
-                put_callback=False),
+                rbv_suff=":RBV"),
+            dwell=PvAttribute(
+                p + "EXTRA:LONG", VInt,
+                "Time to dwell for",
+                rbv_suff=":RBV"),
             # Abort
             scanAbort=PvAttribute(
                 p + "SCAN:ABORT", VBool,
@@ -42,9 +46,9 @@ class ProgScan(HasConfigSequence, RunnableDevice):
                 "How far through current iteration are we?")
         )
         # Add per motor
-        for dim in "XYZ":
-            p = "{}{}:".format(self.prefix, dim)
-            m = "{}{{}}".format(dim.lower())
+        for i, dim in enumerate("xyz"):
+            p = "{}M{}:".format(self.prefix, i + 1)
+            m = "{}{{}}".format(dim)
             # Configure
             self.add_attribute(
                 m.format("Start"),
@@ -85,7 +89,8 @@ class ProgScan(HasConfigSequence, RunnableDevice):
         self.add_listener(self.post_changes, "attributes")
 
     @wrap_method()
-    def validate(self, xStart, xStep, xNumPoints, xDwell,
+    def validate(self, dwell,
+                 xStart, xStep, xNumPoints, xDwell,
                  xAlternate=False, xOrder=3,
                  yStart=0, yStep=0, yNumPoints=0, yDwell=0,
                  yAlternate=False, yOrder=2,
@@ -102,9 +107,9 @@ class ProgScan(HasConfigSequence, RunnableDevice):
         {"runTime": 1.5, arg1=2, arg2="arg2default"}
         """
         # TODO: movetime is estimated at 1s here, this is wrong...
-        runTime = xNumPoints * (xDwell * 0.001 + 1)
-        runTime += yNumPoints * (yDwell * 0.001 + 1)
-        runTime += zNumPoints * (zDwell * 0.001 + 1)
+        runTime = xNumPoints * (dwell * 0.001 + 1)
+        runTime += yNumPoints * (dwell * 0.001 + 1)
+        runTime += zNumPoints * (dwell * 0.001 + 1)
         return super(ProgScan, self).validate(locals())
 
     def make_config_sequence(self, **config_params):

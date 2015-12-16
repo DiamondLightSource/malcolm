@@ -35,11 +35,12 @@ class HdfWriterTest(unittest.TestCase):
         self.s = Hdf5Writer("S", "PRE")
         self.s.loop_run()
         self.in_params = dict(filePath="/tmp", fileName="demo.hdf5",
-                              dimNames=["x", "y"], indexNames=["n_index"],
+                              dimNames=["y", "x"], indexNames=["n_index"],
                               indexSizes=[15], dimUnits=["mm", "mm"])
         self.valid_params = dict(
             filePath="/tmp/", fileName="demo.hdf5",
-            dimNames=["x", "y"], indexNames=["n_index"], indexSizes=[15], dimUnits=["mm", "mm"],
+            dimNames=["y", "x"], indexNames=["n_index"], indexSizes=[15], 
+            dimUnits=["mm", "mm"],
             resetTimeout=1, runTime=None, runTimeout=1,
             abortTimeout=1, configureTimeout=1, arrayPort=None)
         self.send_params = {
@@ -119,14 +120,14 @@ class HdfWriterTest(unittest.TestCase):
     <attribute name="NX_class" source="constant" type="string" value="NXentry"/>
     <group name="data">
       <attribute name="signal" source="constant" type="string" value="det1"/>
-      <attribute name="axes" source="constant" type="string" value="x_demand,y_demand,.,.,."/>
+      <attribute name="axes" source="constant" type="string" value="y_demand,x_demand,.,.,."/>
       <attribute name="NX_class" source="constant" type="string" value="NXdata"/>
-      <attribute name="x_demand_indices" source="constant" type="string" value="0"/>
-      <attribute name="y_demand_indices" source="constant" type="string" value="1"/>
-      <dataset name="x_demand" ndattribute="x" source="ndattribute">
+      <attribute name="y_demand_indices" source="constant" type="string" value="0"/>
+      <attribute name="x_demand_indices" source="constant" type="string" value="1"/>
+      <dataset name="y_demand" ndattribute="y" source="ndattribute">
         <attribute name="units" source="constant" type="string" value="mm"/>
       </dataset>
-      <dataset name="y_demand" ndattribute="y" source="ndattribute">
+      <dataset name="x_demand" ndattribute="x" source="ndattribute">
         <attribute name="units" source="constant" type="string" value="mm"/>
       </dataset>
       <dataset det_default="true" name="det1" source="detector">
@@ -135,10 +136,13 @@ class HdfWriterTest(unittest.TestCase):
     </group>
     <group name="NDArrayUniqueId">
       <attribute name="signal" source="constant" type="string" value="NDArrayUniqueId"/>
+      <attribute name="axes" source="constant" type="string" value="y_demand,x_demand,.,.,."/>
       <attribute name="NX_class" source="constant" type="string" value="NXdata"/>
-      <dataset name="NDArrayUniqueId" ndattribute="NDArrayUniqueId" source="ndattribute"/>
-      <hardlink name="x_demand" target="/entry/data/x_demand"/>
+      <attribute name="y_demand_indices" source="constant" type="string" value="0"/>
+      <attribute name="x_demand_indices" source="constant" type="string" value="1"/>
       <hardlink name="y_demand" target="/entry/data/y_demand"/>
+      <hardlink name="x_demand" target="/entry/data/x_demand"/>
+      <dataset name="NDArrayUniqueId" ndattribute="NDArrayUniqueId" source="ndattribute"/>
     </group>
     <group name="NDAttributes" ndattr_default="true">
       <attribute name="NX_class" source="constant" type="string" value="NXcollection"/>

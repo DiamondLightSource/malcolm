@@ -4,3 +4,4 @@ from malcolm.devices.simdetectordriver import SimDetectorDriver
 from malcolm.devices.positionplugin import PositionPlugin
 from malcolm.devices.progscan import ProgScan
 from malcolm.devices.simdetector import SimDetector
+from malcolm.devices.arpesscan import ArpesScan

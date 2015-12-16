@@ -23,13 +23,13 @@ class Hdf5Writer(HasConfigSequence, RunnableDevice):
         self.add_attributes(
             # Configure
             dimNames=Attribute(
-                VStringArray, "List of names of positioners to write"),
+                VStringArray, "List of names of positioners to write, slowest first"),
             dimUnits=Attribute(
-                VStringArray, "List of units for positioners (defaults to mm)"),
+                VStringArray, "List of units for positioners (defaults to mm), slowest first"),
             indexNames=Attribute(
-                VStringArray, "List of names of dimension attributes to write"),
+                VStringArray, "List of names of dimension attributes to write, slowest first"),
             indexSizes=Attribute(
-                VIntArray, "List of sizes of dimensions"),
+                VIntArray, "List of sizes of dimensions, slowest first"),
             enableCallbacks=PvAttribute(
                 p + "EnableCallbacks", VBool,
                 "Enable plugin to run when we get a new frame",
@@ -56,11 +56,11 @@ class Hdf5Writer(HasConfigSequence, RunnableDevice):
                 rbv_suff="_RBV"),
             posNameDimX=PvAttribute(
                 p + "PosNameDimX", VString,
-                "Attribute that position plugin will write DimN index into",
+                "Attribute that position plugin will write DimX index into",
                 rbv_suff="_RBV"),
             posNameDimY=PvAttribute(
                 p + "PosNameDimY", VString,
-                "Attribute that position plugin will write DimN index into",
+                "Attribute that position plugin will write DimY index into",
                 rbv_suff="_RBV"),
             ndAttributeChunk=PvAttribute(
                 p + "NDAttributeChunk", VBool,
@@ -160,20 +160,17 @@ class Hdf5Writer(HasConfigSequence, RunnableDevice):
         # validate indexes
         assert len(indexNames) == len(indexSizes), \
             "Mismatch in sizes of dimNames {} and indexSizes {}" \
-            .format(indexNames, indexSizes)        
+            .format(indexNames, indexSizes)
         assert len(indexNames) <= 3, \
             "Need <=3 indexNames, got {}".format(indexNames)
         return super(Hdf5Writer, self).validate(locals())
 
-    def _make_xml(self, dimNames, dimUnits):
-        root_el = ET.Element("hdf5_layout")
-        entry_el = ET.SubElement(root_el, "group", name="entry")
-        ET.SubElement(entry_el, "attribute", name="NX_class",
-                      source="constant", value="NXentry", type="string")
+    def _make_nxdata(self, name, entry_el, dimNames, dimUnits, signalName,
+                     link=False):
         # Make a dataset for the data
-        data_el = ET.SubElement(entry_el, "group", name="data")
+        data_el = ET.SubElement(entry_el, "group", name=name)
         ET.SubElement(data_el, "attribute", name="signal", source="constant",
-                      value="det1", type="string")
+                      value=signalName, type="string")
         pad_dims = ['.'] * 5
         for i, dim in enumerate(dimNames):
             pad_dims[i] = "{}_demand".format(dim)
@@ -186,13 +183,32 @@ class Hdf5Writer(HasConfigSequence, RunnableDevice):
             ET.SubElement(data_el, "attribute",
                           name="{}_demand_indices".format(dim),
                           source="constant", value=str(i), type="string")
-        # Add in our demand positions
         for dim, units in zip(dimNames, dimUnits):
-            axis_el = ET.SubElement(
-                data_el, "dataset", name="{}_demand".format(dim),
-                source="ndattribute", ndattribute=dim)
-            ET.SubElement(axis_el, "attribute", name="units",
-                          source="constant", value=units, type="string")
+            if link:
+                ET.SubElement(data_el, "hardlink",
+                              name="{}_demand".format(dim),
+                              target="/entry/data/{}_demand".format(dim))
+            else:
+                axis_el = ET.SubElement(
+                    data_el, "dataset", name="{}_demand".format(dim),
+                    source="ndattribute", ndattribute=dim)
+                ET.SubElement(axis_el, "attribute", name="units",
+                              source="constant", value=units, type="string")
+        return data_el
+
+    def _make_xml(self, dimNames, dimUnits):
+        root_el = ET.Element("hdf5_layout")
+        entry_el = ET.SubElement(root_el, "group", name="entry")
+        ET.SubElement(entry_el, "attribute", name="NX_class",
+                      source="constant", value="NXentry", type="string")
+        # Make an nxdata element with the detector data in it
+        data_el = self._make_nxdata(
+            "data", entry_el, dimNames, dimUnits, "det1")
+        det1_el = ET.SubElement(data_el, "dataset", name="det1",
+                                source="detector", det_default="true")
+        ET.SubElement(det1_el, "attribute", name="NX_class",
+                      source="constant", value="SDS", type="string")
+        # Add in the actual data array
         if self.readbacks:
             # Add in our readback values
             for dim, units in zip(dimNames, dimUnits):
@@ -204,23 +220,13 @@ class Hdf5Writer(HasConfigSequence, RunnableDevice):
             # Our figure of merit is the delta
             merit = "delta"
         else:
-            # Add in the actual data array
-            det1_el = ET.SubElement(data_el, "dataset", name="det1",
-                                    source="detector", det_default="true")
-            ET.SubElement(det1_el, "attribute", name="NX_class",
-                          source="constant", value="SDS", type="string")
             merit = "NDArrayUniqueId"
         # Now add some figure of merit
-        merit_el = ET.SubElement(entry_el, "group", name=merit)
-        ET.SubElement(merit_el, "attribute", name="signal", source="constant",
-                      value=merit, type="string")
-        ET.SubElement(merit_el, "attribute", name="NX_class",
-                      source="constant", value="NXdata", type="string")
-        ET.SubElement(merit_el, "dataset", name=merit, source="ndattribute",
-                      ndattribute=merit)
-        for dim in dimNames:
-            ET.SubElement(merit_el, "hardlink", name="{}_demand".format(dim),
-                          target="/entry/data/{}_demand".format(dim))
+        merit_el = self._make_nxdata(
+            merit, entry_el, dimNames, dimUnits, merit, link=True)
+        ET.SubElement(merit_el, "dataset", name=merit,
+                      source="ndattribute", ndattribute=merit)
+        # Add a group for attributes
         NDAttributes_el = ET.SubElement(entry_el, "group", name="NDAttributes",
                                         ndattr_default="true")
         ET.SubElement(NDAttributes_el, "attribute", name="NX_class",
@@ -236,15 +242,15 @@ class Hdf5Writer(HasConfigSequence, RunnableDevice):
         # Calculate dimNames
         dimNames = config_params["dimNames"]
         dimUnits = config_params["dimUnits"]
-        indexNames = config_params["indexNames"]
-        indexSizes = config_params["indexSizes"]
+        indexNames = list(reversed(config_params["indexNames"]))
+        indexSizes = list(reversed(config_params["indexSizes"]))
         config_params.update(
             xml=self._make_xml(dimNames, dimUnits),
             numExtraDims=len(indexNames) - 1
         )
         # pad indexNames (indexes) and sizes
         indexNames += [''] * (3 - len(indexNames))
-        indexSizes = list(indexSizes) + [1] * (3 - len(indexSizes))
+        indexSizes += [1] * (3 - len(indexSizes))
         config_params.update(
             posNameDimN=indexNames[0], extraDimSizeN=indexSizes[0],
             posNameDimX=indexNames[1], extraDimSizeX=indexSizes[1],

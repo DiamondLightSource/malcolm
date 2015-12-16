@@ -16,7 +16,7 @@ class ArpesScan(PausableDevice):
     )
 
     def __init__(self, name, simDetector, progScan):
-        super(SimDetector, self).__init__(name)
+        super(ArpesScan, self).__init__(name)
         self.simDetector = simDetector
         self.progScan = progScan
         self.children = [simDetector, progScan]
@@ -33,7 +33,7 @@ class ArpesScan(PausableDevice):
             self.post_changes, "attributes.running")
 
     def add_all_attributes(self):
-        super(SimDetector, self).add_all_attributes()
+        super(ArpesScan, self).add_all_attributes()
         self.add_attributes(
             # Configure
             xStart=Attribute(VDouble, "Starting position for X"),
@@ -48,23 +48,34 @@ class ArpesScan(PausableDevice):
             positions=Attribute(VTable, "Generated position table")
         )
 
+    def _npoints(self, start, stop, step):
+        npoints = int((stop - start + step * 1.0001) / step)
+        return npoints
+
+    def _arange(self, start, stop, step):
+        arange = numpy.arange(start, stop + step * 0.0001, step)
+        return arange
+
     def _create_positions(self, xStart, xStop, xStep, yStart, yStop, yStep):
-        xNumPoints = int((xStop - xStart) / xStep)
-        yNumPoints = int((yStop - yStart) / yStep)
-        xFwd = numpy.arange(xStart, xStop, xStep)
+        xNumPoints = self._npoints(xStart, xStop, xStep)
+        yNumPoints = self._npoints(yStart, yStop, yStep)
+        xFwd = self._arange(xStart, xStop, xStep)
         assert len(xFwd) == xNumPoints, \
             "{} != {}".format(len(xFwd), xNumPoints)
         xRev = xFwd[::-1]
+        yFwd = self._arange(yStart, yStop, yStep)
+        assert len(yFwd) == yNumPoints, \
+            "{} != {}".format(len(yFwd), yNumPoints)
         # make the positions table
         xPoints = numpy.zeros(xNumPoints * yNumPoints, dtype=numpy.float64)
         yPoints = numpy.zeros(xNumPoints * yNumPoints, dtype=numpy.float64)
         # start by going forward
         xRow = xFwd
-        for y in range(yStart, yStop, yStep):
+        for i, y in enumerate(yFwd):
             yPoints[i * xNumPoints:(i + 1) * xNumPoints] = y
-            xPoints[i * xNumPoints:(i + 1) * xNumPoints] = xFwd
+            xPoints[i * xNumPoints:(i + 1) * xNumPoints] = xRow
             # go the other way for the next row
-            if xRow == xFwd:
+            if xRow is xFwd:
                 xRow = xRev
             else:
                 xRow = xFwd
@@ -75,35 +86,40 @@ class ArpesScan(PausableDevice):
         return positions, xNumPoints, yNumPoints
 
     @wrap_method()
-    def validate(self, xStart, xStop, xStep,
-                 yStart, yStop, yStep, exposure, hdf5File):
+    def validate(self, xStart=0, xStop=0.5, xStep=0.05,
+                 yStart=0, yStop=0.1, yStep=0.02, exposure=0.075, 
+                 hdf5File="/tmp/foo.h5"):
         # Create a positions table
         positions, xNumPoints, yNumPoints = self._create_positions(
             xStart, xStop, xStep, yStart, yStop, yStep)
+        xStop = xStart + xStep * (xNumPoints - 1)
+        yStop = yStart + yStep * (yNumPoints - 1)
         totalSteps = len(positions[0][2])
         # Validate simDetector
         sim_params = self.simDetector.validate(
             hdf5File, exposure, positions)
         # Validate progScan
         prog_params = self.progScan.validate(
-            xStart, xStep, xNumPoints, exposure, True, 3,
-            yStart, yStep, yNumPoints, exposure, False, 2
+            int(exposure * 1000),
+            xStart, xStep, xNumPoints, 0, True, 3,
+            yStart, yStep, yNumPoints, -1, False, 2
         )
         runTime = max(sim_params["runTime"], prog_params["runTime"])
         runTimeout = max(sim_params["runTimeout"], prog_params["runTimeout"])
-        return super(SimDetector, self).validate(locals())
+        return super(ArpesScan, self).validate(locals())
 
     def _configure_simDetector(self):
         self.simDetector.configure(self.hdf5File, self.exposure,
                                    self.positions, block=False)
 
     def _configure_progScan(self):
-        xNumPoints = int((self.xStop - self.xStart) / self.xStep)
-        yNumPoints = int((self.yStop - self.yStart) / self.yStep)
+        xNumPoints = self._npoints(self.xStart, self.xStop, self.xStep)
+        yNumPoints = self._npoints(self.yStart, self.yStop, self.yStep)
         self.progScan.configure(
-            self.xStart, self.xStep, xNumPoints, self.exposure, True, 3,
-            self.yStart, self.yStep, yNumPoints, self.exposure, False, 2,
-            startPosition=self.currentStep + 1, block=False)
+            int(self.exposure * 1000),
+            self.xStart, self.xStep, xNumPoints, 0, True, 3,
+            self.yStart, self.yStep, yNumPoints, -1, False, 2,
+            startPoint=self.currentStep + 1, block=False)
 
     def do_config(self, **config_params):
         """Start doing a configuration using config_params.
