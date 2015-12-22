@@ -25,10 +25,10 @@ class Zebra2Block(Device):
 
         def set_func(device, **args):
             value = args[param]
+            setattr(device, param, value)
             if isbool:
                 value = int(args[param])
             device.comms.set_field(block, param.replace(":", "."), value)
-            setattr(device, param, value)
 
         method = ClientMethod(set_name, set_name, set_func)
         arg = dict(type=attr.typ, descriptor=attr.descriptor)

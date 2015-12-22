@@ -52,7 +52,7 @@ class HasListeners(Base):
         for prefix, listeners in self._listeners.items():
             filt_changes = {}
             for cname, cvalue in changes.items():
-                if cname.startswith(prefix):
+                if prefix == "" or cname == prefix or cname.startswith(prefix + "."):
                     filt_changes[cname[len(prefix):].lstrip(".")] = cvalue
             if filt_changes:
                 # If we have a dict with a single entry "", we are monitoring

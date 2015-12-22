@@ -75,7 +75,9 @@ class Zebra2(FlowGraph):
         else:
             if isinstance(attr.typ, VBool):
                 val = bool(int(val))
-                if val == attr.value:
+                if field in block.field_data and \
+                        block.field_data[field][0] == "bit_out" and \
+                        val == attr.value:
                     # make bit_out things toggle while changing
                     ret = val
                     val = not val
