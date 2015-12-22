@@ -39,15 +39,21 @@ window.onload = function() {
     
     // Subscribe
     function subscribe(idSub, channelSub) {
-        var message = '{"message" : "subscribe", "id" : ' + idSub + ', "channel" : "' + channelSub + '"}';
+        var message = '{"type" : "Subscribe", "id" : ' + idSub + ', "endpoint" : "' + channelSub + '"}';
         sendMessage(message); // Sends the message through socket
         socket.onmessage = function(e) { newMessage(e) };
     };
     
+    // Get
+    function get(idSub, channelSub) {
+        var message = '{"type" : "Get", "id" : ' + idSub + ', "endpoint" : "' + channelSub + '"}';
+        sendMessage(message); // Sends the message through socket
+        socket.onmessage = function(e) { newMessage(e) };
+    };    
     
     // Unsubscribe
    function unsubscribe(idUn) {
-        var message = '{"message" : "unsubscribe", "id" : ' + idUn + '}';
+        var message = '{"type" : "Unsubscribe", "id" : ' + idUn + '}';
         sendMessage(message);
     };
     
@@ -100,6 +106,7 @@ window.onload = function() {
     var connectBtn = document.getElementById('connect');
     var disconnectBtn = document.getElementById('disconnect');
     var subscribeBtn = document.getElementById('subscribe');
+    var getBtn = document.getElementById('get');
     var pauseBtn = document.getElementById('pause');
     var resumeBtn = document.getElementById('resume');
     var unsubscribeBtn = document.getElementById('unsubscribe');
@@ -158,6 +165,13 @@ window.onload = function() {
         resultsFiltered.push([]);
     };
     
+    // Get
+    getBtn.onclick = function(e) {
+        channel = channelField.value;
+        id = idField.value;
+        get(id, channel);
+    };    
+    
     // Unsubscribe
     unsubscribeBtn.onclick = function(e) {
         id = subscriptionList.selectedIndex;
@@ -177,11 +191,11 @@ window.onload = function() {
     
     
      // Message received
-   function displayNewMessage (response) {
-       var previouslySelected = result.selectedIndex;
-       var value;
-       var filterValue;
-       if (response.type === "error") {
+    function displayNewMessage (response) {
+        var previouslySelected = result.selectedIndex;
+        var value;
+        var filterValue;
+        if (response.type === "Error") {
             if (filter = 'none') { // Print error to display
                 var errorNotification = document.createElement('option');
                 result.insertBefore(errorNotification, result.childNodes[0]); 
@@ -192,9 +206,9 @@ window.onload = function() {
             resultsFiltered[response.id].unshift('Error');
             resultsInfoFiltered[response.id].unshift('<div><pre>' + JSON.stringify(response, null, '     ') + '</pre></div>');
             return;
-       }
-       if (response.type === "connection") { // Successful subscription
-           if (filter === 'none') { // New subscription added to results window 
+        }
+        if (response.type === "connection") { // Successful subscription
+            if (filter === 'none') { // New subscription added to results window 
                 var subscriptionNotification = document.createElement('option');
                 result.insertBefore(subscriptionNotification, result.childNodes[0]); 
                 subscriptionNotification.appendChild(document.createTextNode('Subscribed: ' + channel + ', ' + id));
@@ -204,22 +218,24 @@ window.onload = function() {
             resultsFiltered[response.id].unshift('Subscribed: ' + channel + ', ' + id);
             resultsInfoFiltered[response.id].unshift('<div><pre>' + JSON.stringify(response, null, '     ') + '</pre></div>');
             return;
-       }
-       else if (response.value.type.name === "VTable") {
-           value = '<option>table</option>';
-           filterValue = 'table';
-           resultsInfo.unshift('<div><pre>' + JSON.stringify(response, null, '     ') + '</pre></div>');
-           results.unshift('table');
-           resultsFiltered[response.id].unshift('table');
-           resultsInfoFiltered[response.id].unshift('<div><pre>' + JSON.stringify(response, null, '     ') + '</pre></div>');
-       }
-       else if (response.type === "value") {
-            value = '<option>' + response.value.value + '</option>';
-            filterValue = response.value.value;
+        }
+        else if (response.type === "Value" || response.type === "Return") {
+            if (!response.hasOwnProperty('value')) {
+                filterValue = 'None';            
+            } else if (response.value.hasOwnProperty('type') && response.value.type.name === "VTable") {
+                filterValue = 'table';
+            } else if (response.value.hasOwnProperty('value')) {
+                filterValue = filterValue = response.value.value;
+            } else {
+                filterValue = 'value';
+            }
+            value = '<option>' + filterValue + '</option>';
             resultsInfo.unshift('<div><pre>' + JSON.stringify(response, null, '     ') + '</pre></div>');
-            results.unshift(response.value.value);
-            resultsFiltered[response.id].unshift(response.value.value);
-            resultsInfoFiltered[response.id].unshift('<div><pre>' + JSON.stringify(response, null, '     ') + '</pre></div>');
+            results.unshift(filterValue);
+            if (response.type === "Value") {
+                resultsFiltered[response.id].unshift(filterValue);
+                resultsInfoFiltered[response.id].unshift('<div><pre>' + JSON.stringify(response, null, '     ') + '</pre></div>');
+            }
         }
         if (filter === 'none' || filter == response.id) { // Print event to display immediately
             result.innerHTML = value + result.innerHTML; 

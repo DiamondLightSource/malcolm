@@ -1,13 +1,4 @@
-from ws4py.server.wsgiutils import WebSocketWSGIApplication
-from ws4py.compat import get_connection
-
-from wsgiref import util
-
 import os
-import mimetypes
-import cothread
-
-util._hoppish = {}.__contains__
 
 
 # Number of bytes to send in each block
@@ -21,7 +12,11 @@ class FileServer(object):
     def __init__(self, path, ws_handler):
         """ path is directory where static files are stored
         """
+        from wsgiref import util
+        util._hoppish = {}.__contains__
+
         self.path = path
+        from ws4py.server.wsgiutils import WebSocketWSGIApplication
         self.wsapp = WebSocketWSGIApplication(handler_cls=ws_handler)
 
     def __call__(self, environ, start_response):
@@ -29,12 +24,13 @@ class FileServer(object):
         """
         # Upgrade header means websockets...
         upgrade_header = environ.get('HTTP_UPGRADE', '').lower()
-        print "upgrade", upgrade_header
         if upgrade_header:
+            from ws4py.compat import get_connection
             environ['ws4py.socket'] = get_connection(environ['wsgi.input'])
             # This will make a websocket, hopefully!
             ret = self.wsapp(environ, start_response)
             if 'ws4py.websocket' in environ:
+                import cothread
                 cothread.Spawn(environ.pop('ws4py.websocket').run)
             return ret
 
@@ -51,6 +47,7 @@ class FileServer(object):
             return self._not_found(start_response)
 
         # Guess mimetype of file based on file extension
+        import mimetypes
         mimetype = mimetypes.guess_type(file_path)[0]
 
         # If we can't guess mimetype, return a 403 Forbidden

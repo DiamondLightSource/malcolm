@@ -5,6 +5,8 @@ if __name__ == "__main__":
     require("pyzmq==13.1.0")
     require("cothread==2.12")
     import sys
+    sys.path.append(
+        "/dls_sw/work/tools/RHEL6-x86_64/ws4py/prefix/lib/python2.7/site-packages/ws4py-0.3.4-py2.7.egg")
     import os
     sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
