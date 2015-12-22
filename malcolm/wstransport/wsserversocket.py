@@ -1,14 +1,50 @@
+import cothread
+cothread.coselect.select_hook()
+cothread.cosocket.socket_hook()
+
+@cothread.Spawn
+def ticker():
+    i = 0
+    while True:
+        print i
+        i += 1
+        cothread.Sleep(1)
+
 import weakref
 from collections import OrderedDict
 import socket
 import errno
 import sys
+import os
 
+        
 from malcolm.core.transport import ServerSocket, SType
 from malcolm.jsonpresentation.jsonpresenter import JsonPresenter
 
-
 presenter = JsonPresenter()
+
+
+from wsgiref.simple_server import WSGIServer as _WSGIServer
+
+from .fileserver import FileServer
+
+
+class WSGIServer(_WSGIServer):
+
+    def shutdown_request(self, request):
+        """
+        The base class would close our socket
+        if we didn't override it.
+        """
+        pass
+
+    def server_close(self):
+        """
+        Properly initiate closing handshakes on
+        all websockets when the WSGI server terminates.
+        """
+        print "closing sockets"
+        _WSGIServer.server_close(self)
 
 
 class WsServerSocket(ServerSocket):
@@ -16,29 +52,14 @@ class WsServerSocket(ServerSocket):
     def send(self, msg):
         """Send the message to the socket"""
         conn, msg = msg
-        print "Sent", msg 
+        print "Sent", msg
         conn.send(msg)
 
     def recv(self, timeout=None):
         """Co-operatively block until received"""
         if timeout is None:
             timeout = self.timeout
-        while True:
-            if len(self.inq):
-                msg = self.inq.Wait()
-                sys.stdout.write("Got message {}\n".format(msg))
-                sys.stdout.flush()
-                return msg
-            print "wait"
-            if self.poll_list(self.event_list, timeout):
-                print "handle"
-                self.server._handle_request_noblock()
-                print "handled"
-                # Let the other real thread put something on our input queue
-                self.cothread.Sleep(0.25)
-            else:
-                # TODO: Wrong!
-                raise StopIteration
+        return self.inq.Wait(timeout)
 
     def serialize(self, typ, kwargs):
         """Serialize the arguments to a string that can be sent to the socket
@@ -70,29 +91,25 @@ class WsServerSocket(ServerSocket):
 
     def open(self, address):
         """Open the socket on the given address"""
-        from cothread import coselect
-        self.poll_list = coselect.poll_list
-        import cothread
-        self.inq = cothread.ThreadedEventQueue()
+        self.inq = cothread.EventQueue()
+        return
         from wsgiref.simple_server import make_server
         from ws4py.websocket import WebSocket
-        from ws4py.server.wsgirefserver import WSGIServer, WebSocketWSGIRequestHandler
-        from ws4py.server.wsgiutils import WebSocketWSGIApplication
 
         class WsConnection(WebSocket):
+
             def received_message(self, msg, inq=self.inq):
                 msg = str(msg)
                 print "Got", msg
                 inq.Signal([self, msg])
 
         host, port = address.split("://")[1].split(":")
-        app = WebSocketWSGIApplication(handler_cls=WsConnection)
-        server = make_server(host, int(port), server_class=WSGIServer,
-                             handler_class=WebSocketWSGIRequestHandler,
-                             app=app)
-        server.initialize_websockets_manager()
+        path = os.path.join(os.path.dirname(__file__), "static")
+        application = FileServer(path, WsConnection)
+        server = make_server(host, int(port), application,
+                             server_class=WSGIServer)
+        #cothread.Spawn(server.serve_forever)
         self.server = server
-        self.event_list = [(server.socket, coselect.POLLIN)]
 
     def close(self):
         """Close the socket"""
