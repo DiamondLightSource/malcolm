@@ -44,16 +44,16 @@ class DeviceTest(unittest.TestCase):
     def test_setting_up_calls_back_correct_methods(self):
         self.d.add_listener(self.callback, "stateMachine")
         start = time.time()
-        ret = self.d.configure(nframes=10, exposure=0.01)
+        ret = self.d.configure(nframes=10, exposure=0.05)
         end = time.time()
         self.d.remove_listener(self.callback, "stateMachine")
-        self.assertLess(end - start, 0.008)
+        self.assertLess(end - start, 0.03)
         expected = [DState.Configuring, DState.Ready]
         self.assertEqual(self.states, expected)
         expected = ["Configuring started", "Configuring finished"]
         self.assertEqual(self.messages, expected)
         self.assertEqual(self.d.sim.nframes, 10)
-        self.assertEqual(self.d.sim.exposure, 0.01)
+        self.assertEqual(self.d.sim.exposure, 0.05)
 
     def test_running_calls_back_correct_methods(self):
         self.d.configure(nframes=3, exposure=0.01)
