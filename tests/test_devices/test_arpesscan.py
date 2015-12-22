@@ -223,22 +223,20 @@ class ArpesScanTest(unittest.TestCase):
         cothread.Yield()
         self.assertEqual(self.s.state, DState.Running)
         # Set everything going
-        self.set_state(self.hdf5Writer, DState.Running)
-        self.set_attribute(self.hdf5Writer, "capture", True)
+        self.set_state(self.simDetector, DState.Running)
         cothread.Yield()
         self.assertEqual(
-            self.s.stateMachine.message, 'Wait for positionPlugin to run')
-        self.set_state(self.positionPlugin, DState.Running)
-        self.set_attribute(self.positionPlugin, "running", True)
-        self.set_state(self.simDetectorDriver, DState.Running)
+            self.s.stateMachine.message, "Wait for simDetector to run")
+        self.set_attribute(self.simDetector, "running", True)
+        self.set_state(self.progScan, DState.Running)
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.message, "Wait for run to finish")
         # Now do a few frames
         currentstep = 5
-        self.set_attribute(self.hdf5Writer, "uniqueId", currentstep)
+        self.set_attribute(self.simDetector, "currentStep", currentstep)
         cothread.Yield()
-        self.assertEqual(self.s.currentStep, 5)
-        self.assertEqual(self.s.totalSteps, 15)
+        self.assertEqual(self.s.currentStep, currentstep)
+        self.assertEqual(self.s.totalSteps, self.numImages)
         self.do_pause(currentstep, self.s.pause)
         # now retrace a bit
         rewind = 3
@@ -253,26 +251,23 @@ class ArpesScanTest(unittest.TestCase):
         cothread.Yield()
         self.assertEqual(self.s.state, DState.Running)
         # Set everything going
-        self.set_state(self.hdf5Writer, DState.Running)
-        self.set_attribute(self.hdf5Writer, "capture", True)
+        self.set_state(self.simDetector, DState.Running)
         cothread.Yield()
         self.assertEqual(
-            self.s.stateMachine.message, 'Wait for positionPlugin to run')
-        self.set_state(self.positionPlugin, DState.Running)
-        self.set_attribute(self.positionPlugin, "running", True)
-        self.set_state(self.simDetectorDriver, DState.Running)
+            self.s.stateMachine.message, "Wait for simDetector to run")
+        self.set_attribute(self.simDetector, "running", True)
+        self.set_state(self.progScan, DState.Running)
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.message, "Wait for run to finish")
         # Now do a few frames
-        currentstep = 15
-        self.set_attribute(self.hdf5Writer, "uniqueId", currentstep)
+        currentstep = self.numImages
+        self.set_attribute(self.simDetector, "currentStep", currentstep)
         cothread.Yield()
-        self.assertEqual(self.s.currentStep, 15)
-        self.assertEqual(self.s.totalSteps, 15)
+        self.assertEqual(self.s.currentStep, currentstep)
+        self.assertEqual(self.s.totalSteps, self.numImages)
         # Now finish
-        self.set_state(self.simDetectorDriver, DState.Idle)
-        self.set_state(self.hdf5Writer, DState.Idle)
-        self.set_state(self.positionPlugin, DState.Idle)
+        self.set_state(self.simDetector, DState.Idle)
+        self.set_state(self.progScan, DState.Idle)
         cothread.Yield()
         self.assertEqual(self.s.stateMachine.message, "Running done")
         self.assertEqual(self.s.state, DState.Idle)
@@ -289,44 +284,47 @@ class ArpesScanTest(unittest.TestCase):
         cothread.Yield()
         self.assertEqual(self.s.state, DState.Rewinding)
         if not args:
-            # check we've stopped the plugins
-            self.simDetectorDriver.abort.assert_called_once_with(block=False)
-            self.simDetectorDriver.abort.reset_mock()
-            self.positionPlugin.abort.assert_called_once_with(block=False)
-            self.positionPlugin.abort.reset_mock()
+            # check we've stopped the progScan
+            self.progScan.abort.assert_called_once_with(block=False)
+            self.progScan.abort.reset_mock()
+            # check we've paused the simDetector
+            self.simDetector.pause.assert_called_once_with(block=False)
+            self.simDetector.pause.reset_mock()
             self.assertEqual(
-                self.s.stateMachine.message, "Wait for plugins to stop")
+                self.s.stateMachine.message, "Wait for progScan to stop")
             # Respond
-            self.set_state(self.simDetectorDriver, DState.Aborted)
-            self.set_state(self.positionPlugin, DState.Aborted)
+            self.set_state(self.progScan, DState.Aborted)
             cothread.Yield()
             # Reset
-            self.simDetectorDriver.reset.assert_called_once_with(block=False)
-            self.simDetectorDriver.reset.reset_mock()
-            self.positionPlugin.reset.assert_called_once_with(block=False)
-            self.positionPlugin.reset.reset_mock()
+            self.progScan.reset.assert_called_once_with(block=False)
+            self.progScan.reset.reset_mock()
             self.assertEqual(
-                self.s.stateMachine.message, "Wait for plugins to reset")
+                self.s.stateMachine.message, "Wait for progScan to reset")
             # Respond
-            self.set_state(self.simDetectorDriver, DState.Idle)
-            self.set_state(self.positionPlugin, DState.Idle)
+            self.set_state(self.progScan, DState.Idle)
             cothread.Yield()
-
-        # check we've reconfigured
-        self.simDetectorDriver.configure.assert_called_once_with(
-            0.1, self.numImages - currentstep, 0.1, currentstep, block=False)
-        self.simDetectorDriver.configure.reset_mock()
-        positions = []
-        for n, t, d, u in self.valid_positions:
-            positions.append([n, t, d[currentstep:].view(boolean_ndarray), u])
-        self.positionPlugin.configure.assert_called_once_with(
-            positions, currentstep + 1, self.simDetectorDriver.portName, block=False)
-        self.positionPlugin.configure.reset_mock()
+        else:
+            rewind = args[0]
+            # check we've rewound the simDetector
+            self.simDetector.rewind.assert_called_once_with(steps=rewind, block=False)
+            self.simDetector.rewind.reset_mock()
+        # Check we're waiting for simDetector to finish rewinding
         self.assertEqual(
-            self.s.stateMachine.message, "Wait for plugins to configure")
+            self.s.stateMachine.message, 'Wait for simDetector to rewind')
         # Respond
-        self.set_state(self.simDetectorDriver, DState.Ready)
-        self.set_state(self.positionPlugin, DState.Ready)
+        self.set_state(self.simDetector, DState.Paused)
+        cothread.Yield()
+        # Check we're reconfiguring progScan
+        self.progScan.configure.assert_called_once_with(
+            100,
+            1.0, 0.5, 4, 0, True, 3,
+            3.0, 0.2, 3, -1, False, 2,
+            startPoint=currentstep + 1, block=False)
+        self.progScan.configure.reset_mock()
+        self.assertEqual(
+            self.s.stateMachine.message, "Wait for progScan to configure")        
+        # Respond
+        self.set_state(self.progScan, DState.Ready)
         cothread.Yield()
         # Check we're finished
         self.assertEqual(self.s.stateMachine.message, "Rewinding done")
@@ -335,49 +333,6 @@ class ArpesScanTest(unittest.TestCase):
         then = time.time()
         self.assertLess(then - now, 0.05)
 
-    def test_non_square(self):
-        xs = []
-        ys = []
-        v = 2.0  # velocity in units/s
-        period = 1.0  # time between points in s
-        revs = 3  # number of revolutions in spiral
-        r = 2.0  # radius increase for one turn
-        # start from the outside and work inwards as it gives
-        # us a better speed approximation
-        theta = revs * 2 * np.pi
-        while theta > 0:
-            xs.append(r * theta * np.cos(theta) / 2 / np.pi)
-            ys.append(r * theta * np.sin(theta) / 2 / np.pi)
-            # This is the speed in radians/s
-            w = v * 2 * np.pi / (theta * r)
-            # Increments by next v
-            theta -= w * period
-        xs = np.array(xs)
-        ys = np.array(ys)
-        # These are the points zipped together
-        pts = np.array((xs, ys)).T
-        # Diff between successive points
-        d = np.diff(pts, axis=0)
-        # Euclidean difference between points
-        segdists = np.sqrt((d ** 2).sum(axis=1))
-        #from pkg_resources import require
-        # require("matplotlib")
-        #import pylab
-        #pylab.plot(xs, ys, ".")
-        # pylab.show()
-        # pylab.plot(segdists)
-        # pylab.show()
-        # make a table of positions from it
-        positions = [
-            ("x", VDouble, xs, 'mm'),
-            ("y", VDouble, ys, 'mm'),
-        ]
-        dimensions, valid_positions = self.s._add_position_indexes(positions)
-        self.assertEqual(dimensions, [len(xs)])
-        self.assertEqual(len(valid_positions), 3)
-        self.assertEqual(valid_positions[2][0], "n_index")
-        self.assertTrue(
-            np.array_equal(valid_positions[2][2], np.arange(len(xs), dtype=np.int32)))
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

@@ -379,7 +379,7 @@ class ArpesScan(PausableDevice):
         seq_items += [
             SeqTransitionItem(
                 "Wait for simDetector to rewind", self.simDetector.stateMachine,
-                self._post_rewind_state, DState.doneRewind),
+                self._post_rewind_state, DState.doneRewind()),
             SeqFunctionItem(
                 "Configuring progScan", self._configure_progScan),
             SeqTransitionItem(

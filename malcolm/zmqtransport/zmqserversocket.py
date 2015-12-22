@@ -20,17 +20,6 @@ class ZmqServerSocket(ZmqSocket, ServerSocket):
         # LINGER for 1s after close() to make sure messages are sent
         sock.setsockopt(zmq.LINGER, 1000)
         sock.bind(address)
-
-        import cothread
-
-        @cothread.Spawn
-        def ticker():
-            i = 0
-            while True:
-                print i
-                i += 1
-                cothread.Sleep(1)
-
         return sock
 
     def make_send_function(self, kwargs):
