@@ -93,8 +93,9 @@ class Zebra2(FlowGraph):
                 except ValueError:
                     pass
             # add it to the list of things that need to update
-            mon_block, mon_field = val.split(".", 1)
+            mon_block_name, mon_field = val.split(".", 1)
+            mon_block = self._blocks[mon_block_name]
             self._muxes.setdefault((mon_block, mon_field), []).append(val_attr)
             # update it to the right value
-            val_attr.update(self._blocks[mon_block].attributes[mon_field].value)
+            val_attr.update(mon_block.attributes[mon_field].value)
         return ret
