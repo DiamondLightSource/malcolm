@@ -68,7 +68,7 @@ class SimDetectorDriver(HasConfigSequence, RunnableDevice):
         assert exposure <= period, \
             "Exposure {} should be <= period {}".format(exposure, period)
         runTime = numImages * period
-        runTimeout = runTime + period
+        runTimeout = runTime + 1.5
         return super(SimDetectorDriver, self).validate(locals())
 
     def make_config_sequence(self, **config_params):

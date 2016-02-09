@@ -51,7 +51,13 @@ class SeqAttributeItem(SeqItem):
             # If always or if value doesn't match
             if always or not self.attributes[attr].value_equal(value):
                 self.match_attrs[attr] = False
-                self.attributes[attr].update(value)
+                try:
+                    self.attributes[attr].update(value)
+                except:
+                    self.log_exception("Failed to set {} to {}"
+                                       .format(attr, value))
+                    raise
+
         # Return if we're done
         is_done = len(self.match_attrs) == 0
         return is_done

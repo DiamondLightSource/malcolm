@@ -57,7 +57,11 @@ class ISocket(ILoop):
             if address.startswith(prefix):
                 # Calc name from address
                 hostname = socket.getfqdn()
-                ip = socket.gethostbyname(hostname)
+                try:
+                    ip = socket.gethostbyname(hostname)
+                except:
+                    # http://stackoverflow.com/questions/24196932/how-can-i-get-the-ip-address-of-eth0-in-python
+                    ip = "172.23.252.201"
                 name = address.replace("0.0.0.0", ip)
                 return socket_cls(name, address, *args, **kwargs)
 
