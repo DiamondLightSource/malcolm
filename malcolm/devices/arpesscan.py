@@ -1,10 +1,8 @@
-import os
-
 import numpy
 
 from malcolm.core import PausableDevice, DState, InstanceAttribute, \
     wrap_method, Attribute, VDouble, VString, VTable, \
-    SeqFunctionItem, Sequence, SeqTransitionItem
+    SeqFunctionItem, Sequence, SeqTransitionItem, VBool
 from malcolm.devices import SimDetector, ProgScan
 
 
@@ -44,6 +42,7 @@ class ArpesScan(PausableDevice):
             yStep=Attribute(VDouble, "Distance between each point in Y"),
             exposure=Attribute(VDouble, "Exposure time for each frame"),
             hdf5File=Attribute(VString, "HDF5 full file path to write"),
+            snake=Attribute(VBool, "Whether to do a bi-directional snake scan"),
             # Readback
             positions=Attribute(VTable, "Generated position table")
         )
@@ -75,10 +74,11 @@ class ArpesScan(PausableDevice):
             yPoints[i * xNumPoints:(i + 1) * xNumPoints] = y
             xPoints[i * xNumPoints:(i + 1) * xNumPoints] = xRow
             # go the other way for the next row
-            if xRow is xFwd:
-                xRow = xRev
-            else:
-                xRow = xFwd
+            if self.snake:
+                if xRow is xFwd:
+                    xRow = xRev
+                else:
+                    xRow = xFwd
         positions = [
             ("y", VDouble, yPoints, 'mm'),
             ("x", VDouble, xPoints, 'mm'),
@@ -87,8 +87,8 @@ class ArpesScan(PausableDevice):
 
     @wrap_method()
     def validate(self, xStart=0, xStop=0.5, xStep=0.05,
-                 yStart=0, yStop=0.1, yStep=0.02, exposure=0.075, 
-                 hdf5File="/tmp/foo.h5"):
+                 yStart=0, yStop=0.1, yStep=0.02, exposure=0.075,
+                 hdf5File="/tmp/foo.h5", snake=True):
         # Create a positions table
         positions, xNumPoints, yNumPoints = self._create_positions(
             xStart, xStop, xStep, yStart, yStop, yStep)
@@ -101,7 +101,7 @@ class ArpesScan(PausableDevice):
         # Validate progScan
         prog_params = self.progScan.validate(
             int(exposure * 1000),
-            xStart, xStep, xNumPoints, 0, True, 3,
+            xStart, xStep, xNumPoints, 0, snake, 3,
             yStart, yStep, yNumPoints, -1, False, 2
         )
         runTime = max(sim_params["runTime"], prog_params["runTime"])
@@ -117,7 +117,7 @@ class ArpesScan(PausableDevice):
         yNumPoints = self._npoints(self.yStart, self.yStop, self.yStep)
         self.progScan.configure(
             int(self.exposure * 1000),
-            self.xStart, self.xStep, xNumPoints, 0, True, 3,
+            self.xStart, self.xStep, xNumPoints, 0, self.snake, 3,
             self.yStart, self.yStep, yNumPoints, -1, False, 2,
             startPoint=self.currentStep + 1, block=False)
 

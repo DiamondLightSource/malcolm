@@ -106,11 +106,11 @@ class ProgScan(HasConfigSequence, RunnableDevice):
         that should be used, e.g.
         {"runTime": 1.5, arg1=2, arg2="arg2default"}
         """
-        # TODO: movetime is estimated at 3s here, this is wrong...
-        runTime = xNumPoints * (dwell * 0.001 + 3)
-        runTime += yNumPoints * (dwell * 0.001 + 3)
-        runTime += zNumPoints * (dwell * 0.001 + 3)
-        abortTimeout = 3
+        # TODO: movetime is estimated at 5s here, this is wrong...
+        runTime = xNumPoints * (dwell * 0.001 + 5)
+        runTime += yNumPoints * (dwell * 0.001 + 5)
+        runTime += zNumPoints * (dwell * 0.001 + 5)
+        abortTimeout = 5
         return super(ProgScan, self).validate(locals())
 
     def make_config_sequence(self, **config_params):

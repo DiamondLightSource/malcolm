@@ -5,7 +5,7 @@ import numpy
 from malcolm.core import PausableDevice, DState, InstanceAttribute, \
     wrap_method, Attribute, VDouble, VString, VTable, \
     SeqFunctionItem, Sequence, SeqTransitionItem, VIntArray, VInt, VBool
-from malcolm.devices import SimDetectorDriver, Hdf5Writer, PositionPlugin
+from malcolm.devices import DetectorDriver, Hdf5Writer, PositionPlugin
 
 def_positions = [
     ("y", VDouble, numpy.repeat(numpy.arange(6, 9), 5) * 0.1, 'mm'),
@@ -15,7 +15,7 @@ def_positions = [
 
 class SimDetector(PausableDevice):
     class_attributes = dict(
-        simDetectorDriver=InstanceAttribute(SimDetectorDriver, "SimDetectorDriver Device"),
+        simDetectorDriver=InstanceAttribute(DetectorDriver, "DetectorDriver Device"),
         hdf5Writer=InstanceAttribute(Hdf5Writer, "Hdf5Writer Device"),
         positionPlugin=InstanceAttribute(
             PositionPlugin, "PositionPlugin Device"),

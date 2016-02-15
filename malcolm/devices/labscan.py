@@ -2,7 +2,7 @@ import numpy
 
 from malcolm.core import PausableDevice, DState, InstanceAttribute, \
     wrap_method, Attribute, VDouble, VString, VTable, \
-    SeqFunctionItem, Sequence, SeqTransitionItem
+    SeqFunctionItem, Sequence, SeqTransitionItem, VBool
 from malcolm.devices import SimDetector, ProgScan
 
 
@@ -48,9 +48,11 @@ class LabScan(PausableDevice):
             det2Exposure=Attribute(VDouble, "Exposure time for det2 frame"),
             hdf5File1=Attribute(VString, "HDF5 full file path for det1 data"),
             hdf5File2=Attribute(VString, "HDF5 full file path for det2 data"),
+            snake=Attribute(VBool, "Whether to do a bi-directional snake scan"),
             # Readback
             dwellTime=Attribute(VDouble, "Dwell time at each point"),
-            positions=Attribute(VTable, "Generated position table")
+            positions=Attribute(VTable, "Generated position table"),
+            currentPosition=Attribute(VTable, "Current position table")
         )
 
     def _npoints(self, start, stop, step):
@@ -80,10 +82,11 @@ class LabScan(PausableDevice):
             yPoints[i * xNumPoints:(i + 1) * xNumPoints] = y
             xPoints[i * xNumPoints:(i + 1) * xNumPoints] = xRow
             # go the other way for the next row
-            if xRow is xFwd:
-                xRow = xRev
-            else:
-                xRow = xFwd
+            if self.snake:
+                if xRow is xFwd:
+                    xRow = xRev
+                else:
+                    xRow = xFwd
         positions = [
             ("y", VDouble, yPoints, 'mm'),
             ("x", VDouble, xPoints, 'mm'),
@@ -91,10 +94,10 @@ class LabScan(PausableDevice):
         return positions, xNumPoints, yNumPoints
 
     @wrap_method()
-    def validate(self, xStart=-11.5, xStop=-8.5, xStep=0.5,
-                 yStart=-7.5, yStop=-2.5, yStep=1.25, det1Exposure=0.005,
-                 det2Exposure=0.5, hdf5File1="/tmp/lab_scan_det1.h5",
-                 hdf5File2="/tmp/lab_scan_det2.h5"):
+    def validate(self, xStart=-14, xStop=-6, xStep=1,
+                 yStart=-9, yStop=-1, yStep=2, det1Exposure=0.002,
+                 det2Exposure=0.2, hdf5File1="/tmp/lab_scan_det1.h5",
+                 hdf5File2="/tmp/lab_scan_det2.h5", snake=True):
         # Create a positions table
         positions, xNumPoints, yNumPoints = self._create_positions(
             xStart, xStop, xStep, yStart, yStop, yStep)
@@ -110,7 +113,7 @@ class LabScan(PausableDevice):
         # Validate progScan
         prog_params = self.progScan.validate(
             int(dwellTime * 1000),
-            xStart, xStep, xNumPoints, 0, True, 3,
+            xStart, xStep, xNumPoints, 0, snake, 3,
             yStart, yStep, yNumPoints, -1, False, 2
         )
         runTime = max(sim_params1["runTime"], sim_params2["runTime"],
@@ -131,7 +134,7 @@ class LabScan(PausableDevice):
         yNumPoints = self._npoints(self.yStart, self.yStop, self.yStep)
         self.progScan.configure(
             int(self.dwellTime * 1000),
-            self.xStart, self.xStep, xNumPoints, 0, True, 3,
+            self.xStart, self.xStep, xNumPoints, 0, self.snake, 3,
             self.yStart, self.yStep, yNumPoints, -1, False, 2,
             startPoint=self.currentStep + 1, block=False)
 

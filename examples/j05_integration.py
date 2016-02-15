@@ -17,8 +17,8 @@ from malcolm.imalcolm import IMalcolmServer
 
 # Test
 ims = IMalcolmServer()
-pre = "BL05J-TS-CAM-01:"
-ims.createSimDetectorDriver("det:det", pre + "CAM:")
+pre = "BL05J-EA-ADC-01:"
+ims.createDtacqDriver("det:det", pre + "ADC:", pre + "TRIG:", pre + "ROI:")
 ims.createPositionPlugin("det:pos", pre + "POS:")
 ims.createHdf5Writer("det:hdf5", pre + "HDF5:")
 ims.createSimDetector("det", "det:det", "det:pos", "det:hdf5")
