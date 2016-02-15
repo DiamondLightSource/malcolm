@@ -189,7 +189,8 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
     def _check_uptime(self):
         if self._last_uptime >= self.uptime and self._uptime_static > 5:
             # Device inactive for 5s, must be dead
-            self.log_info("Device inactive, reconnecting")
+            self.log_info("Device inactive {} >= {}, reconnecting"
+                          .format(self._last_uptime, self.uptime))
             self.deviceClientConnected = False
             for attr in self.attributes.values():
                 Attribute.update(attr, alarm=Alarm.disconnected())
@@ -198,6 +199,7 @@ class DeviceClient(HasAttributes, HasMethods, HasStateMachine, HasLoops):
             self._uptime_static += 1
         else:
             self._last_uptime = self.uptime
+            self._uptime_static = 0
 
     def to_dict(self):
         """Serialize this object"""

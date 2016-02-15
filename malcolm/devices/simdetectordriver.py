@@ -2,8 +2,10 @@ from malcolm.core import RunnableDevice, Attribute, wrap_method, PvAttribute, \
     VString, VDouble, VEnum, VInt, VBool, DState, Sequence, \
     SeqAttributeItem, HasConfigSequence
 
+from malcolm.devices import DetectorDriver
 
-class SimDetectorDriver(HasConfigSequence, RunnableDevice):
+
+class SimDetectorDriver(HasConfigSequence, RunnableDevice, DetectorDriver):
     class_attributes = dict(
         prefix=Attribute(VString, "PV Prefix for device"))
 
