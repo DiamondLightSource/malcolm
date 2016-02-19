@@ -26,7 +26,7 @@ class GuiModel(QAbstractItemModel):
             self.root_items = []
             if hasattr(device, "stateMachine"):
                 self.root_items.append(self.populate_stateMachine(device))
-            self.method_items = self.populate_methods(device) 
+            self.method_items = self.populate_methods(device)
             self.root_items += self.method_items
             self.root_items.append(self.populate_attributes(device))
         self.device = device
@@ -231,6 +231,8 @@ class GuiModel(QAbstractItemModel):
                 item = index.internalPointer()
                 if self.isArgument(item):
                     newvalue = str(value.toString())
+                    if isinstance(item.data.typ, VBool):
+                        newvalue = newvalue.lower() != "false"
                     if newvalue != str(item.argvalue):
                         item.argvalue = newvalue
                         item.dirty = True
