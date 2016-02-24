@@ -21,9 +21,6 @@ class Zebra2(FlowGraph):
         # Read the blocks from the server
         self.num_blocks = self.comms.get_num_blocks()
         self._blocks = OrderedDict()
-        # Read the bit enums
-        self._bits = self.comms.get_bits()
-        self._positions = self.comms.get_positions()
         # (block, field) -> [list of .VAL attributes that need updating]
         self._muxes = {}
         # changes left over from last time
@@ -45,9 +42,8 @@ class Zebra2(FlowGraph):
     def make_block(self, block, i, field_data):
         blockname = "{}:{}{}".format(self.name, block, i)
         self._blocks["{}{}".format(block, i)] = self.process.create_device(
-            Zebra2Block, blockname, comms=self.comms, field_data=field_data,
-            bits=[x for x in self._bits if x],
-            positions=[x for x in self._positions if x])
+            Zebra2Block, blockname, block=block, i=i, comms=self.comms,
+            field_data=field_data)
 
     def do_poll(self):
         self.changes.update(self.comms.get_changes())

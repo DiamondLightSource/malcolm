@@ -1,12 +1,5 @@
 #!/bin/env dls-python
 import os
-import signal
-import subprocess
-simserver = "/dls_sw/work/targetOS/zebra2-server/simserver"
-s = subprocess.Popen(simserver, stdin=subprocess.PIPE)
-import time
-time.sleep(2)
-
 import sys
 sys.path.append(
     "/home/tmc43/common/python/cothread/prefix/lib/python2.7/site-packages")
@@ -20,12 +13,6 @@ from malcolm.imalcolm import IMalcolmServer
 from malcolm.devices.zebra2.zebra2 import Zebra2
 
 # Test
-try:
-    ims = IMalcolmServer(prefix="ws://")
-    ims.create_device(Zebra2, "Z", hostname="localhost", port=8888)
-    ims.interact()
-finally:
-    try:
-        os.kill(s.pid, signal.SIGINT)
-    except:
-        pass
+ims = IMalcolmServer(prefix="ws://")
+ims.create_device(Zebra2, "Z", hostname="172.23.252.201", port=8888)
+ims.interact()

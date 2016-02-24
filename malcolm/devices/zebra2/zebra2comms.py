@@ -11,6 +11,11 @@ class Zebra2Comms(object):
         self.sock.connect((hostname, port))
         self.respq = cothread.EventQueue()
         self.outq = cothread.EventQueue()
+        # caches
+        # map str field -> str desc
+        self._descs = {}
+        # map str field -> [str enum label]
+        self._enums = {}
         cothread.Spawn(self.recv_task)
 
     def send_recv(self, msg):
@@ -86,11 +91,17 @@ class Zebra2Comms(object):
             field_data[name] = (cls, typ)
         return field_data
 
-    def get_enum_labels(self, block, field):
-        enum_labels = []
-        for line in self.send_recv("{}.{}.LABELS?\n".format(block, field)):
-            enum_labels.append(line)
-        return enum_labels
+    def get_desc(self, field):
+        if field not in self._descs:
+            value = self.send_recv("*DESC.{}?\n".format(field))
+            self._descs[field] = value
+        return self._descs[field]
+
+    def get_enum_labels(self, field):
+        if field not in self._enums:
+            value = self.send_recv("*ENUMS.{}?\n".format(field))
+            self._enums[field] = list(value)
+        return self._enums[field]
 
     def get_changes(self):
         changes = OrderedDict()
@@ -110,12 +121,3 @@ class Zebra2Comms(object):
         resp = self.send_recv("{}.{}={}\n".format(block, field, value))
         assert resp == "OK", \
             "Expected OK, got {}".format(resp)
-
-    def get_bits(self):
-        bits = []
-        for i in range(4):
-            bits += self.send_recv("*BITS{}?\n".format(i))
-        return bits
-
-    def get_positions(self):
-        return self.send_recv("*POSITIONS?\n")
