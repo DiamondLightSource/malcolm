@@ -5,7 +5,7 @@ from .zebra2comms import Zebra2Comms
 from .zebra2block import Zebra2Block
 from malcolm.core.loop import TimerLoop
 from malcolm.core.alarm import Alarm, AlarmSeverity, AlarmStatus
-from malcolm.core import Attribute, VString
+from malcolm.core import Attribute, VString, wrap_method
 from malcolm.core.vtype import VBool
 
 
@@ -20,11 +20,14 @@ class Zebra2(FlowGraph):
         self.comms = Zebra2Comms(hostname, port)
         # Read the blocks from the server
         self.num_blocks = self.comms.get_num_blocks()
+        # Dict mapping str block_name -> Block instance
         self._blocks = OrderedDict()
-        # (block, field) -> [list of .VAL attributes that need updating]
+        # (block, str field) -> [(listen_block, str mux_field)]
         self._muxes = {}
         # changes left over from last time
         self.changes = {}
+        # blockname -> field_data for block
+        self.field_data = {}
         # Now create N block objects based on this info
         for block, num in self.num_blocks.items():
             field_data = self.comms.get_field_data(block)
@@ -44,6 +47,29 @@ class Zebra2(FlowGraph):
         self._blocks["{}{}".format(block, i)] = self.process.create_device(
             Zebra2Block, blockname, block=block, i=i, comms=self.comms,
             field_data=field_data)
+
+    @wrap_method(
+        blockname=Attribute(VString, "Block name"),
+        use=Attribute(VBool, "Whether to use or not")
+    )
+    def use_block(self, blockname, use):
+        block = self._blocks[blockname]
+        block.USE = use
+        if not use:
+            for field in block.attributes:
+                # If there are any other blocks connected to a field in the
+                # block then set that field to be disconnected
+                disconnects = self._muxes.get((block, field), [])
+                # Now disconnect any of our mux inputs
+                if field in block.field_data and \
+                        block.field_data[field][0] in ("bit_mux", "pos_mux"):
+                    disconnects.append((block, field))
+                # Do the disconnects
+                for listen_block, mux_field in disconnects:
+                    attr = listen_block.attributes[mux_field]
+                    zero = attr.typ.labels[0]
+                    setter = getattr(listen_block, attr.put_method_name())
+                    setter(zero)
 
     def do_poll(self):
         self.changes.update(self.comms.get_changes())
@@ -78,22 +104,24 @@ class Zebra2(FlowGraph):
                     ret = val
                     val = not val
             attr.update(val)
-            for val_attr in self._muxes.get((block, field), []):
+            for listen_block, mux_field in self._muxes.get((block, field), []):
+                val_attr = listen_block.attributes[mux_field + ":VAL"]
                 val_attr.update(val)
         # if we changed the value of a pos_mux or bit_mux, update its value
         if field in block.field_data and \
-                block.field_data[field][1] in ("bit_mux", "pos_mux"):
+                block.field_data[field][0] in ("bit_mux", "pos_mux"):
             # this is the attribute that needs to update
-            val_attr = block.attributes[field + ":VAL"]
             for mux_list in self._muxes.values():
                 try:
-                    mux_list.remove(val_attr)
+                    mux_list.remove((block, field))
                 except ValueError:
                     pass
             # add it to the list of things that need to update
             mon_block_name, mon_field = val.split(".", 1)
             mon_block = self._blocks[mon_block_name]
-            self._muxes.setdefault((mon_block, mon_field), []).append(val_attr)
+            self._muxes.setdefault((mon_block, mon_field), []).append(
+                (block, field))
             # update it to the right value
+            val_attr = block.attributes[field + ":VAL"]
             val_attr.update(mon_block.attributes[mon_field].value)
         return ret
