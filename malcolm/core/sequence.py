@@ -82,7 +82,8 @@ class SeqAttributeItem(SeqItem):
         mismatches = []
         for attr, expected in sorted(self.seq_params.items()):
             actual = self.attributes[attr].value
-            if not self.attributes[attr].value_equal(expected):
+            if attr not in getattr(self, "always", []) and \
+                    not self.attributes[attr].value_equal(expected):
                 mismatches.append("{}: {!r} != {!r}".format(
                     attr, actual, expected))
         if mismatches:
@@ -205,7 +206,7 @@ class Sequence(Base):
             if value not in self.value_transitions:
                 self.value_transitions[value] = collections.deque()
             self.value_transitions[value].append(changes)
-        if not self.item_done:
+        if not self.item_done and changes is not None:
             # check if item is done
             self.item_done = self.seq_items[
                 self.current_item].done(value, changes)

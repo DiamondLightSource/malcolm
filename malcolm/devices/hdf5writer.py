@@ -273,9 +273,11 @@ class Hdf5Writer(HasConfigSequence, RunnableDevice):
                 swmrMode=True,
                 dimAttDatasets=True,
                 lazyOpen=True,
-                numCapture=0,
                 **config_params
             ),
+            SeqAttributeItem(
+                "Configuring numCapture", self.attributes, numCapture=0
+            )
         )
         return sconfig
 
