@@ -308,6 +308,7 @@ class GuiModel(QAbstractItemModel):
             return str(ob)
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):
-        if orientation == Qt.Horizontal:
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
             label = ["name", "value"][section]
-            return QVariant(label)
+            return label
+        return QVariant()
