@@ -2,7 +2,7 @@ import numpy
 
 from malcolm.core import PausableDevice, DState, InstanceAttribute, \
     wrap_method, Attribute, VDouble, VString, VTable, \
-    SeqFunctionItem, Sequence, SeqTransitionItem, VBool
+    SeqFunctionItem, Sequence, SeqTransitionItem, VBool, VInt
 from malcolm.devices import SimDetector, ProgScan
 
 
@@ -67,29 +67,42 @@ class LabScan(PausableDevice):
         xNumPoints = self._npoints(xStart, xStop, xStep)
         yNumPoints = self._npoints(yStart, yStop, yStep)
         xFwd = self._arange(xStart, xStop, xStep)
+        xFwdIndex = numpy.arange(xNumPoints)
         assert len(xFwd) == xNumPoints, \
             "{} != {}".format(len(xFwd), xNumPoints)
         xRev = xFwd[::-1]
+        xRevIndex = xFwdIndex[::-1]
         yFwd = self._arange(yStart, yStop, yStep)
         assert len(yFwd) == yNumPoints, \
             "{} != {}".format(len(yFwd), yNumPoints)
         # make the positions table
         xPoints = numpy.zeros(xNumPoints * yNumPoints, dtype=numpy.float64)
         yPoints = numpy.zeros(xNumPoints * yNumPoints, dtype=numpy.float64)
+        xIndex = numpy.zeros(xNumPoints * yNumPoints, dtype=numpy.int32)
+        yIndex = numpy.zeros(xNumPoints * yNumPoints, dtype=numpy.int32)
         # start by going forward
         xRow = xFwd
+        xRowIndex = xFwdIndex
         for i, y in enumerate(yFwd):
-            yPoints[i * xNumPoints:(i + 1) * xNumPoints] = y
-            xPoints[i * xNumPoints:(i + 1) * xNumPoints] = xRow
+            starti = i * xNumPoints
+            endi = starti + xNumPoints
+            yPoints[starti:endi] = y
+            xPoints[starti:endi] = xRow
+            yIndex[starti:endi] = i
+            xIndex[starti:endi] = xRowIndex
             # go the other way for the next row
             if self.snake:
                 if xRow is xFwd:
                     xRow = xRev
+                    xRowIndex = xRevIndex
                 else:
                     xRow = xFwd
+                    xRowIndex = xFwdIndex
         positions = [
             ("y", VDouble, yPoints, 'mm'),
             ("x", VDouble, xPoints, 'mm'),
+            ("y_index", VInt, yIndex, ''),
+            ("x_index", VInt, xIndex, ''),
         ]
         return positions, xNumPoints, yNumPoints
 
@@ -121,6 +134,7 @@ class LabScan(PausableDevice):
         runTimeout = max(sim_params1["runTimeout"], sim_params2["runTimeout"],
                          prog_params["runTimeout"])
         abortTimeout = prog_params["abortTimeout"]
+        configureTimeout = xNumPoints * yNumPoints * 0.0005 + 1
         return super(LabScan, self).validate(locals())
 
     def _configure_simDetector(self):
