@@ -3,6 +3,7 @@ from collections import OrderedDict
 from malcolm.core.flowgraph import FlowGraph
 from .zebra2comms import Zebra2Comms
 from .zebra2block import Zebra2Block
+from .zebra2visibility import Zebra2Visibility
 from malcolm.core.loop import TimerLoop
 from malcolm.core.alarm import Alarm, AlarmSeverity, AlarmStatus
 from malcolm.core import Attribute, VString, wrap_method
@@ -36,6 +37,9 @@ class Zebra2(FlowGraph):
             else:
                 for i in range(num):
                     self.make_block(block, i + 1, field_data)
+        self.visibility = "{}:VISIBILITY".format(self.name)
+        self._visibility = self.process.create_device(
+            Zebra2Visibility, self.visibility, blocks=self._blocks)
         # Publish these blocks
         self.blocks = [b.name for b in self._blocks.values()]
         # Now poll them at 10Hz
@@ -46,30 +50,7 @@ class Zebra2(FlowGraph):
         blockname = "{}:{}{}".format(self.name, block, i)
         self._blocks["{}{}".format(block, i)] = self.process.create_device(
             Zebra2Block, blockname, block=block, i=i, comms=self.comms,
-            field_data=field_data)
-
-    @wrap_method(
-        blockname=Attribute(VString, "Block name"),
-        use=Attribute(VBool, "Whether to use or not")
-    )
-    def use_block(self, blockname, use):
-        block = self._blocks[blockname]
-        block.USE = use
-        if not use:
-            for field in block.attributes:
-                # If there are any other blocks connected to a field in the
-                # block then set that field to be disconnected
-                disconnects = self._muxes.get((block, field), [])
-                # Now disconnect any of our mux inputs
-                if field in block.field_data and \
-                        block.field_data[field][0] in ("bit_mux", "pos_mux"):
-                    disconnects.append((block, field))
-                # Do the disconnects
-                for listen_block, mux_field in disconnects:
-                    attr = listen_block.attributes[mux_field]
-                    zero = attr.typ.labels[0]
-                    setter = getattr(listen_block, attr.put_method_name())
-                    setter(zero)
+            field_data=field_data, muxes=self._muxes)
 
     def do_poll(self):
         self.changes.update(self.comms.get_changes())
@@ -124,4 +105,7 @@ class Zebra2(FlowGraph):
             # update it to the right value
             val_attr = block.attributes[field + ":VAL"]
             val_attr.update(mon_block.attributes[mon_field].value)
+            # make sure it's visible
+            if mon_field != "ZERO":
+                block._set_visible("Show")
         return ret
