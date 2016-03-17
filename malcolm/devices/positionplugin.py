@@ -1,8 +1,14 @@
 from xml.etree import ElementTree as ET
 
 from malcolm.core import RunnableDevice, Attribute, wrap_method, PvAttribute, \
-    VString, VInt, VBool, DState, VTable, VIntArray, VNumber, Sequence, \
+    VString, VInt, VBool, DState, VTable, VNumber, Sequence, \
     SeqAttributeItem, HasConfigSequence
+
+# How big an XML file can the EPICS waveform receive?
+XML_MAX_SIZE = 1000000 - 2
+
+# How many iterations through creating an element tree before checking its size
+CHECK_SIZE_ITERS = 1000
 
 
 class PositionPlugin(HasConfigSequence, RunnableDevice):
@@ -55,7 +61,7 @@ class PositionPlugin(HasConfigSequence, RunnableDevice):
         )
         self.add_listener(self.post_changes, "attributes")
 
-    def _make_xml(self, positions):
+    def _make_xml(self, positions, index):
         # Make xml
         root_el = ET.Element("pos_layout")
         dimensions_el = ET.SubElement(root_el, "dimensions")
@@ -64,15 +70,27 @@ class PositionPlugin(HasConfigSequence, RunnableDevice):
             ET.SubElement(dimensions_el, "dimension", name=name)
         ET.SubElement(dimensions_el, "dimension", name="FilePluginClose")
         positions_el = ET.SubElement(root_el, "positions")
-        data = [column[2] for column in positions]
-        for d in zip(*data):
+        data = [column[2][index:] for column in positions]
+        total_len = len(ET.tostring(root_el)) + len("</positions>")
+        do_last = True
+        for i, d in enumerate(zip(*data)):
             attribs = dict(FilePluginClose="0")
             for n, v in zip(names, d):
                 attribs[n] = str(v)
-            last = ET.SubElement(positions_el, "position", **attribs)
-        last.attrib["FilePluginClose"] = "1"
+            position_el = ET.Element("position", **attribs)
+            #total_len += 100
+            total_len += len(ET.tostring(position_el))
+            if total_len > XML_MAX_SIZE:
+                i -= 1
+                do_last = False
+                break
+            else:
+                positions_el.append(position_el)
+                last = position_el
+        if do_last:
+            last.attrib["FilePluginClose"] = "1"
         xml = ET.tostring(root_el)
-        return xml
+        return xml, index + i + 1
 
     def _validate_positions(self, positions):
         for _, typ, data, _ in positions:
@@ -99,19 +117,30 @@ class PositionPlugin(HasConfigSequence, RunnableDevice):
     def make_config_sequence(self, **valid_params):
         """Return a Sequence object that can be used for configuring"""
         # Add a configuring object
-        sconfig = Sequence(
-            self.name + ".SConfig",
+        seq_items = [
             SeqAttributeItem(
                 "Deleting old positions", self.attributes,
                 delete=True,
             ).always_set(["delete"]),
             SeqAttributeItem(
-                "Configuring positions", self.attributes,
+                "Configuring parameters", self.attributes,
                 enableCallbacks=True,
-                xml=self._make_xml(valid_params["positions"]),
                 **valid_params
-            ).always_set(["xml"])
-        )
+            )
+        ]
+        index = 0
+        while True:
+            xml, index = self._make_xml(valid_params["positions"], index)
+            print len(xml), index, len(valid_params["positions"][0][2])
+            seq_items.append(
+                SeqAttributeItem(
+                    "Configuring positions", self.attributes, xml=xml,
+                ).always_set(["xml"])
+            )
+            if index >= len(valid_params["positions"][0][2]):
+                break
+            self.cothread.Sleep(0.5)
+        sconfig = Sequence(self.name + ".SConfig", *seq_items)
         return sconfig
 
     def do_run(self):
