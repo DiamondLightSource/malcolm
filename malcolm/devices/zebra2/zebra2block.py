@@ -7,13 +7,13 @@ from collections import OrderedDict
 
 class Zebra2Block(Device):
 
-    def __init__(self, name, block, i, comms, field_data, muxes):
+    def __init__(self, name, block, i, comms, field_data, parent):
         self.comms = comms
         self.field_data = field_data
         self._configurable = OrderedDict()
         self.block = block
         self.i = str(i)
-        self._muxes = muxes
+        self.parent = parent
         super(Zebra2Block, self).__init__(name)
         # Now add a setter method for each param
         for attr in self._configurable.values():
@@ -75,7 +75,7 @@ class Zebra2Block(Device):
             for field in self.attributes:
                 # If there are any other blocks connected to a field in the
                 # block then set that field to be disconnected
-                disconnects = self._muxes.get((self, field), [])
+                disconnects = self.parent._muxes.get((self, field), [])
                 # Now disconnect any of our mux inputs
                 if field in self.field_data and \
                         self.field_data[field][0] in ("bit_mux", "pos_mux"):
@@ -86,6 +86,11 @@ class Zebra2Block(Device):
                     zero = attr.typ.labels[0]
                     setter = getattr(listen_block, attr.put_method_name())
                     setter(zero)
+            self.X_COORD = 0
+            self.Y_COORD = 0
+        else:
+            self.X_COORD = self.parent.X_COORD
+            self.Y_COORD = self.parent.Y_COORD
 
     @wrap_method()
     def _set_coords(self, X_COORD, Y_COORD):

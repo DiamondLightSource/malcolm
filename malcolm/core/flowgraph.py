@@ -14,6 +14,8 @@ class FlowGraph(Device):
             X_COORD=Attribute(VDouble, "X co-ordinate for flowgraph centre"),
             Y_COORD=Attribute(VDouble, "Y co-ordinate for flowgraph centre"),
         )
+        self.X_COORD = 0
+        self.Y_COORD = 0
 
     @wrap_method()
     def _set_coords(self, X_COORD, Y_COORD):

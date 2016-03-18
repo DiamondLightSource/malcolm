@@ -50,7 +50,7 @@ class Zebra2(FlowGraph):
         blockname = "{}:{}{}".format(self.name, block, i)
         self._blocks["{}{}".format(block, i)] = self.process.create_device(
             Zebra2Block, blockname, block=block, i=i, comms=self.comms,
-            field_data=field_data, muxes=self._muxes)
+            field_data=field_data, parent=self)
 
     def do_poll(self):
         self.changes.update(self.comms.get_changes())
