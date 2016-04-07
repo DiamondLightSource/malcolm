@@ -45,16 +45,13 @@ class Zebra2Block(Device):
 
     def add_all_attributes(self):
         super(Zebra2Block, self).add_all_attributes()
-        for field, (cls, typ) in self.field_data.items():
-            f = getattr(self, "make_{}_attribute".format(cls))
-            f(field, typ)
         # Add the gui things
         self.add_attributes(
             X_COORD=Attribute(VDouble, "X co-ordinate for flowgraph"),
             Y_COORD=Attribute(VDouble, "Y co-ordinate for flowgraph"),
             VISIBLE=Attribute(VEnum("Hide,Show"),
                               "Does this appear in flowgraph",
-                              tags=["widget:choice"]),
+                              tags=["widget:toggle"]),
             BLOCKNAME=Attribute(VString, "Block name for connections"),
             ICON=Attribute(VString, "Path to icon")
         )
@@ -65,6 +62,9 @@ class Zebra2Block(Device):
         # TODO: fixme to be relative when we are hosting web gui
         url = self.process.serverStrings[0].replace("ws://", "http://")
         self.ICON = "{}/icons/{}.svg".format(url, self.block)
+        for field, (cls, typ) in self.field_data.items():
+            f = getattr(self, "make_{}_attribute".format(cls))
+            f(field, typ)
 
     @wrap_method()
     def _set_visible(self, VISIBLE):
@@ -218,7 +218,8 @@ class Zebra2Block(Device):
         self.add_attribute(field, attr)
         self._configurable[field] = attr
         self.add_attribute(field + ":VAL", Attribute(
-            VBool, field + " current value", tags=["widget:led"]))
+            VBool, field + " current value",
+            tags=["widget:led", "group:Inputs"]))
         attr = Attribute(VInt, field + " clock ticks delay",
                          tags=["widget:textinput", "group:Inputs"])
         self.add_attribute(field + ":DELAY", attr)
