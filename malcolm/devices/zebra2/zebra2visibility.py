@@ -9,7 +9,7 @@ class Zebra2Visibility(Device):
     def __init__(self, name, blocks):
         super(Zebra2Visibility, self).__init__(name)
         self._blocks = blocks
-        for block in self._blocks.values():
+        for _, block in sorted(self._blocks.items()):
             self.add_visibility_func(block)
 
     def make_group(self, name):
