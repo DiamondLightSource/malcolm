@@ -213,7 +213,7 @@ class Zebra2Block(Device):
         desc = self.comms.get_desc(".".join((self.block, field)))
         enums = self.comms.get_enum_labels(".".join((self.block, field)))
         attr = Attribute(VEnum(enums), desc,
-                         tags=["flowgraph:inport:pos", "widget:combo",
+                         tags=["flowgraph:inport:bit", "widget:combo",
                                "group:Inputs"])
         self.add_attribute(field, attr)
         self._configurable[field] = attr
