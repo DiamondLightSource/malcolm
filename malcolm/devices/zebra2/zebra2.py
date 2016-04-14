@@ -106,6 +106,6 @@ class Zebra2(FlowGraph):
             val_attr = block.attributes[field + ":VAL"]
             val_attr.update(mon_block.attributes[mon_field].value)
             # make sure it's visible
-            if mon_field != "ZERO":
+            if mon_field != "ZERO" and block.VISIBLE != "Show":
                 block._set_visible("Show")
         return ret
