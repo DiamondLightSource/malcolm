@@ -44,7 +44,7 @@ setup(
         'Programming Language :: Python :: 2.7',
     ],
     license='APACHE',
-    install_requires=['cothread>=2.14b1', 'pyzmq', 'enum34'],
+    install_requires=['cothread', 'pyzmq', 'enum34'],
     extras_require={
         'zmq':  ['pyzmq']
     },

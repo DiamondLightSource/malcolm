@@ -19,7 +19,7 @@ class JsonPresenter(Presenter):
             # Check camelcase in keys
             match = self.camel_re.match(key)
             if not match:
-                self.log_warning("Key {} isn't camelCase".format(key))
+                self.log_debug("Key {} isn't camelCase".format(key))
             # pop None values
             if value is None:
                 d.pop(key)

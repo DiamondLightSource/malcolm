@@ -22,7 +22,7 @@ class Zebra2Comms(object):
         q = cothread.EventQueue()
         self.respq.Signal(q)
         self.sock.send(msg)
-        resp = q.Wait(1.0)
+        resp = q.Wait(10.0)
         if isinstance(resp, Exception):
             raise resp
         else:

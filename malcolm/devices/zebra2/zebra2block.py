@@ -192,7 +192,7 @@ class Zebra2Block(Device):
             self.add_attribute(field + ":CAPTURE", attr)
             self._configurable[field + ":CAPTURE"] = attr
             attr = Attribute(VInt, field + " cached data to capture from",
-                            tags=["widget:textinput"])
+                             tags=["widget:textinput", "group:Outputs"])
             self.add_attribute(field + ":DATA_DELAY", attr)
             self._configurable[field + ":DATA_DELAY"] = attr
 
@@ -200,12 +200,15 @@ class Zebra2Block(Device):
         self.make_group("Outputs")
         enums = self.comms.get_enum_labels(
             ".".join((self.block, field, "CAPTURE")))
-        field = field + ":CAPTURE"
         attr = Attribute(VEnum(enums), "Capture {} in PCAP?".format(field),
                          tags=["widget:combo"])
-        self.add_attribute(field, attr)
-        self._configurable[field] = attr
+        self.add_attribute(field+ ":CAPTURE", attr)
+        self._configurable[field+ ":CAPTURE"] = attr
         attr.tags.append("group:Outputs")
+        attr = Attribute(VInt, field + " cached data to capture from",
+                         tags=["widget:textinput", "group:Outputs"])
+        self.add_attribute(field + ":DATA_DELAY", attr)
+        self._configurable[field + ":DATA_DELAY"] = attr
 
     def make_bit_mux_attribute(self, field, typ):
         self.make_group("Inputs")

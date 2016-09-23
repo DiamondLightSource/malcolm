@@ -39,6 +39,8 @@ class FileServer(object):
 
         if not path_info:
             return self._not_found(start_response)
+        elif path_info == "/":
+            path_info = "/index.html"
 
         file_path = os.path.join(self.path, path_info[1:])
 
@@ -52,7 +54,10 @@ class FileServer(object):
 
         # If we can't guess mimetype, return a 403 Forbidden
         if mimetype is None:
-            return self._forbidden(start_response)
+            if file_path.endswith(".woff"):
+                mimetype = "application/octet-stream"
+            else:
+                return self._forbidden(start_response)
 
         # Get size of file
         size = os.path.getsize(file_path)

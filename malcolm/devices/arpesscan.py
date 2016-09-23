@@ -55,7 +55,7 @@ class ArpesScan(PausableDevice):
         arange = numpy.arange(start, stop + step * 0.0001, step)
         return arange
 
-    def _create_positions(self, xStart, xStop, xStep, yStart, yStop, yStep):
+    def _create_positions(self, xStart, xStop, xStep, yStart, yStop, yStep, snake):
         xNumPoints = self._npoints(xStart, xStop, xStep)
         yNumPoints = self._npoints(yStart, yStop, yStep)
         xFwd = self._arange(xStart, xStop, xStep)
@@ -83,7 +83,7 @@ class ArpesScan(PausableDevice):
             yIndex[starti:endi] = i
             xIndex[starti:endi] = xRowIndex
             # go the other way for the next row
-            if self.snake:
+            if snake:
                 if xRow is xFwd:
                     xRow = xRev
                     xRowIndex = xRevIndex
@@ -104,7 +104,7 @@ class ArpesScan(PausableDevice):
                  hdf5File="/tmp/foo.h5", snake=True):
         # Create a positions table
         positions, xNumPoints, yNumPoints = self._create_positions(
-            xStart, xStop, xStep, yStart, yStop, yStep)
+            xStart, xStop, xStep, yStart, yStop, yStep, snake)
         xStop = xStart + xStep * (xNumPoints - 1)
         yStop = yStart + yStep * (yNumPoints - 1)
         totalSteps = len(positions[0][2])

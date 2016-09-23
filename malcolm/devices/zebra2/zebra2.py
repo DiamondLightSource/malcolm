@@ -56,8 +56,9 @@ class Zebra2(FlowGraph):
         self.changes.update(self.comms.get_changes())
         for fullfield, val in self.changes.items():
             block, field = fullfield.split(".", 1)
-            assert block in self._blocks, \
-                "Block {} not known".format(block)
+            if block not in self._blocks:
+                print "Block {} not known".format(block)
+                continue
             block = self._blocks[block]
             ret = self.update_attribute(block, field.replace(".", ":"), val)
             if ret is not None:

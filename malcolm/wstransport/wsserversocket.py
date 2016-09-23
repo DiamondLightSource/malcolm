@@ -97,8 +97,7 @@ class WsServerSocket(ServerSocket):
                 inq.Signal([self, msg])
 
         host, port = address.split("://")[1].split(":")
-        path = os.path.join(os.path.dirname(__file__), "static")
-        application = FileServer(path, WsConnection)
+        application = FileServer(".", WsConnection)
         server = make_server(host, int(port), application,
                              server_class=WSGIServer)
         cothread.Spawn(server.serve_forever)
