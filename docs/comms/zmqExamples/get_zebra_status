@@ -1,7 +1,0 @@
-.. code-block:: javascript
-
-    {
-      "type": "Get", 
-      "id": 0, 
-      "endpoint": "zebra1.stateMachine"
-    }

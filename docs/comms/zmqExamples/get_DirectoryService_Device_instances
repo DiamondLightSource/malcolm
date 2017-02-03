@@ -1,7 +1,0 @@
-.. code-block:: javascript
-
-    {
-      "type": "Get", 
-      "id": 0, 
-      "endpoint": "DirectoryService.attributes.Device_instances.value"
-    }
